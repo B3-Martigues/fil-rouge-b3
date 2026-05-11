@@ -8,12 +8,13 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { loginSchema, type LoginFormData } from "../validations/login.schema";
 import { usersMock } from "../mocks/users.mock";
 import useAuthStore from "../store/authStore";
 import { ROUTES } from "../../../shared/constants/routes";
+import type { AuthenticatedUser } from "../../user/types/user";
 
 // UI
 import Input from "../../../shared/components/ui/Input";
@@ -58,11 +59,15 @@ export default function LoginForm() {
         setServerError("Email ou mot de passe incorrect");
         return;
       }
-      login(user);
+
+      /**Suppression du mot de passe avant stockage frontend */
+      const { password, ...rest } = user;
+      const safeUser: AuthenticatedUser = rest;
+      login(safeUser);
 
       //redirection selon rôle
-      if (user.role === "admin") navigate(ROUTES.ADMIN.DASHBOARD);
-      else if (user.role === "company") navigate(ROUTES.COMPANY.DASHBOARD);
+      if (safeUser.role === "admin") navigate(ROUTES.ADMIN.DASHBOARD);
+      else if (safeUser.role === "company") navigate(ROUTES.COMPANY.DASHBOARD);
       else navigate(ROUTES.USER.PROFILE);
       toast.success("Connexion réussie");
     } finally {
@@ -108,6 +113,11 @@ export default function LoginForm() {
         <Button type="submit" loading={loading}>
           Se connecter
         </Button>
+        <br />
+        {/*Lien d'inscription pour un utilisateur non iscrit*/}
+        <Link to={ROUTES.PUBLIC.REGISTER}>
+          <strong>Pas encore inscrit ?</strong>
+        </Link>
       </form>
     </div>
   );

@@ -12,14 +12,16 @@ import type { AuthState } from "./types";
 const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
+      /**Indique si un utilisateur est authentifié */
       isAuthenticated: false,
+
+      /**Utilisateur actuellement connecté */
       currentUser: null,
+
+      /**Rôle de l'utilisateur connecté */
       role: null,
 
-      /**
-       * Connecte un utilisateur (mock ou réel).
-       * Met à jour l'état global avec ses informations.
-       */
+      /**Authentifie un utilisateur et met à jour le store global */
       login: (user) => {
         set({
           isAuthenticated: true,
@@ -28,10 +30,7 @@ const useAuthStore = create<AuthState>()(
         });
       },
 
-      /**
-       * Déconnecte l'utilisateur.
-       * Réinitialise l'état.
-       */
+      /**Déconnecte l'utilisateur et réinitialise l'état global */
       logout: () => {
         set({
           isAuthenticated: false,
@@ -40,9 +39,8 @@ const useAuthStore = create<AuthState>()(
         });
       },
     }),
-    {
-      name: "auth-storage", // clé dans le localStorage
-    },
+    /**Persistence du store dans le localStorage */
+    { name: "auth-storage" },
   ),
 );
 

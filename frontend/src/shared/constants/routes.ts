@@ -1,7 +1,7 @@
 /**Centralisation des routes de l'application */
 
 export const ROUTES = {
-  PUBLIC: { HOME: "/", LOGIN: "/login" },
+  PUBLIC: { HOME: "/", LOGIN: "/login", REGISTER: "/register" },
 
   USER: { PROFILE: "/profile", FAVORITES: "/favorites", HISTORY: "/history" },
 

@@ -9,6 +9,7 @@ import useAuthStore from "../domains/auth/store/authStore";
 import { ROUTES } from "../shared/constants/routes";
 
 import Home from "../domains/events/pages/Home";
+import Register from "../domains/auth/pages/Register";
 import Login from "../domains/auth/pages/Login";
 import Profile from "../domains/user/pages/Profile";
 import AdminDashboard from "../domains/admin/pages/AdminDashboard";
@@ -60,6 +61,7 @@ const Router = () => {
       {/* PUBLIC */}
       <Route element={<PublicLayout />}>
         <Route path={ROUTES.PUBLIC.HOME} element={<Home />} />
+        <Route path={ROUTES.PUBLIC.REGISTER} element={<Register />} />
         <Route path={ROUTES.PUBLIC.LOGIN} element={<Login />} />
       </Route>
 

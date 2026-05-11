@@ -1,7 +1,7 @@
 /**Ce fichier definit le type AuthState
  * Il représente l'état global de l'authentification dans l'application
  */
-import type { User, Role } from "../../user/types/user";
+import type { AuthenticatedUser, Role } from "../../user/types/user";
 
 /**AuthState décrit :
  * - si l'utilisateur est connecté
@@ -11,9 +11,9 @@ import type { User, Role } from "../../user/types/user";
  */
 export type AuthState = {
   isAuthenticated: boolean;
-  currentUser: User | null;
+  currentUser: AuthenticatedUser | null;
   role: Role | null;
 
-  login: (user: User) => void;
+  login: (user: AuthenticatedUser) => void;
   logout: () => void;
 };

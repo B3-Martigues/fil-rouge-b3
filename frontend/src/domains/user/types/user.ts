@@ -29,10 +29,15 @@ export type Preferences = {
 
 /**Type principal représentant un utilisateur */
 export type User = {
-  id: number;
-  username: string;
-  email: string;
-  password: string;
-  role: Role;
-  preferences: Preferences;
+  id: number; /**Identifiant unique utilisateur */
+  username: string; /**Nom affiché dans application */
+  email: string; /**Adresse email utilisée pour la connexion */
+  password: string; /**Mot de passe utilisateur */
+  role: Role; /**Rôle du compte */
+  is_active: boolean; /**Indique si le compte est activé, utile nottament pour les comptes entreprise */
+  preferences: Preferences; /**Préférences utilisateur */
 };
+
+
+/**Utilisateur stocké côté frontend après authentification */
+export type AuthenticatedUser = Omit<User, "password">;
