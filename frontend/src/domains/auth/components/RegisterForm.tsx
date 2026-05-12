@@ -14,8 +14,9 @@ import {
   registerSchema,
   type RegisterFormData,
 } from "../validations/register.schema";
-import type { User } from "../../user/types/user";
+import type { AuthenticatedUser, User } from "../../user/types/user";
 import { ROUTES } from "../../../shared/constants/routes";
+import useAuthStore from "../store/authStore";
 
 // UI
 import Input from "../../../shared/components/ui/Input";
@@ -29,7 +30,7 @@ import { usersMock } from "../mocks/users.mock";
 
 export default function RegisterForm() {
   const navigate = useNavigate();
-
+  const login = useAuthStore((s) => s.login);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -54,7 +55,7 @@ export default function RegisterForm() {
 
       /**Création utilisateur selon type de compte
        * user - accès direct
-       * company - nécessite validation admin
+       * company - accès limité avant validation admin
        */
       const newUser: User = {
         id: Date.now(),
@@ -77,14 +78,19 @@ export default function RegisterForm() {
       };
       /**MOCK (à remplacer par API plus tard) */
       usersMock.push(newUser);
+
+      /**Suppression du mot de passe avant stockage frontend */
+      const { password, ...rest } = newUser;
+      const safeUser: AuthenticatedUser = rest;
+      login(safeUser);
       /**UX feedback selon type de compte */
       if (data.accountType === "company") {
         toast.success("Compte entreprise créé. En attente de validation ");
+        navigate(ROUTES.COMPANY.DASHBOARD);
       } else {
         toast.success("Compte créé avec succès");
+        navigate(ROUTES.USER.PROFILE);
       }
-
-      navigate(ROUTES.PUBLIC.LOGIN);
     } catch {
       setServerError("Erreur lors de l'inscription");
     } finally {
