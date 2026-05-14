@@ -9,8 +9,8 @@ export default function Profile() {
 
   return (
     <div>
-      <h1>Bienvenue {user?.username}</h1>
-      <p>Votre profil utilisateur</p>
+      <h1>Page profil utilisateur</h1>
+      <p>Bienvenue {user?.username}</p>
     </div>
   );
 }

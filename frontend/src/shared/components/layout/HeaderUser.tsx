@@ -1,19 +1,27 @@
+/**Header affiché pour les utilisateur connectés */
 import { NavLink } from "react-router-dom";
-import useAuthStore from "../../../domains/auth/store/authStore";
 import { ROUTES } from "../../constants/routes";
+import LogoutButton from "../../../domains/auth/components/LogoutButton";
 
 export default function HeaderUser() {
-  const user = useAuthStore((s) => s.currentUser);
-
   return (
     <header>
+      {/* Navigation utilisateur */}
       <nav style={{ display: "flex", justifyContent: "center", gap: "50px" }}>
-        <span>Bonjour {user?.username}</span>
-
+        {/* Accès à la carte des événements */}
         <NavLink to={ROUTES.PUBLIC.HOME}>Carte</NavLink>
+
+        {/* Accès au profil utilisateur */}
         <NavLink to={ROUTES.USER.PROFILE}>Profil</NavLink>
+
+        {/* Accès aux événements favoris */}
         <NavLink to={ROUTES.USER.FAVORITES}>Favoris</NavLink>
+
+        {/* Accès à l'historique utilisateur */}
         <NavLink to={ROUTES.USER.HISTORY}>Historique</NavLink>
+
+        {/* Déconnexion utilisateur */}
+        <LogoutButton />
       </nav>
     </header>
   );

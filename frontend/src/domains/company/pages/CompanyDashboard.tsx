@@ -5,8 +5,8 @@
 export default function CompanyDashboard() {
   return (
     <div>
-      <h1>Bienvenue entreprise</h1>
-      <p>Gestion de vos événements</p>
+      <h1>Gestion des événements </h1>
+      <p>Bienvenue sur votre espace entreprise</p>
     </div>
   );
 }

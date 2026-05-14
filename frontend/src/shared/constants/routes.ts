@@ -14,5 +14,6 @@ export const ROUTES = {
     DASHBOARD: "/company",
     EVENTS: "/company/events",
     CREATE: "/company/create",
+    PROFILE: "/company/profile",
   },
 } as const;

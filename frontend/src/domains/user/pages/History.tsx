@@ -9,8 +9,8 @@ export default function History() {
 
   return (
     <div>
-      <h1>Bienvenue {user?.username}</h1>
-      <p>Votre Page d'historique</p>
+      <h1>Page d'historique</h1>
+      <p>Bienvenue {user?.username}</p>
     </div>
   );
 }

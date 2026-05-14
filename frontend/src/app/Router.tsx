@@ -21,6 +21,7 @@ import AdminLayout from "../shared/layouts/AdminLayout";
 import CompanyLayout from "../shared/layouts/CompanyLayout";
 import Favorites from "../domains/user/pages/Favorites";
 import History from "../domains/user/pages/History";
+import CompanyProfile from "../domains/company/pages/CompanyProfile";
 
 type Props = {
   children: ReactNode;
@@ -34,7 +35,7 @@ const PrivateRoute = ({ children }: Props) => {
   return isAuthenticated ? (
     children
   ) : (
-    <Navigate to={ROUTES.PUBLIC.LOGIN} replace />
+    <Navigate to={ROUTES.PUBLIC.HOME} replace />
   );
 };
 
@@ -102,9 +103,10 @@ const Router = () => {
         }
       >
         <Route path={ROUTES.COMPANY.DASHBOARD} element={<CompanyDashboard />} />
+        <Route path={ROUTES.COMPANY.PROFILE} element={<CompanyProfile />} />
       </Route>
 
-      {/* fallback */}
+      {/* FALLBACK */}
       <Route path="*" element={<Navigate to={ROUTES.PUBLIC.HOME} replace />} />
     </Routes>
   );

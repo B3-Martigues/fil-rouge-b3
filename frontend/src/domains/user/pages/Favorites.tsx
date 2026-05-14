@@ -9,8 +9,8 @@ export default function Favorites() {
 
   return (
     <div>
-      <h1>Bienvenue {user?.username}</h1>
-      <p>Votre Page de favoris</p>
+      <h1>Page de favoris</h1>
+      <p>Bienvenue {user?.username}</p>
     </div>
   );
 }
