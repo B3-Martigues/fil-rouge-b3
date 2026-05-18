@@ -8,8 +8,8 @@ export default function HeaderUser() {
     <header>
       {/* Navigation utilisateur */}
       <nav style={{ display: "flex", justifyContent: "center", gap: "50px" }}>
-        {/* Accès à la carte des événements */}
-        <NavLink to={ROUTES.PUBLIC.HOME}>Carte</NavLink>
+        {/* Accès à la page d'accueil */}
+        <NavLink to={ROUTES.PUBLIC.HOME}>Accueil</NavLink>
 
         {/* Accès au profil utilisateur */}
         <NavLink to={ROUTES.USER.PROFILE}>Profil</NavLink>

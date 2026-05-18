@@ -53,6 +53,14 @@ export default function RegisterForm() {
       // Simulation appel API
       await new Promise((resolve) => setTimeout(resolve, 800));
 
+      /**Vérification email déjà utilsé */
+      const existingUser = usersMock.find((user) => user.email === data.email);
+      if (existingUser) {
+        setServerError("Cet email est déjà utilisé");
+        setLoading(false);
+        return;
+      }
+
       /**Création utilisateur selon type de compte
        * user - accès direct
        * company - accès limité avant validation admin
@@ -76,8 +84,6 @@ export default function RegisterForm() {
           sport: false,
         },
       };
-      /**MOCK (à remplacer par API plus tard) */
-      usersMock.push(newUser);
 
       /**Suppression du mot de passe avant stockage frontend */
       const { password, ...rest } = newUser;
