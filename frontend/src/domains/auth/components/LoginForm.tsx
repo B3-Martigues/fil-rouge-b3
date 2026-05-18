@@ -9,10 +9,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import { loginSchema, type LoginFormData } from "../validations/login.schema";
-import { usersMock } from "../mocks/users.mock";
 import useAuthStore from "../store/authStore";
 import { ROUTES } from "../../../shared/constants/routes";
 import type { AuthenticatedUser, Role } from "../../user/types/user";
+import useDataStore from "../../../shared/store/dataStore";
 
 import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
@@ -28,6 +28,7 @@ const getRedirectPathByRole = (role: Role) => {
 export default function LoginForm() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const users = useDataStore((s) => s.users);
 
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -48,7 +49,7 @@ export default function LoginForm() {
     try {
       await new Promise((resolve) => setTimeout(resolve, 800));
 
-      const user = usersMock.find(
+      const user = users.find(
         (u) => u.email === data.email && u.password === data.password,
       );
 

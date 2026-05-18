@@ -13,7 +13,7 @@ import type { Company } from "../../user/types/company";
 import { CATEGORIES } from "../../user/types/category";
 import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../store/authStore";
-import { usersMock } from "../mocks/users.mock";
+import useDataStore from "../../../shared/store/dataStore";
 
 import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
@@ -30,6 +30,9 @@ const toSlug = (value: string) =>
 export default function CompanyRegisterForm() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const users = useDataStore((s) => s.users);
+  const addUser = useDataStore((s) => s.addUser);
+  const addCompany = useDataStore((s) => s.addCompany);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -52,7 +55,7 @@ export default function CompanyRegisterForm() {
     try {
       await new Promise((resolve) => setTimeout(resolve, 800));
 
-      const existingUser = usersMock.find((user) => user.email === data.email);
+      const existingUser = users.find((user) => user.email === data.email);
       if (existingUser) {
         setServerError("Cet email est deja utilise");
         setLoading(false);
@@ -101,7 +104,8 @@ export default function CompanyRegisterForm() {
         },
       };
 
-      usersMock.push(companyUser);
+      addUser(companyUser);
+      addCompany(company);
 
       const { password, ...rest } = companyUser;
       const safeUser: AuthenticatedUser = rest;

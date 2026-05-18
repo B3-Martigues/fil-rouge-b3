@@ -18,7 +18,7 @@ import {
 import type { AuthenticatedUser, User } from "../../user/types/user";
 import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../store/authStore";
-import { usersMock } from "../mocks/users.mock";
+import useDataStore from "../../../shared/store/dataStore";
 
 
 // UI
@@ -31,6 +31,8 @@ import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 export default function RegisterForm() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const users = useDataStore((s) => s.users);
+  const addUser = useDataStore((s) => s.addUser);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -51,7 +53,7 @@ export default function RegisterForm() {
       await new Promise((resolve) => setTimeout(resolve, 800));
 
       /**Vérification email déjà utilsé */
-      const existingUser = usersMock.find((user) => user.email === data.email);
+      const existingUser = users.find((user) => user.email === data.email);
       if (existingUser) {
         setServerError("Cet email est déjà utilisé");
         setLoading(false);
@@ -77,7 +79,7 @@ export default function RegisterForm() {
         },
       };
 
-      usersMock.push(newUser);
+      addUser(newUser);
 
       const { password, ...rest } = newUser;
       const safeUser: AuthenticatedUser = rest;

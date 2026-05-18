@@ -1,5 +1,6 @@
-/**Ce fichier contient des événements fictifs pour le développement du frontend */
-export const eventsMock = [
+import type { Event } from "../types";
+
+export const eventsMock: Event[] = [
   {
     id: 1,
     title: "Jazz Night in the City",
@@ -7,7 +8,7 @@ export const eventsMock = [
     date: "2026-05-01T19:00:00Z",
     latitude: 50.017,
     longitude: 22.679,
-    category: "music",
+    category: "musique",
     image: "https://images.unsplash.com/photo-1511379938547-c1f69419868d",
     source: "city-events.com",
   },
@@ -29,7 +30,7 @@ export const eventsMock = [
     date: "2026-05-10T21:00:00Z",
     latitude: 50.012,
     longitude: 22.665,
-    category: "cinema",
+    category: "culture",
     image: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba",
     source: "cinemaopenair.com",
   },
@@ -40,7 +41,7 @@ export const eventsMock = [
     date: "2026-05-15T18:00:00Z",
     latitude: 50.025,
     longitude: 22.7,
-    category: "tech",
+    category: "conference",
     image: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d",
     source: "meetup.com",
     company_id: 1,
