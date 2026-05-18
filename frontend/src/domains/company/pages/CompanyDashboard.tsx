@@ -14,7 +14,6 @@ export default function CompanyDashboard() {
     return (
       <div>
         <h2>Votre compte est en attente de validation</h2>
-        <p>Completez votre profil entreprise</p>
         <p>Votre compte doit être validé par un administrateur avant de pouvoir créer des événements</p>
       </div>
     );
