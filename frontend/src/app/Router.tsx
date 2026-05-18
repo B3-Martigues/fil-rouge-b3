@@ -10,6 +10,8 @@ import { ROUTES } from "../shared/constants/routes";
 
 import Home from "../domains/events/pages/Home";
 import Register from "../domains/auth/pages/Register";
+import UserRegister from "../domains/auth/pages/UserRegister";
+import CompanyRegister from "../domains/auth/pages/CompanyRegister";
 import Login from "../domains/auth/pages/Login";
 import Profile from "../domains/user/pages/Profile";
 import AdminDashboard from "../domains/admin/pages/AdminDashboard";
@@ -63,6 +65,11 @@ const Router = () => {
       <Route element={<PublicLayout />}>
         <Route path={ROUTES.PUBLIC.HOME} element={<Home />} />
         <Route path={ROUTES.PUBLIC.REGISTER} element={<Register />} />
+        <Route path={ROUTES.PUBLIC.REGISTER_USER} element={<UserRegister />} />
+        <Route
+          path={ROUTES.PUBLIC.REGISTER_COMPANY}
+          element={<CompanyRegister />}
+        />
         <Route path={ROUTES.PUBLIC.LOGIN} element={<Login />} />
       </Route>
 
