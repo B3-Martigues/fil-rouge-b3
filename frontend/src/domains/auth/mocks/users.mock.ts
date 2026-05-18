@@ -55,4 +55,22 @@ export const usersMock: User[] = [
       sport: false,
     },
   },
+  {
+    id: 4,
+    username: "AdminTest",
+    email: "admin@test.fr",
+    password: "Admin123!",
+    role: "admin",
+    is_active: true,
+    preferences: {
+      jour: true,
+      culture: true,
+      musique: true,
+      art: true,
+      tourisme: true,
+      associatif: true,
+      famille: true,
+      sport: true,
+    },
+  },
 ];

@@ -99,6 +99,8 @@ const Router = () => {
         }
       >
         <Route path={ROUTES.ADMIN.DASHBOARD} element={<AdminDashboard />} />
+        <Route path={ROUTES.ADMIN.EVENTS} element={<AdminDashboard />} />
+        <Route path={ROUTES.ADMIN.USERS} element={<AdminDashboard />} />
       </Route>
 
       {/* COMPANY */}

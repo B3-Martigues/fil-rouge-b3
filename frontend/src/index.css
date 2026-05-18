@@ -113,6 +113,123 @@ p {
   cursor: pointer;
 }
 
+.admin-panel {
+  padding: 24px;
+  text-align: left;
+}
+
+.admin-panel__header {
+  margin-bottom: 24px;
+}
+
+.admin-panel__header h1 {
+  margin-bottom: 8px;
+}
+
+.admin-panel__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.admin-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 86px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--social-bg);
+}
+
+.admin-stat__value {
+  color: var(--text-h);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.admin-stat__label {
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.admin-panel__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.admin-section {
+  min-width: 0;
+}
+
+.admin-section h2 {
+  margin-bottom: 12px;
+}
+
+.admin-table {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-table__row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(160px, 1.3fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+
+.admin-section + .admin-section .admin-table__row {
+  grid-template-columns: minmax(160px, 1fr) minmax(90px, 0.5fr) auto;
+}
+
+.admin-badge,
+.admin-status {
+  justify-self: start;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.admin-badge {
+  background: var(--accent-bg);
+  color: var(--text-h);
+}
+
+.admin-status {
+  background: #fff3cd;
+  color: #8a5b00;
+}
+
+.admin-status--active {
+  background: #dff5e7;
+  color: #146c43;
+}
+
+@media (max-width: 760px) {
+  .admin-panel {
+    padding: 16px;
+  }
+
+  .admin-panel__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-table__row,
+  .admin-section + .admin-section .admin-table__row {
+    grid-template-columns: 1fr;
+  }
+}
+
 code,
 .counter {
   font-family: var(--mono);
