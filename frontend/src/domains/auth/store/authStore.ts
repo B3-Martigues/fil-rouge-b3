@@ -38,7 +38,21 @@ const useAuthStore = create<AuthState>()(
           role: null,
         });
       },
+
+      /**Met à jour les données utilisateur */
+      updateUser: (updatedUser) => {
+        set((state) => ({
+          currentUser: state.currentUser
+            ? {
+                ...state.currentUser,
+                ...updatedUser,
+              }
+            : null,
+        }));
+      },
     }),
+
+    
     /**Persistence du store dans le localStorage */
     { name: "auth-storage" },
   ),
