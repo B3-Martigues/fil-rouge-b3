@@ -70,7 +70,9 @@ const Router = () => {
       <Route
         element={
           <PrivateRoute>
-            <PrivateLayout />
+            <RoleRoute role="user">
+              <PrivateLayout />
+            </RoleRoute>
           </PrivateRoute>
         }
       >

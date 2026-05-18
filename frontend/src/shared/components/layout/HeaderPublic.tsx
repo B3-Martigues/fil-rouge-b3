@@ -6,8 +6,8 @@ export default function HeaderPublic() {
     <header>
       {/* Navigation publique */}
       <nav style={{ display: "flex", justifyContent: "center", gap: "50px" }}>
-        {/* Accès à la carte des événements */}
-        <NavLink to="/">Carte</NavLink>
+        {/* Accès à la page d'accueil */}
+        <NavLink to="/">Accueil</NavLink>
 
         {/* Accès à la page de connexion */}
         <NavLink to={ROUTES.PUBLIC.LOGIN}>Connection</NavLink>
