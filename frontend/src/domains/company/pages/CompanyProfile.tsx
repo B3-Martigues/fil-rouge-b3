@@ -1,0 +1,318 @@
+import { useEffect, useState, type FormEvent } from "react";
+import { toast } from "react-toastify";
+
+import useAuthStore from "../../auth/store/authStore";
+import { CATEGORIES, type CategoryName } from "../types/category";
+import type { Company } from "../types/company";
+import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
+import Button from "../../../shared/components/ui/Button";
+import FormField from "../../../shared/components/ui/FormField";
+import Input from "../../../shared/components/ui/Input";
+import useDataStore from "../../../shared/store/dataStore";
+
+type CompanyProfileForm = {
+  name: string;
+  email: string;
+  description: string;
+  website: string;
+  address: string;
+  logo: string;
+  phone_number: string;
+  siret: string;
+  categories: CategoryName[];
+};
+
+type CompanyProfileErrors = Partial<Record<keyof CompanyProfileForm, string>>;
+
+const toSlug = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+const toForm = (company: Company): CompanyProfileForm => ({
+  name: company.name,
+  email: company.email,
+  description: company.description,
+  website: company.website,
+  address: company.address,
+  logo: company.logo,
+  phone_number: company.phone_number.toString().padStart(10, "0"),
+  siret: company.siret,
+  categories: company.categories
+    .map((category) => category.name)
+    .filter((category): category is CategoryName =>
+      CATEGORIES.includes(category as CategoryName),
+    ),
+});
+
+const validateForm = (form: CompanyProfileForm): CompanyProfileErrors => {
+  const errors: CompanyProfileErrors = {};
+
+  if (form.name.trim().length < 2) {
+    errors.name = "Le nom de l'entreprise est requis";
+  }
+
+  if (!form.email.includes("@")) {
+    errors.email = "Email invalide";
+  }
+
+  if (form.description.trim().length < 10) {
+    errors.description = "La description doit contenir au moins 10 caracteres";
+  }
+
+  if (form.website && !URL.canParse(form.website)) {
+    errors.website = "URL du site invalide";
+  }
+
+  if (form.logo && !URL.canParse(form.logo)) {
+    errors.logo = "URL du logo invalide";
+  }
+
+  if (form.address.trim().length < 5) {
+    errors.address = "Adresse requise";
+  }
+
+  if (!/^\d{10}$/.test(form.phone_number)) {
+    errors.phone_number = "Le telephone doit contenir 10 chiffres";
+  }
+
+  if (!/^\d{14}$/.test(form.siret)) {
+    errors.siret = "Le SIRET doit contenir 14 chiffres";
+  }
+
+  if (form.categories.length === 0) {
+    errors.categories = "Selectionnez au moins une categorie";
+  }
+
+  return errors;
+};
+
+export default function CompanyProfile() {
+  const user = useAuthStore((s) => s.currentUser);
+  const login = useAuthStore((s) => s.login);
+  const companies = useDataStore((s) => s.companies);
+  const updateCompany = useDataStore((s) => s.updateCompany);
+  const company = companies.find((item) => item.id === user?.id);
+  const [form, setForm] = useState<CompanyProfileForm | null>(
+    company ? toForm(company) : null,
+  );
+  const [errors, setErrors] = useState<CompanyProfileErrors>({});
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (company) {
+      setForm(toForm(company));
+    }
+  }, [company]);
+
+  const updateField = <Key extends keyof CompanyProfileForm>(
+    field: Key,
+    value: CompanyProfileForm[Key],
+  ) => {
+    setForm((currentForm) =>
+      currentForm ? { ...currentForm, [field]: value } : currentForm,
+    );
+    setErrors((currentErrors) => ({ ...currentErrors, [field]: undefined }));
+  };
+
+  const toggleCategory = (category: CategoryName) => {
+    if (!form) return;
+
+    updateField(
+      "categories",
+      form.categories.includes(category)
+        ? form.categories.filter((item) => item !== category)
+        : [...form.categories, category],
+    );
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setServerError(null);
+
+    if (!company || !form || !user) {
+      setServerError("Impossible de charger le profil entreprise");
+      return;
+    }
+
+    const validationErrors = validateForm(form);
+    setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
+
+    updateCompany(company.id, {
+      name: form.name.trim(),
+      email: form.email.trim(),
+      description: form.description.trim(),
+      website: form.website.trim(),
+      address: form.address.trim(),
+      logo: form.logo.trim(),
+      phone_number: Number(form.phone_number),
+      siret: form.siret.trim(),
+      categories: form.categories.map((category, index) => ({
+        id: index + 1,
+        name: category,
+        slug: toSlug(category),
+      })),
+    });
+
+    login({
+      ...user,
+      username: form.name.trim(),
+      email: form.email.trim(),
+    });
+
+    toast.success("Profil entreprise mis a jour");
+  };
+
+  if (!company || !form) {
+    return (
+      <div className="company-dashboard">
+        <h1>Profil entreprise</h1>
+        <ErrorMessage message="Profil entreprise introuvable" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="company-dashboard">
+      <section className="company-dashboard__header">
+        <h2>Profil entreprise</h2>
+        <p>Bienvenue {user?.username}</p>
+      </section>
+
+      <section className="company-event-form" aria-labelledby="company-profile-title">
+        <h2 id="company-profile-title">Modifier mes informations</h2>
+
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="company-event-form__grid">
+            <FormField
+              label="Nom de l'entreprise"
+              htmlFor="company-name"
+              error={errors.name}
+            >
+              <Input
+                id="company-name"
+                type="text"
+                value={form.name}
+                hasError={!!errors.name}
+                onChange={(event) => updateField("name", event.target.value)}
+              />
+            </FormField>
+
+            <FormField label="Email" htmlFor="company-email" error={errors.email}>
+              <Input
+                id="company-email"
+                type="email"
+                value={form.email}
+                hasError={!!errors.email}
+                onChange={(event) => updateField("email", event.target.value)}
+              />
+            </FormField>
+
+            <div className="company-event-form__wide">
+              <FormField
+                label="Description"
+                htmlFor="company-description"
+                error={errors.description}
+              >
+                <textarea
+                  id="company-description"
+                  className={`input ${errors.description ? "input-error" : ""}`}
+                  rows={4}
+                  value={form.description}
+                  onChange={(event) =>
+                    updateField("description", event.target.value)
+                  }
+                />
+              </FormField>
+            </div>
+
+            <FormField label="Site web" htmlFor="company-website" error={errors.website}>
+              <Input
+                id="company-website"
+                type="url"
+                value={form.website}
+                hasError={!!errors.website}
+                onChange={(event) => updateField("website", event.target.value)}
+              />
+            </FormField>
+
+            <FormField label="Logo" htmlFor="company-logo" error={errors.logo}>
+              <Input
+                id="company-logo"
+                type="url"
+                value={form.logo}
+                hasError={!!errors.logo}
+                onChange={(event) => updateField("logo", event.target.value)}
+              />
+            </FormField>
+
+            <div className="company-event-form__wide">
+              <FormField label="Adresse" htmlFor="company-address" error={errors.address}>
+                <Input
+                  id="company-address"
+                  type="text"
+                  value={form.address}
+                  hasError={!!errors.address}
+                  onChange={(event) => updateField("address", event.target.value)}
+                />
+              </FormField>
+            </div>
+
+            <FormField
+              label="Telephone"
+              htmlFor="company-phone"
+              error={errors.phone_number}
+            >
+              <Input
+                id="company-phone"
+                type="tel"
+                value={form.phone_number}
+                hasError={!!errors.phone_number}
+                onChange={(event) =>
+                  updateField("phone_number", event.target.value)
+                }
+              />
+            </FormField>
+
+            <FormField label="SIRET" htmlFor="company-siret" error={errors.siret}>
+              <Input
+                id="company-siret"
+                type="text"
+                value={form.siret}
+                hasError={!!errors.siret}
+                onChange={(event) => updateField("siret", event.target.value)}
+              />
+            </FormField>
+
+            <fieldset className="company-event-form__wide">
+              <legend>Categories</legend>
+              <div className="categories-select">
+                {CATEGORIES.map((category) => (
+                  <label className="categories-select__option" key={category}>
+                    <input
+                      type="checkbox"
+                      checked={form.categories.includes(category)}
+                      onChange={() => toggleCategory(category)}
+                    />
+                    {category}
+                  </label>
+                ))}
+              </div>
+              {errors.categories && <ErrorMessage message={errors.categories} />}
+            </fieldset>
+          </div>
+
+          {serverError && <ErrorMessage message={serverError} />}
+
+          <Button type="submit">Enregistrer le profil</Button>
+        </form>
+      </section>
+    </div>
+  );
+}

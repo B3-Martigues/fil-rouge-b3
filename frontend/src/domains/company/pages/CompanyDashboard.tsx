@@ -1,6 +1,6 @@
 /**
  * Tableau de bord entreprise.
- * Permet aux comptes valides de creer leurs propres evenements.
+ * Permet aux comptes valides de creer leurs propres évènements.
  */
 
 import { useState, type FormEvent } from "react";
@@ -136,7 +136,7 @@ export default function CompanyDashboard() {
 
     addEvent(newEvent);
     setForm(emptyEventForm());
-    toast.success("Evenement ajoute avec succes");
+    toast.success("Évènement ajoute avec succes");
   };
 
   if (isPendingApproval) {
@@ -145,7 +145,7 @@ export default function CompanyDashboard() {
         <h2>Votre compte est en attente de validation</h2>
         <p>
           Votre compte doit etre validé par un administrateur avant de pouvoir
-          creer des evenements
+          creer des évènements
         </p>
       </div>
     );
@@ -155,7 +155,7 @@ export default function CompanyDashboard() {
     <div className="company-dashboard">
       <section className="company-dashboard__header">
         <h2>Nouvel évènement</h2>
-        <p>Ajoutez un evenement public rattache a votre entreprise.</p>
+        <p>Ajoutez un évènement public rattache a votre entreprise.</p>
       </section>
 
       <section className="company-event-form" aria-labelledby="company-event-form-title">
@@ -286,7 +286,7 @@ export default function CompanyDashboard() {
 
           {serverError && <ErrorMessage message={serverError} />}
 
-          <Button type="submit">Ajouter l'evenement</Button>
+          <Button type="submit">Ajouter l'évènement</Button>
         </form>
       </section>
     </div>

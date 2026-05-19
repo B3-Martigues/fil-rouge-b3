@@ -238,12 +238,12 @@ export default function AdminDashboard() {
 
     if (isCreatingEvent) {
       addEvent({ id: Date.now(), ...payload });
-      toast.success("Evenement cree");
+      toast.success("Évènement cree");
     } else if (editingEventId) {
       const event = eventsData.find((item) => item.id === editingEventId);
       if (!event) return;
       updateEvent(editingEventId, payload);
-      toast.success("Evenement mis a jour");
+      toast.success("Évènement mis a jour");
     }
 
     setEditingEventId(null);
@@ -265,14 +265,14 @@ export default function AdminDashboard() {
     { label: "Administrateurs", value: admins.length },
     { label: "Entreprises", value: companies.length },
     { label: "En attente", value: pendingCompanies.length },
-    { label: "Evenements", value: eventsData.length },
+    { label: "Évènements", value: eventsData.length },
   ];
 
   return (
     <div className="admin-panel">
       <section className="admin-panel__header">
         <h1>Panel admin</h1>
-        <p>Validation et gestion des comptes, entreprises et evenements</p>
+        <p>Validation et gestion des comptes, entreprises et évènements</p>
       </section>
 
       <section className="admin-panel__stats" aria-label="Statistiques admin">
@@ -664,7 +664,7 @@ export default function AdminDashboard() {
 
         <article className="admin-section">
           <div className="admin-section__title">
-            <h2>Evenements</h2>
+            <h2>Évènements</h2>
             <button className="btn" type="button" onClick={startEventCreate}>
               Ajouter
             </button>
@@ -795,7 +795,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          <div className="admin-table admin-table--events" role="table" aria-label="Evenements">
+          <div className="admin-table admin-table--events" role="table" aria-label="Évènements">
             {eventsData.map((event) => (
               <div className="admin-table__row" role="row" key={event.id}>
                 <span>{event.title}</span>

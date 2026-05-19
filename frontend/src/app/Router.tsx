@@ -17,6 +17,7 @@ import Profile from "../domains/user/pages/Profile";
 import AdminDashboard from "../domains/admin/pages/AdminDashboard";
 import CompanyDashboard from "../domains/company/pages/CompanyDashboard";
 import CompanyEvents from "../domains/company/pages/CompanyEvents";
+import CompanyProfile from "../domains/company/pages/CompanyProfile";
 
 import PublicLayout from "../shared/layouts/PublicLayout";
 import PrivateLayout from "../shared/layouts/PrivateLayout";
@@ -114,6 +115,7 @@ const Router = () => {
         }
       >
         <Route path={ROUTES.COMPANY.DASHBOARD} element={<CompanyDashboard />} />
+        <Route path={ROUTES.COMPANY.PROFILE} element={<CompanyProfile />} />
         <Route path={ROUTES.COMPANY.EVENTS} element={<CompanyEvents />} />
         <Route path={ROUTES.COMPANY.CREATE} element={<CompanyDashboard />} />
       </Route>

@@ -14,11 +14,11 @@ export default function HeaderCompany() {
         {/* Accès au profil entreprise */}
         <NavLink to={ROUTES.COMPANY.PROFILE}>Profil</NavLink>
 
-        {/* Gestion des evenements entreprise */}
-        <NavLink to={ROUTES.COMPANY.EVENTS}>Evenements</NavLink>
+        {/* Gestion des évènements entreprise */}
+        <NavLink to={ROUTES.COMPANY.EVENTS}>Évènements</NavLink>
 
-        {/* Creation d'un nouvel evenement */}
-        <NavLink to={ROUTES.COMPANY.CREATE}>Nouvel evenement</NavLink>
+        {/* Creation d'un nouvel évènement */}
+        <NavLink to={ROUTES.COMPANY.CREATE}>Nouvel évènement</NavLink>
 
         {/* Déconnexion utilisateur */}
         <LogoutButton />

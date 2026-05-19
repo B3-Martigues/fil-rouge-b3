@@ -76,7 +76,7 @@ export default function CompanyEvents() {
     });
 
     cancelEdit();
-    toast.success("Evenement mis a jour");
+    toast.success("Évènement mis a jour");
   };
 
   const deleteEvent = (eventId: number) => {
@@ -94,7 +94,7 @@ export default function CompanyEvents() {
         <h2>Votre compte est en attente de validation</h2>
         <p>
           Votre compte doit etre valide par un administrateur avant de pouvoir
-          gerer des evenements.
+          gerer des évènements.
         </p>
       </div>
     );
@@ -103,15 +103,15 @@ export default function CompanyEvents() {
   return (
     <div className="company-dashboard">
       <section className="company-dashboard__header">
-        <h2>Mes evenements</h2>
-        <p>Consultez, modifiez ou supprimez les evenements de votre entreprise.</p>
+        <h2>Mes évènements</h2>
+        <p>Consultez, modifiez ou supprimez les évènements de votre entreprise.</p>
       </section>
 
       <section className="company-events" aria-labelledby="company-events-title">
-        <h2 id="company-events-title">Liste des evenements</h2>
+        <h2 id="company-events-title">Liste des évènements</h2>
 
         {companyEvents.length === 0 ? (
-          <p className="admin-empty">Aucun evenement cree pour le moment.</p>
+          <p className="admin-empty">Aucun évènement cree pour le moment.</p>
         ) : (
           <div className="company-events__list">
             {companyEvents.map((event) => (
@@ -303,7 +303,7 @@ export default function CompanyEvents() {
           </div>
         )}
         <Link className="btn" to={ROUTES.COMPANY.CREATE}>
-          Ajouter un nouvel evenement
+          Ajouter un nouvel évènement
         </Link>
       </section>
     </div>
