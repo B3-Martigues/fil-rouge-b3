@@ -1,4 +1,4 @@
-import type { Company } from "../../user/types/company";
+import type { Company } from "../types/company";
 
 export const companiesMock: Company[] = [
   {

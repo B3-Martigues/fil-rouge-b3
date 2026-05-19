@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { toast } from "react-toastify";
 
-import { EVENT_CATEGORIES, type Event } from "../../events/types";
-import type { Company } from "../../user/types/company";
+import { EVENT_CATEGORIES, type Event } from "../../events/types/category";
+import type { Company } from "../../company/types/company";
 import type { Role, User } from "../../user/types/user";
 import useDataStore from "../../../shared/store/dataStore";
 

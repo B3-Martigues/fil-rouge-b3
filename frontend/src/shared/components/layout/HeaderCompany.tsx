@@ -9,10 +9,16 @@ export default function HeaderCompany() {
       {/* Navigation entreprise */}
       <nav style={{ display: "flex", justifyContent: "center", gap: "50px" }}>
         {/* Accès à la carte publique */}
-        <NavLink to={ROUTES.PUBLIC.HOME}>Accueil</NavLink>
+        {/* <NavLink to={ROUTES.PUBLIC.HOME}>Accueil</NavLink> */}
 
         {/* Accès au profil entreprise */}
         <NavLink to={ROUTES.COMPANY.PROFILE}>Profil</NavLink>
+
+        {/* Gestion des evenements entreprise */}
+        <NavLink to={ROUTES.COMPANY.EVENTS}>Evenements</NavLink>
+
+        {/* Creation d'un nouvel evenement */}
+        <NavLink to={ROUTES.COMPANY.CREATE}>Nouvel evenement</NavLink>
 
         {/* Déconnexion utilisateur */}
         <LogoutButton />

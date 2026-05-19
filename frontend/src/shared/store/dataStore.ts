@@ -4,8 +4,8 @@ import { persist } from "zustand/middleware";
 import { usersMock } from "../../domains/auth/mocks/users.mock";
 import { companiesMock } from "../../domains/company/mocks/companies.mock";
 import { eventsMock } from "../../domains/events/mocks/events.mock";
-import type { Event } from "../../domains/events/types";
-import type { Company } from "../../domains/user/types/company";
+import type { Event } from "../../domains/events/types/category";
+import type { Company } from "../../domains/company/types/company";
 import type { User } from "../../domains/user/types/user";
 
 type DataState = {

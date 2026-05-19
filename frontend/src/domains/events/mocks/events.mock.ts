@@ -1,4 +1,4 @@
-import type { Event } from "../types";
+import type { Event } from "../types/category";
 
 export const eventsMock: Event[] = [
   {
@@ -19,7 +19,7 @@ export const eventsMock: Event[] = [
     date: "2026-05-05T12:00:00Z",
     latitude: 50.02,
     longitude: 22.69,
-    category: "food",
+    category: "gastronomie",
     image: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1",
     source: "foodfest.pl",
   },
@@ -41,7 +41,7 @@ export const eventsMock: Event[] = [
     date: "2026-05-15T18:00:00Z",
     latitude: 50.025,
     longitude: 22.7,
-    category: "conference",
+    category: "technologie",
     image: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d",
     source: "meetup.com",
     company_id: 1,

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { CATEGORIES } from "../../user/types/category";
+import { CATEGORIES } from "../../company/types/category";
 
 const passwordSchema = z
   .string()

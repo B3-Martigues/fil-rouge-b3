@@ -10,7 +10,7 @@ export default function HeaderPublic() {
         <NavLink to="/">Accueil</NavLink>
 
         {/* Accès à la page de connexion */}
-        <NavLink to={ROUTES.PUBLIC.LOGIN}>Connection</NavLink>
+        <NavLink to={ROUTES.PUBLIC.LOGIN}>Connexion</NavLink>
       </nav>
     </header>
   );
