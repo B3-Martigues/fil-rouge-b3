@@ -28,8 +28,9 @@ export type Event = {
   date: string;
   latitude: number;
   longitude: number;
+  address: string;
   /**Liste des catégories liées à l'événement */
-  category: EventCategory[];
+  categories: EventCategory[];
   image?: string;
   source?: string;
   company_id?: number | null;
