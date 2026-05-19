@@ -4,12 +4,12 @@
  */
 
 import { Outlet } from "react-router-dom";
-import HeaderPublic from "../components/layout/HeaderPublic";
+import Header from "../components/layout/Header";
 
 export default function PublicLayout() {
   return (
     <>
-      <HeaderPublic />
+      <Header />
       <main>
         <Outlet />
       </main>

@@ -66,6 +66,19 @@ body {
   margin: 0;
 }
 
+.account-type-badge {
+  display: inline-flex;
+  align-self: center;
+  margin: 14px auto 0;
+  padding: 4px 10px;
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  color: var(--text-h);
+  background: var(--accent-bg);
+  font-size: 14px;
+  font-weight: 700;
+}
+
 h1,
 h2 {
   font-family: var(--heading);
@@ -174,6 +187,126 @@ textarea.input {
 .admin-panel {
   padding: 24px;
   text-align: left;
+}
+
+.events-home {
+  display: grid;
+  gap: 24px;
+  padding: 24px;
+  text-align: left;
+}
+
+.events-home__header {
+  display: grid;
+  gap: 8px;
+}
+
+.events-list {
+  display: grid;
+  gap: 16px;
+}
+
+.events-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(160px, 1fr) minmax(160px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--social-bg);
+}
+
+.events-toolbar label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-h);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.events-toolbar .btn {
+  min-height: 41px;
+  white-space: nowrap;
+}
+
+.events-list__count {
+  color: var(--text-p);
+  font-size: 14px;
+}
+
+.events-list__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.event-card {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.event-card__image {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--social-bg);
+}
+
+.event-card__content {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.event-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-p);
+  font-size: 14px;
+}
+
+.event-card__meta span {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-h);
+  background: var(--social-bg);
+}
+
+.event-card h3 {
+  margin: 0;
+  color: var(--text-h);
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.event-card p {
+  color: var(--text-p);
+}
+
+.event-card__details {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.event-card__details dt {
+  color: var(--text-h);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.event-card__details dd {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
 }
 
 .admin-panel__header {
@@ -646,6 +779,14 @@ textarea.input {
 
   .company-dashboard {
     padding: 16px;
+  }
+
+  .events-home {
+    padding: 16px;
+  }
+
+  .events-toolbar {
+    grid-template-columns: 1fr;
   }
 
   .company-event-form__grid,
