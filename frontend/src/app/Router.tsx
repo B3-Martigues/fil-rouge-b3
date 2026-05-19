@@ -99,9 +99,18 @@ const Router = () => {
           </PrivateRoute>
         }
       >
-        <Route path={ROUTES.ADMIN.DASHBOARD} element={<AdminDashboard />} />
-        <Route path={ROUTES.ADMIN.EVENTS} element={<AdminDashboard />} />
-        <Route path={ROUTES.ADMIN.USERS} element={<AdminDashboard />} />
+        <Route
+          path={ROUTES.ADMIN.DASHBOARD}
+          element={<AdminDashboard view="dashboard" />}
+        />
+        <Route
+          path={ROUTES.ADMIN.EVENTS}
+          element={<AdminDashboard view="events" />}
+        />
+        <Route
+          path={ROUTES.ADMIN.USERS}
+          element={<AdminDashboard view="accounts" />}
+        />
       </Route>
 
       {/* COMPANY */}

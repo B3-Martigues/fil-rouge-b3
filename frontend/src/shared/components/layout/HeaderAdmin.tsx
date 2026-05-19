@@ -14,8 +14,8 @@ export default function HeaderAdmin() {
         {/* Gestion des événements */}
         <NavLink to={ROUTES.ADMIN.EVENTS}>Événements</NavLink>
 
-        {/* Gestion des utilisateurs */}
-        <NavLink to={ROUTES.ADMIN.USERS}>Utilisateurs</NavLink>
+        {/* Gestion des comptes */}
+        <NavLink to={ROUTES.ADMIN.USERS}>Comptes</NavLink>
 
         {/* Déconnexion administrateur */}
         <LogoutButton />

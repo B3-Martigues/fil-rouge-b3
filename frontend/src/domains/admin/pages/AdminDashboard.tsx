@@ -18,8 +18,23 @@ type EventDraft = Omit<Event, "id" | "latitude" | "longitude" | "company_id"> & 
   longitude: string;
   company_id: string;
 };
+type AdminView = "dashboard" | "accounts" | "events";
+
+type AdminDashboardProps = {
+  view?: AdminView;
+};
+type AccountStatusFilter = "all" | "active" | "pending";
+type AccountSort = "username-asc" | "username-desc" | "role-asc";
+type EventSort = "date-asc" | "date-desc" | "title-asc" | "title-desc";
 
 const roleOptions: Role[] = ["user", "admin", "company"];
+
+const normalizeText = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 
 const formatPhoneNumber = (phoneNumber: number) =>
   phoneNumber.toString().padStart(10, "0").replace(/(\d{2})(?=\d)/g, "$1 ");
@@ -75,7 +90,7 @@ const emptyUserDraft = (): UserDraft => ({
   is_active: true,
 });
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ view = "dashboard" }: AdminDashboardProps) {
   const usersData = useDataStore((s) => s.users);
   const companiesData = useDataStore((s) => s.companies);
   const eventsData = useDataStore((s) => s.events);
@@ -96,6 +111,15 @@ export default function AdminDashboard() {
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const [eventDraft, setEventDraft] = useState<EventDraft | null>(null);
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
+  const [accountSearch, setAccountSearch] = useState("");
+  const [accountRoleFilter, setAccountRoleFilter] = useState<Role | "all">("all");
+  const [accountStatusFilter, setAccountStatusFilter] =
+    useState<AccountStatusFilter>("all");
+  const [accountSort, setAccountSort] = useState<AccountSort>("username-asc");
+  const [eventSearch, setEventSearch] = useState("");
+  const [eventCategoryFilter, setEventCategoryFilter] =
+    useState<Event["category"] | "all">("all");
+  const [eventSort, setEventSort] = useState<EventSort>("date-asc");
 
   const users = usersData.filter((user) => user.role === "user");
   const admins = usersData.filter((user) => user.role === "admin");
@@ -268,33 +292,119 @@ export default function AdminDashboard() {
     { label: "Évènements", value: eventsData.length },
   ];
 
+  const isDashboardView = view === "dashboard";
+  const isAccountsView = view === "accounts";
+  const isEventsView = view === "events";
+  const filteredUsers = usersData
+    .filter((user) => {
+      const matchesSearch = normalizeText(
+        [user.username, user.email, user.role].join(" "),
+      ).includes(normalizeText(accountSearch));
+      const matchesRole =
+        accountRoleFilter === "all" || user.role === accountRoleFilter;
+      const matchesStatus =
+        accountStatusFilter === "all" ||
+        (accountStatusFilter === "active" && user.is_active) ||
+        (accountStatusFilter === "pending" && !user.is_active);
+
+      return matchesSearch && matchesRole && matchesStatus;
+    })
+    .sort((firstUser, secondUser) => {
+      if (accountSort === "username-desc") {
+        return secondUser.username.localeCompare(firstUser.username, "fr-FR");
+      }
+
+      if (accountSort === "role-asc") {
+        return firstUser.role.localeCompare(secondUser.role, "fr-FR");
+      }
+
+      return firstUser.username.localeCompare(secondUser.username, "fr-FR");
+    });
+  const filteredEvents = eventsData
+    .filter((event) => {
+      const matchesSearch = normalizeText(
+        [
+          event.title,
+          event.description,
+          event.category,
+          event.address ?? "",
+          event.source ?? "",
+        ].join(" "),
+      ).includes(normalizeText(eventSearch));
+      const matchesCategory =
+        eventCategoryFilter === "all" || event.category === eventCategoryFilter;
+
+      return matchesSearch && matchesCategory;
+    })
+    .sort((firstEvent, secondEvent) => {
+      if (eventSort === "date-desc") {
+        return (
+          new Date(secondEvent.date).getTime() - new Date(firstEvent.date).getTime()
+        );
+      }
+
+      if (eventSort === "title-asc") {
+        return firstEvent.title.localeCompare(secondEvent.title, "fr-FR");
+      }
+
+      if (eventSort === "title-desc") {
+        return secondEvent.title.localeCompare(firstEvent.title, "fr-FR");
+      }
+
+      return (
+        new Date(firstEvent.date).getTime() - new Date(secondEvent.date).getTime()
+      );
+    });
+
   return (
     <div className="admin-panel">
       <section className="admin-panel__header">
-        <h1>Panel admin</h1>
-        <p>Validation et gestion des comptes, entreprises et évènements</p>
-      </section>
-
-      <section className="admin-panel__stats" aria-label="Statistiques admin">
-        {stats.map((stat) => (
-          <article className="admin-stat" key={stat.label}>
-            <span className="admin-stat__value">{stat.value}</span>
-            <span className="admin-stat__label">{stat.label}</span>
-          </article>
-        ))}
-      </section>
-
-      <section className="admin-section admin-section--wide">
-        <div className="admin-section__title">
-          <h2>Entreprises a verifier</h2>
-          <span className="admin-count">{pendingCompanies.length}</span>
+        <div className="admin-panel__heading">
+          <h2>
+            {isDashboardView && "Pannel administrateur"}
+            {isAccountsView && "Comptes"}
+            {isEventsView && "Évènements"}
+          </h2>
+          {isAccountsView && (
+            <button className="btn" type="button" onClick={startUserCreate}>
+              Ajouter
+            </button>
+          )}
+          {isEventsView && (
+            <button className="btn" type="button" onClick={startEventCreate}>
+              Ajouter
+            </button>
+          )}
         </div>
+        <p>
+          {isDashboardView && "Statistiques et validation des entreprises"}
+          {isAccountsView && "Gestion des comptes utilisateurs, entreprises et administrateurs"}
+          {isEventsView && "Gestion des évènements publiés"}
+        </p>
+      </section>
 
-        {pendingCompanies.length === 0 ? (
-          <p className="admin-empty">Aucune entreprise en attente.</p>
-        ) : (
-          <div className="company-review-list">
-            {pendingCompanies.map((company) => (
+      {isDashboardView && (
+        <>
+          <section className="admin-panel__stats" aria-label="Statistiques admin">
+            {stats.map((stat) => (
+              <article className="admin-stat" key={stat.label}>
+                <span className="admin-stat__value">{stat.value}</span>
+                <span className="admin-stat__label">{stat.label}</span>
+              </article>
+            ))}
+          </section>
+
+          <section className="admin-section admin-section--wide">
+            <div className="admin-section__title">
+              <h2>Entreprises a verifier</h2>
+              <span className="admin-count">{pendingCompanies.length}</span>
+            </div>
+
+            {pendingCompanies.length === 0 ? (
+              <p className="admin-empty">Aucune entreprise en attente.</p>
+            ) : (
+              <div className="company-review-list">
+                {pendingCompanies.map((company) => (
               <article className="company-review" key={company.id}>
                 <div className="company-review__media">
                   <img src={company.logo} alt={`Logo ${company.name}`} />
@@ -478,20 +588,16 @@ export default function AdminDashboard() {
                   )}
                 </div>
               </article>
-            ))}
-          </div>
-        )}
-      </section>
+                ))}
+              </div>
+            )}
+          </section>
+        </>
+      )}
 
+      {isAccountsView && (
       <section className="admin-panel__grid">
         <article className="admin-section">
-          <div className="admin-section__title">
-            <h2>Comptes</h2>
-            <button className="btn" type="button" onClick={startUserCreate}>
-              Ajouter
-            </button>
-          </div>
-
           {isCreatingUser && userDraft && (
             <div className="admin-inline-editor admin-create-form">
               <input
@@ -562,8 +668,66 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          <div className="admin-table admin-table--accounts" role="table" aria-label="Comptes">
-            {usersData.map((user) => (
+          <div className="admin-toolbar" aria-label="Filtres des comptes">
+            <label>
+              Rechercher
+              <input
+                value={accountSearch}
+                placeholder="Nom, email, role..."
+                onChange={(event) => setAccountSearch(event.target.value)}
+              />
+            </label>
+            <label>
+              Role
+              <select
+                value={accountRoleFilter}
+                onChange={(event) =>
+                  setAccountRoleFilter(event.target.value as Role | "all")
+                }
+              >
+                <option value="all">Tous les roles</option>
+                {roleOptions.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Statut
+              <select
+                value={accountStatusFilter}
+                onChange={(event) =>
+                  setAccountStatusFilter(event.target.value as AccountStatusFilter)
+                }
+              >
+                <option value="all">Tous les statuts</option>
+                <option value="active">Actifs</option>
+                <option value="pending">En attente</option>
+              </select>
+            </label>
+            <label>
+              Trier par
+              <select
+                value={accountSort}
+                onChange={(event) => setAccountSort(event.target.value as AccountSort)}
+              >
+                <option value="username-asc">Nom A-Z</option>
+                <option value="username-desc">Nom Z-A</option>
+                <option value="role-asc">Role</option>
+              </select>
+            </label>
+          </div>
+
+          <p className="admin-results-count">
+            {filteredUsers.length} compte{filteredUsers.length > 1 ? "s" : ""}
+          </p>
+
+          {filteredUsers.length === 0 ? (
+            <p className="admin-empty">Aucun compte ne correspond aux filtres.</p>
+          ) : (
+            <div className="admin-table admin-table--accounts" role="table" aria-label="Comptes">
+              {filteredUsers.map((user) => (
               <div className="admin-table__row" role="row" key={user.id}>
                 {editingUserId === user.id && userDraft ? (
                   <div className="admin-inline-editor">
@@ -658,18 +822,16 @@ export default function AdminDashboard() {
                   </>
                 )}
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </article>
+      </section>
+      )}
 
+      {isEventsView && (
+      <section className="admin-panel__grid">
         <article className="admin-section">
-          <div className="admin-section__title">
-            <h2>Évènements</h2>
-            <button className="btn" type="button" onClick={startEventCreate}>
-              Ajouter
-            </button>
-          </div>
-
           {eventDraft && (isCreatingEvent || editingEventId) && (
             <div className="admin-form-grid admin-event-form">
               <label>
@@ -795,8 +957,54 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          <div className="admin-table admin-table--events" role="table" aria-label="Évènements">
-            {eventsData.map((event) => (
+          <div className="admin-toolbar" aria-label="Filtres des évènements">
+            <label>
+              Rechercher
+              <input
+                value={eventSearch}
+                placeholder="Titre, description, adresse..."
+                onChange={(event) => setEventSearch(event.target.value)}
+              />
+            </label>
+            <label>
+              Categorie
+              <select
+                value={eventCategoryFilter}
+                onChange={(event) =>
+                  setEventCategoryFilter(event.target.value as Event["category"] | "all")
+                }
+              >
+                <option value="all">Toutes les categories</option>
+                {EVENT_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Trier par
+              <select
+                value={eventSort}
+                onChange={(event) => setEventSort(event.target.value as EventSort)}
+              >
+                <option value="date-asc">Date croissante</option>
+                <option value="date-desc">Date decroissante</option>
+                <option value="title-asc">Titre A-Z</option>
+                <option value="title-desc">Titre Z-A</option>
+              </select>
+            </label>
+          </div>
+
+          <p className="admin-results-count">
+            {filteredEvents.length} evenement{filteredEvents.length > 1 ? "s" : ""}
+          </p>
+
+          {filteredEvents.length === 0 ? (
+            <p className="admin-empty">Aucun evenement ne correspond aux filtres.</p>
+          ) : (
+            <div className="admin-table admin-table--events" role="table" aria-label="Évènements">
+              {filteredEvents.map((event) => (
               <div className="admin-table__row" role="row" key={event.id}>
                 <span>{event.title}</span>
                 <span>{event.category}</span>
@@ -818,10 +1026,12 @@ export default function AdminDashboard() {
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </article>
       </section>
+      )}
     </div>
   );
 }
