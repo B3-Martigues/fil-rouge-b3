@@ -4,6 +4,7 @@
  */
 
 import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import useAuthStore from "../../auth/store/authStore";
@@ -14,17 +15,19 @@ import Input from "../../../shared/components/ui/Input";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import useDataStore from "../../../shared/store/dataStore";
 import { useCompanyAccess } from "../hooks/useCompanyAccess";
+import { ROUTES } from "../../../shared/constants/routes";
 
 type CompanyEventForm = {
   title: string;
   description: string;
   date: string;
   address: string;
+  city: string;
+  postal_code: string;
   latitude: string;
   longitude: string;
-  category: Event["category"];
+  categories: Event["category"][];
   image: string;
-  source: string;
 };
 
 type CompanyEventErrors = Partial<Record<keyof CompanyEventForm, string>>;
@@ -34,11 +37,12 @@ const emptyEventForm = (): CompanyEventForm => ({
   description: "",
   date: "",
   address: "",
+  city: "",
+  postal_code: "",
   latitude: "",
   longitude: "",
-  category: "culture",
+  categories: ["culture"],
   image: "",
-  source: "",
 });
 
 const isValidCoordinate = (value: string, min: number, max: number) => {
@@ -66,8 +70,20 @@ const validateEventForm = (form: CompanyEventForm): CompanyEventErrors => {
     errors.date = "La date est requise";
   }
 
+  if (form.categories.length === 0) {
+    errors.categories = "Selectionnez au moins une categorie";
+  }
+
   if (form.address.trim().length < 5) {
     errors.address = "L'adresse est requise";
+  }
+
+  if (form.city.trim().length < 2) {
+    errors.city = "La ville est requise";
+  }
+
+  if (!/^\d{5}$/.test(form.postal_code.trim())) {
+    errors.postal_code = "Le code postal doit contenir 5 chiffres";
   }
 
   if (!isValidCoordinate(form.latitude, -90, 90)) {
@@ -86,12 +102,15 @@ const validateEventForm = (form: CompanyEventForm): CompanyEventErrors => {
 };
 
 export default function CompanyDashboard() {
+  const navigate = useNavigate();
   const { isPendingApproval } = useCompanyAccess();
   const currentUser = useAuthStore((s) => s.currentUser);
   const addEvent = useDataStore((s) => s.addEvent);
   const [form, setForm] = useState<CompanyEventForm>(emptyEventForm);
   const [errors, setErrors] = useState<CompanyEventErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  const imagePreviewUrl = form.image.trim();
+  const canPreviewImage = imagePreviewUrl !== "" && URL.canParse(imagePreviewUrl);
 
   const updateField = <Key extends keyof CompanyEventForm>(
     field: Key,
@@ -99,6 +118,15 @@ export default function CompanyDashboard() {
   ) => {
     setForm((currentForm) => ({ ...currentForm, [field]: value }));
     setErrors((currentErrors) => ({ ...currentErrors, [field]: undefined }));
+  };
+
+  const toggleCategory = (category: Event["category"]) => {
+    updateField(
+      "categories",
+      form.categories.includes(category)
+        ? form.categories.filter((item) => item !== category)
+        : [...form.categories, category],
+    );
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -127,16 +155,24 @@ export default function CompanyDashboard() {
       latitude: Number(form.latitude),
       longitude: Number(form.longitude),
       address: form.address.trim(),
-      category: form.category,
+      city: form.city.trim(),
+      postal_code: Number(form.postal_code),
+      category: form.categories[0],
+      categories: form.categories,
       image: form.image.trim() || undefined,
-      source: form.source.trim() || "company",
+      source: "Évènement créé par une entreprise",
+      is_approved: false,
       created_at: now,
       updated_at: now,
     };
 
     addEvent(newEvent);
     setForm(emptyEventForm());
-    toast.success("Évènement ajoute avec succes");
+    toast.success("Évènement envoyé en attente de validation");
+    navigate(ROUTES.COMPANY.EVENTS);
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0 });
+    });
   };
 
   if (isPendingApproval) {
@@ -173,22 +209,22 @@ export default function CompanyDashboard() {
               />
             </FormField>
 
-            <FormField label="Categorie" htmlFor="event-category">
-              <select
-                id="event-category"
-                className="input"
-                value={form.category}
-                onChange={(event) =>
-                  updateField("category", event.target.value as Event["category"])
-                }
-              >
+            <div id="event-categories" className="company-event-form__wide">
+              <span className="form-field-label">Categories</span>
+              <div className="categories-select">
                 {EVENT_CATEGORIES.map((category) => (
-                  <option key={category} value={category}>
+                  <label className="categories-select__option" key={category}>
+                    <input
+                      type="checkbox"
+                      checked={form.categories.includes(category)}
+                      onChange={() => toggleCategory(category)}
+                    />
                     {category}
-                  </option>
+                  </label>
                 ))}
-              </select>
-            </FormField>
+              </div>
+              {errors.categories && <ErrorMessage message={errors.categories} />}
+            </div>
 
             <div className="company-event-form__wide">
               <FormField
@@ -232,10 +268,40 @@ export default function CompanyDashboard() {
               />
             </FormField>
 
+            <FormField label="Ville" htmlFor="event-city" error={errors.city}>
+              <Input
+                id="event-city"
+                type="text"
+                autoComplete="address-level2"
+                value={form.city}
+                hasError={!!errors.city}
+                aria-describedby={errors.city ? "event-city-error" : undefined}
+                onChange={(event) => updateField("city", event.target.value)}
+              />
+            </FormField>
+
+            <FormField
+              label="Code postal"
+              htmlFor="event-postal-code"
+              error={errors.postal_code}
+            >
+              <Input
+                id="event-postal-code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="postal-code"
+                value={form.postal_code}
+                hasError={!!errors.postal_code}
+                aria-describedby={
+                  errors.postal_code ? "event-postal-code-error" : undefined
+                }
+                onChange={(event) => updateField("postal_code", event.target.value)}
+              />
+            </FormField>
+
             <FormField label="Latitude" htmlFor="event-latitude" error={errors.latitude}>
               <Input
                 id="event-latitude"
-                type="number"
                 step="any"
                 min="-90"
                 max="90"
@@ -249,7 +315,6 @@ export default function CompanyDashboard() {
             <FormField label="Longitude" htmlFor="event-longitude" error={errors.longitude}>
               <Input
                 id="event-longitude"
-                type="number"
                 step="any"
                 min="-180"
                 max="180"
@@ -260,28 +325,25 @@ export default function CompanyDashboard() {
               />
             </FormField>
 
-            <FormField label="Image" htmlFor="event-image" error={errors.image}>
-              <Input
-                id="event-image"
-                type="url"
-                value={form.image}
-                hasError={!!errors.image}
-                aria-describedby={errors.image ? "event-image-error" : undefined}
-                onChange={(event) => updateField("image", event.target.value)}
-              />
-            </FormField>
+            <div className="company-event-form__wide company-event-form__image-field">
+              <FormField label="Image" htmlFor="event-image" error={errors.image}>
+                <Input
+                  id="event-image"
+                  type="url"
+                  value={form.image}
+                  hasError={!!errors.image}
+                  aria-describedby={errors.image ? "event-image-error" : undefined}
+                  onChange={(event) => updateField("image", event.target.value)}
+                />
+              </FormField>
 
-            <FormField label="Source" htmlFor="event-source" error={errors.source}>
-              <Input
-                id="event-source"
-                type="text"
-                value={form.source}
-                hasError={!!errors.source}
-                aria-describedby={errors.source ? "event-source-error" : undefined}
-                placeholder="company"
-                onChange={(event) => updateField("source", event.target.value)}
-              />
-            </FormField>
+              <div className="company-event-form__image-preview">
+              <span>Aperçu de l'image</span>
+                {canPreviewImage && (
+                  <img src={imagePreviewUrl} alt="" loading="lazy" />
+                )}
+              </div>
+            </div>
           </div>
 
           {serverError && <ErrorMessage message={serverError} />}

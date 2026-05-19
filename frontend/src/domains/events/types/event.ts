@@ -13,9 +13,12 @@ export type Event = {
   date: string; /**Date et heure de l'événement */
   latitude: number; /**Latitude du lieu */
   longitude: number; /**Longitude du lieu */
-  address: string; /**Adresse complète de l'événement */
+  address: string; /**Adresse de l'événement */
+  city: string; /**Ville de l'événement */
+  postal_code: number; /**Code postal de l'événement */
   image: string; /**Image de l'événement */
   source: string; /**Source de l'événement (API, scraping, manuel, etc.) */
+  is_approved?: boolean; /**Statut de validation par un administrateur */
   created_at: string; /**Date de création */
   updated_at: string; /**Date de dernière modification */
 };

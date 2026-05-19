@@ -7,9 +7,12 @@ Frontend de l'application de gestion et découverte d'événements géolocalisé
 L'application permet:
 
 - la consultation d'événements sur une carte
+- la recherche et le filtrage des événements par catégorie, ville et code postal
 - l'authentification utilisateur
 - la gestion des favoris et de l'historique
 - la gestion d'événements par les entreprises
+- la validation des comptes entreprise par l'administration
+- la validation des événements par l'administration avant affichage public
 - l'administration de la plateforme
 
 Version actuelle :
@@ -80,7 +83,7 @@ Contient:
 company/
 Contient:
 
-- pages # pages liées à l'espace entreprise (dashboard, profil)
+- pages # pages liées à l'espace entreprise (dashboard, profil, gestion des événements)
 - components # composants spécifiques à l'entreprise
 - hooks # logique métier liée aux entreprises (ex. accès, is_active)
 - api # futurs appels API backend pour les entreprises
@@ -92,7 +95,7 @@ Contient:
 admin/
 Contient:
 
-- pages # pages d'administration (dashboard, gestion utilisateurs, gestion événements )
+- pages # pages d'administration (dashboard, gestion utilisateurs, gestion événements, validations)
 - components # composants spécifiques à l'administration
 - api # futurs appels API backend pour l'administration
 - styles # styles liés à l'espace administrateur
@@ -125,7 +128,7 @@ Contient:
 L'application gère actuellement plusieurs rôles:
 
 - user # compte utilisateur classique avèc accès immédiat
-- company # compte entreprise en attente de validation administrateur
+- company # compte entreprise avec accès limité tant que la validation administrateur est en attente
 - admin # accès à l'administration de la plateforme
 
 Les accès sont protégés via:
@@ -133,6 +136,18 @@ Les accès sont protégés via:
 - des routes privées
 - des guards de rôles
 - des conditions métier (is_active pour les entreprises)
+
+Règles métier actuelles:
+
+- un compte company en attente conserve uniquement les onglets Accueil et Profil
+- un compte company validé accède à la création et à la gestion de ses événements
+- une connexion company redirige vers /company/events
+- un événement créé ou modifié par une company repasse en attente de validation
+- la date de création d'un événement est conservée lors des modifications
+- la liste des événements company reprend l'affichage des cartes de validation admin
+- seuls les événements validés sont affichés dans le listing public
+- l'administration affiche les statistiques des entreprises et événements en attente
+- l'administration peut modifier, supprimer ou valider les entreprises et événements en attente
 
 ## Authentification
 

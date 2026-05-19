@@ -2,8 +2,11 @@
 import { NavLink } from "react-router-dom";
 import { ROUTES } from "../../constants/routes";
 import LogoutButton from "../../../domains/auth/components/LogoutButton";
+import { useCompanyAccess } from "../../../domains/company/hooks/useCompanyAccess";
 
 export default function HeaderCompany() {
+  const { canManageEvents } = useCompanyAccess();
+
   return (
     <header>
       {/* Navigation entreprise */}
@@ -14,11 +17,15 @@ export default function HeaderCompany() {
         {/* Accès au profil entreprise */}
         <NavLink to={ROUTES.COMPANY.PROFILE}>Profil</NavLink>
 
-        {/* Gestion des évènements entreprise */}
-        <NavLink to={ROUTES.COMPANY.EVENTS}>Évènements</NavLink>
+        {canManageEvents && (
+          <>
+            {/* Gestion des évènements entreprise */}
+            <NavLink to={ROUTES.COMPANY.EVENTS}>Évènements</NavLink>
 
-        {/* Creation d'un nouvel évènement */}
-        <NavLink to={ROUTES.COMPANY.CREATE}>Nouvel évènement</NavLink>
+            {/* Creation d'un nouvel évènement */}
+            <NavLink to={ROUTES.COMPANY.CREATE}>Nouvel évènement</NavLink>
+          </>
+        )}
 
         {/* Déconnexion utilisateur */}
         <LogoutButton />

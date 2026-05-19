@@ -8,12 +8,21 @@ import useDataStore from "../../../shared/store/dataStore";
 import { ROUTES } from "../../../shared/constants/routes";
 import { useCompanyAccess } from "../hooks/useCompanyAccess";
 
+type EventSort = "created-desc" | "date-asc" | "date-desc" | "title-asc" | "city-asc";
+
 type EventDraft = Omit<
   Event,
-  "id" | "latitude" | "longitude" | "company_id" | "created_at" | "updated_at"
+  | "id"
+  | "latitude"
+  | "longitude"
+  | "company_id"
+  | "postal_code"
+  | "created_at"
+  | "updated_at"
 > & {
   latitude: string;
   longitude: string;
+  postal_code: string;
 };
 
 const toEventDraft = (event: Event): EventDraft => ({
@@ -23,10 +32,35 @@ const toEventDraft = (event: Event): EventDraft => ({
   latitude: String(event.latitude),
   longitude: String(event.longitude),
   address: event.address ?? "",
+  city: event.city ?? "",
+  postal_code: event.postal_code?.toString() ?? "",
   category: event.category,
+  categories: event.categories ?? [event.category],
   image: event.image ?? "",
-  source: event.source ?? "",
+  source:
+    event.source === "company" || event.source === "Entreprise"
+      ? "Évènement créé par une entreprise"
+      : event.source ?? "",
 });
+
+const getEventCategories = (event: Event) =>
+  event.categories && event.categories.length > 0 ? event.categories : [event.category];
+
+const toggleDraftCategory = (
+  draft: EventDraft,
+  category: Event["category"],
+): EventDraft => {
+  const currentCategories = draft.categories ?? [draft.category];
+  const nextCategories = currentCategories.includes(category)
+    ? currentCategories.filter((item) => item !== category)
+    : [...currentCategories, category];
+
+  return {
+    ...draft,
+    category: nextCategories[0] ?? draft.category,
+    categories: nextCategories,
+  };
+};
 
 export default function CompanyEvents() {
   const { isPendingApproval } = useCompanyAccess();
@@ -36,8 +70,60 @@ export default function CompanyEvents() {
   const deleteEventFromStore = useDataStore((s) => s.deleteEvent);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const [eventDraft, setEventDraft] = useState<EventDraft | null>(null);
+  const [eventSearch, setEventSearch] = useState("");
+  const [eventCityFilter, setEventCityFilter] = useState("all");
+  const [eventSort, setEventSort] = useState<EventSort>("created-desc");
 
   const companyEvents = events.filter((event) => event.company_id === currentUser?.id);
+  const companyCities = Array.from(
+    new Set(
+      companyEvents
+        .map((event) => event.city?.trim())
+        .filter((city): city is string => Boolean(city)),
+    ),
+  ).sort((firstCity, secondCity) => firstCity.localeCompare(secondCity, "fr-FR"));
+  const filteredCompanyEvents = companyEvents
+    .filter((event) => {
+      const normalizedSearch = eventSearch.trim().toLowerCase();
+      const matchesSearch = [
+        event.title,
+        event.description,
+        event.address ?? "",
+        event.city ?? "",
+        event.postal_code?.toString() ?? "",
+        getEventCategories(event).join(" "),
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedSearch);
+      const matchesCity = eventCityFilter === "all" || event.city === eventCityFilter;
+
+      return matchesSearch && matchesCity;
+    })
+    .sort((firstEvent, secondEvent) => {
+      if (eventSort === "created-desc") {
+        return (
+          new Date(secondEvent.created_at ?? 0).getTime() -
+          new Date(firstEvent.created_at ?? 0).getTime()
+        );
+      }
+
+      if (eventSort === "date-desc") {
+        return (
+          new Date(secondEvent.date).getTime() - new Date(firstEvent.date).getTime()
+        );
+      }
+
+      if (eventSort === "title-asc") {
+        return firstEvent.title.localeCompare(secondEvent.title, "fr-FR");
+      }
+
+      if (eventSort === "city-asc") {
+        return (firstEvent.city ?? "").localeCompare(secondEvent.city ?? "", "fr-FR");
+      }
+
+      return new Date(firstEvent.date).getTime() - new Date(secondEvent.date).getTime();
+    });
 
   const startEdit = (event: Event) => {
     setEditingEventId(event.id);
@@ -67,16 +153,18 @@ export default function CompanyEvents() {
       latitude: Number(eventDraft.latitude),
       longitude: Number(eventDraft.longitude),
       address: eventDraft.address?.trim() || undefined,
-      category: eventDraft.category,
+      city: eventDraft.city?.trim() || undefined,
+      postal_code: eventDraft.postal_code ? Number(eventDraft.postal_code) : undefined,
+      category: (eventDraft.categories?.[0] ?? eventDraft.category) as Event["category"],
+      categories: eventDraft.categories,
       image: eventDraft.image?.trim() || undefined,
-      source: eventDraft.source?.trim() || "company",
+      source: eventDraft.source?.trim() || "Évènement créé par une entreprise",
       company_id: currentUser.id,
-      created_at: originalEvent.created_at,
-      updated_at: new Date().toISOString(),
+      is_approved: false,
     });
 
     cancelEdit();
-    toast.success("Évènement mis a jour");
+    toast.success("Évènement mis a jour, en attente de validation");
   };
 
   const deleteEvent = (eventId: number) => {
@@ -110,14 +198,59 @@ export default function CompanyEvents() {
       <section className="company-events" aria-labelledby="company-events-title">
         <h2 id="company-events-title">Liste des évènements</h2>
 
+        <div className="admin-toolbar" aria-label="Filtres des évènements entreprise">
+          <label>
+            Rechercher
+            <input
+              value={eventSearch}
+              placeholder="Titre, ville, code postal..."
+              onChange={(event) => setEventSearch(event.target.value)}
+            />
+          </label>
+          <label>
+            Ville
+            <select
+              value={eventCityFilter}
+              onChange={(event) => setEventCityFilter(event.target.value)}
+            >
+              <option value="all">Toutes les villes</option>
+              {companyCities.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Trier par
+            <select
+              value={eventSort}
+              onChange={(event) => setEventSort(event.target.value as EventSort)}
+            >
+              <option value="created-desc">Date de création</option>
+              <option value="date-asc">Date croissante</option>
+              <option value="date-desc">Date decroissante</option>
+              <option value="title-asc">Titre A-Z</option>
+              <option value="city-asc">Ville A-Z</option>
+            </select>
+          </label>
+        </div>
+
         {companyEvents.length === 0 ? (
           <p className="admin-empty">Aucun évènement cree pour le moment.</p>
+        ) : filteredCompanyEvents.length === 0 ? (
+          <p className="admin-empty">Aucun évènement ne correspond aux filtres.</p>
         ) : (
-          <div className="company-events__list">
-            {companyEvents.map((event) => (
-              <article className="company-event" key={event.id}>
+          <div className="company-review-list">
+            {filteredCompanyEvents.map((event) => (
+              <article className="company-review" key={event.id}>
+                <div className="company-review__media">
+                  {event.image && <img src={event.image} alt={`Visuel ${event.title}`} />}
+                </div>
+
+                <div className="company-review__content">
                 {editingEventId === event.id && eventDraft ? (
-                  <div className="company-event-editor">
+                  <div className="admin-form-grid">
                     <label>
                       Titre
                       <input
@@ -131,26 +264,27 @@ export default function CompanyEvents() {
                       />
                     </label>
 
-                    <label>
-                      Categorie
-                      <select
-                        value={eventDraft.category}
-                        onChange={(inputEvent) =>
-                          setEventDraft({
-                            ...eventDraft,
-                            category: inputEvent.target.value as Event["category"],
-                          })
-                        }
-                      >
+                    <div className="admin-form-grid__wide">
+                      <span className="form-field-label">Categories</span>
+                      <div className="categories-select">
                         {EVENT_CATEGORIES.map((category) => (
-                          <option key={category} value={category}>
+                          <label className="categories-select__option" key={category}>
+                            <input
+                              type="checkbox"
+                              checked={(eventDraft.categories ?? [eventDraft.category]).includes(
+                                category,
+                              )}
+                              onChange={() =>
+                                setEventDraft(toggleDraftCategory(eventDraft, category))
+                              }
+                            />
                             {category}
-                          </option>
+                          </label>
                         ))}
-                      </select>
-                    </label>
+                      </div>
+                    </div>
 
-                    <label className="company-event-editor__wide">
+                    <label className="admin-form-grid__wide">
                       Description
                       <textarea
                         rows={4}
@@ -186,6 +320,33 @@ export default function CompanyEvents() {
                           setEventDraft({
                             ...eventDraft,
                             address: inputEvent.target.value,
+                          })
+                        }
+                      />
+                    </label>
+
+                    <label>
+                      Ville
+                      <input
+                        value={eventDraft.city}
+                        onChange={(inputEvent) =>
+                          setEventDraft({
+                            ...eventDraft,
+                            city: inputEvent.target.value,
+                          })
+                        }
+                      />
+                    </label>
+
+                    <label>
+                      Code postal
+                      <input
+                        inputMode="numeric"
+                        value={eventDraft.postal_code}
+                        onChange={(inputEvent) =>
+                          setEventDraft({
+                            ...eventDraft,
+                            postal_code: inputEvent.target.value,
                           })
                         }
                       />
@@ -234,20 +395,7 @@ export default function CompanyEvents() {
                       />
                     </label>
 
-                    <label>
-                      Source
-                      <input
-                        value={eventDraft.source}
-                        onChange={(inputEvent) =>
-                          setEventDraft({
-                            ...eventDraft,
-                            source: inputEvent.target.value,
-                          })
-                        }
-                      />
-                    </label>
-
-                    <div className="admin-actions company-event-editor__wide">
+                    <div className="admin-actions admin-form-grid__wide">
                       <button className="btn" type="button" onClick={saveEvent}>
                         Enregistrer
                       </button>
@@ -262,42 +410,82 @@ export default function CompanyEvents() {
                   </div>
                 ) : (
                   <>
-                    <div>
-                      <h3>{event.title}</h3>
-                      <p>{event.description}</p>
+                    <div className="company-review__header">
+                      <div>
+                        <h3>{event.title}</h3>
+                        <p>{event.description}</p>
+                      </div>
+                      <span
+                        className={`admin-status ${
+                          event.is_approved === false ? "" : "admin-status--active"
+                        }`}
+                      >
+                        {event.is_approved === false ? "En attente" : "Validé"}
+                      </span>
                     </div>
-                    <dl>
+                    <dl className="company-review__details">
                       <div>
                         <dt>Date</dt>
                         <dd>{new Date(event.date).toLocaleString("fr-FR")}</dd>
                       </div>
                       <div>
-                        <dt>Categorie</dt>
-                        <dd>{event.category}</dd>
+                        <dt>Coordonnees</dt>
+                        <dd>
+                          {event.latitude}, {event.longitude}
+                        </dd>
                       </div>
                       <div>
                         <dt>Adresse</dt>
                         <dd>{event.address ?? "Non renseignee"}</dd>
                       </div>
+                      <div>
+                        <dt>Ville</dt>
+                        <dd>{event.city ?? "Non renseignee"}</dd>
+                      </div>
+                      <div>
+                        <dt>Code postal</dt>
+                        <dd>
+                          {event.postal_code ?? "Non renseigne"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Date de creation</dt>
+                        <dd>
+                          {event.created_at
+                            ? new Date(event.created_at).toLocaleString("fr-FR")
+                            : "Non renseignee"}
+                        </dd>
+                      </div>
                     </dl>
-                    <div className="admin-actions">
-                      <button
-                        className="btn btn--secondary"
-                        type="button"
-                        onClick={() => startEdit(event)}
-                      >
-                        Modifier
-                      </button>
-                      <button
-                        className="btn btn--danger"
-                        type="button"
-                        onClick={() => deleteEvent(event.id)}
-                      >
-                        Supprimer
-                      </button>
+                    <div className="company-review__footer">
+                      <div className="company-review__categories">
+                        {getEventCategories(event).map((category) => (
+                          <span className="admin-badge" key={category}>
+                            {category}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="admin-actions">
+                        <button
+                          className="btn btn--secondary"
+                          type="button"
+                          onClick={() => startEdit(event)}
+                        >
+                          Modifier
+                        </button>
+                        <button
+                          className="btn btn--danger"
+                          type="button"
+                          onClick={() => deleteEvent(event.id)}
+                        >
+                          Supprimer
+                        </button>
+                      </div>
                     </div>
                   </>
                 )}
+                </div>
               </article>
             ))}
           </div>

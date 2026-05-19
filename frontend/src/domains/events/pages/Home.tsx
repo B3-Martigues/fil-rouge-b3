@@ -8,7 +8,7 @@ import { useMemo, useState } from "react";
 import useDataStore from "../../../shared/store/dataStore";
 import { EVENT_CATEGORIES, type EventCategory } from "../types/category";
 
-type SortValue = "date-asc" | "date-desc" | "title-asc" | "title-desc";
+type SortValue = "date-asc" | "date-desc" | "title-asc" | "title-desc" | "city-asc";
 
 const normalizeText = (value: string) =>
   value
@@ -17,29 +17,51 @@ const normalizeText = (value: string) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
+const getEventCategories = (event: { category: EventCategory; categories?: EventCategory[] }) =>
+  event.categories && event.categories.length > 0 ? event.categories : [event.category];
+
 export default function Home() {
   const events = useDataStore((s) => s.events);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<EventCategory | "all">("all");
+  const [city, setCity] = useState("all");
   const [sort, setSort] = useState<SortValue>("date-asc");
+  const availableCities = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          events
+            .filter((event) => event.is_approved !== false)
+            .map((event) => event.city?.trim())
+            .filter((eventCity): eventCity is string => Boolean(eventCity)),
+        ),
+      ).sort((firstCity, secondCity) => firstCity.localeCompare(secondCity, "fr-FR")),
+    [events],
+  );
 
   const visibleEvents = useMemo(() => {
     const normalizedSearch = normalizeText(search);
 
     return events
       .filter((event) => {
-        const matchesCategory = category === "all" || event.category === category;
+        if (event.is_approved === false) return false;
+
+        const eventCategories = getEventCategories(event);
+        const matchesCategory = category === "all" || eventCategories.includes(category);
+        const matchesCity = city === "all" || event.city === city;
         const searchableContent = normalizeText(
           [
             event.title,
             event.description,
             event.address ?? "",
-            event.category,
+            event.city ?? "",
+            event.postal_code?.toString() ?? "",
+            eventCategories.join(" "),
             event.source ?? "",
           ].join(" "),
         );
 
-        return matchesCategory && searchableContent.includes(normalizedSearch);
+        return matchesCategory && matchesCity && searchableContent.includes(normalizedSearch);
       })
       .sort((firstEvent, secondEvent) => {
         if (sort === "date-desc") {
@@ -57,14 +79,18 @@ export default function Home() {
           return secondEvent.title.localeCompare(firstEvent.title, "fr-FR");
         }
 
+        if (sort === "city-asc") {
+          return (firstEvent.city ?? "").localeCompare(secondEvent.city ?? "", "fr-FR");
+        }
+
         return (
           new Date(firstEvent.date).getTime() -
           new Date(secondEvent.date).getTime()
         );
       });
-  }, [category, events, search, sort]);
+  }, [category, city, events, search, sort]);
 
-  const hasFilters = search.trim() !== "" || category !== "all";
+  const hasFilters = search.trim() !== "" || category !== "all" || city !== "all";
 
   return (
     <div className="events-home">
@@ -83,7 +109,7 @@ export default function Home() {
               className="input"
               type="search"
               value={search}
-              placeholder="Titre, description, adresse..."
+              placeholder="Titre, ville, code postal..."
               onChange={(event) => setSearch(event.target.value)}
             />
           </label>
@@ -107,6 +133,22 @@ export default function Home() {
           </label>
 
           <label>
+            Ville
+            <select
+              className="input"
+              value={city}
+              onChange={(event) => setCity(event.target.value)}
+            >
+              <option value="all">Toutes les villes</option>
+              {availableCities.map((eventCity) => (
+                <option key={eventCity} value={eventCity}>
+                  {eventCity}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
             Trier par
             <select
               className="input"
@@ -117,6 +159,7 @@ export default function Home() {
               <option value="date-desc">Date décroissante</option>
               <option value="title-asc">Titre A-Z</option>
               <option value="title-desc">Titre Z-A</option>
+              <option value="city-asc">Ville A-Z</option>
             </select>
           </label>
 
@@ -127,6 +170,7 @@ export default function Home() {
               onClick={() => {
                 setSearch("");
                 setCategory("all");
+                setCity("all");
               }}
             >
               Réinitialiser
@@ -155,7 +199,7 @@ export default function Home() {
 
                 <div className="event-card__content">
                   <div className="event-card__meta">
-                    <span>{event.category}</span>
+                    <span>{getEventCategories(event).join(", ")}</span>
                     <time dateTime={event.date}>
                       {new Date(event.date).toLocaleDateString("fr-FR", {
                         day: "2-digit",
@@ -181,6 +225,16 @@ export default function Home() {
                     <div>
                       <dt>Adresse</dt>
                       <dd>{event.address ?? "Adresse non renseignée"}</dd>
+                    </div>
+                    <div>
+                      <dt>Ville</dt>
+                      <dd>{event.city ?? "Ville non renseignée"}</dd>
+                    </div>
+                    <div>
+                      <dt>Code postal</dt>
+                      <dd>
+                        {event.postal_code ?? "Code postal non renseigné"}
+                      </dd>
                     </div>
                   </dl>
                 </div>

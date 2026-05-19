@@ -32,10 +32,14 @@ export type Event = {
   latitude: number;
   longitude: number;
   address?: string;
+  city?: string;
+  postal_code?: number;
   category: EventCategory;
+  categories?: EventCategory[];
   image?: string;
   source?: string;
   company_id?: number | null;
+  is_approved?: boolean;
   created_at?: string;
   updated_at?: string;
 };

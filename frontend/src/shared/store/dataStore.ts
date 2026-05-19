@@ -19,7 +19,8 @@ type DataState = {
   updateCompany: (companyId: number, data: Partial<Company>) => void;
   activateCompany: (companyId: number) => void;
   addEvent: (event: Event) => void;
-  updateEvent: (eventId: number, data: Omit<Event, "id">) => void;
+  updateEvent: (eventId: number, data: Partial<Omit<Event, "id" | "created_at">>) => void;
+  approveEvent: (eventId: number) => void;
   deleteEvent: (eventId: number) => void;
 };
 
@@ -109,7 +110,27 @@ const useDataStore = create<DataState>()(
       updateEvent: (eventId, data) =>
         set((state) => ({
           events: state.events.map((event) =>
-            event.id === eventId ? { id: eventId, ...data } : event,
+            event.id === eventId
+              ? {
+                  ...event,
+                  ...data,
+                  created_at: event.created_at,
+                  updated_at: new Date().toISOString(),
+                }
+              : event,
+          ),
+        })),
+
+      approveEvent: (eventId) =>
+        set((state) => ({
+          events: state.events.map((event) =>
+            event.id === eventId
+              ? {
+                  ...event,
+                  is_approved: true,
+                  updated_at: new Date().toISOString(),
+                }
+              : event,
           ),
         })),
 

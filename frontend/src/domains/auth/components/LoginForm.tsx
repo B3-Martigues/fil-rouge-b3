@@ -21,7 +21,7 @@ import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 
 const getRedirectPathByRole = (role: Role) => {
   if (role === "admin") return ROUTES.ADMIN.DASHBOARD;
-  if (role === "company") return ROUTES.COMPANY.DASHBOARD;
+  if (role === "company") return ROUTES.COMPANY.EVENTS;
   return ROUTES.USER.PROFILE;
 };
 
