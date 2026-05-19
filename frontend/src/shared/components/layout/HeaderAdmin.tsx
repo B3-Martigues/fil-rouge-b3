@@ -8,6 +8,9 @@ export default function HeaderAdmin() {
     <header>
       {/* Navigation administrateur */}
       <nav style={{ display: "flex", justifyContent: "center", gap: "50px" }}>
+        {/* Accès à la page d'accueil */}
+        <NavLink to={ROUTES.PUBLIC.HOME}>Accueil</NavLink>
+
         {/* Accès tableau de bord admin */}
         <NavLink to={ROUTES.ADMIN.DASHBOARD}>Dashboard</NavLink>
 

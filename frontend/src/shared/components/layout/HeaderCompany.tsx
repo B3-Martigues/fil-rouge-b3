@@ -8,8 +8,8 @@ export default function HeaderCompany() {
     <header>
       {/* Navigation entreprise */}
       <nav style={{ display: "flex", justifyContent: "center", gap: "50px" }}>
-        {/* Accès à la carte publique */}
-        {/* <NavLink to={ROUTES.PUBLIC.HOME}>Accueil</NavLink> */}
+        {/* Accès à la page d'accueil */}
+        <NavLink to={ROUTES.PUBLIC.HOME}>Accueil</NavLink>
 
         {/* Accès au profil entreprise */}
         <NavLink to={ROUTES.COMPANY.PROFILE}>Profil</NavLink>
