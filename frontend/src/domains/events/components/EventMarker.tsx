@@ -1,10 +1,16 @@
 import { Marker } from "react-leaflet";
 
-type Props = {
-  latitude: number;
-  longitude: number;
-};
+import type { Event } from "../types";
+import EventPopup from "./EventPopup";
 
-export default function EventMarker({ latitude, longitude }: Props) {
-  return <Marker position={[latitude, longitude]} />;
+type Props = {
+  event: Event;
+};
+/**Marker représentant un événement sur la carte */
+export default function EventMarker({ event }: Props) {
+  return (
+    <Marker position={[event.latitude, event.longitude]}>
+      <EventPopup event={event} />
+    </Marker>
+  );
 }

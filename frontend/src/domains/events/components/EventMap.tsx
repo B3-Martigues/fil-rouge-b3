@@ -25,11 +25,7 @@ export default function EventMap() {
       />
       /**Affichage dynamique des événements mockés */
       {eventsMock.map((event) => (
-        <EventMarker
-          key={event.id}
-          latitude={event.latitude}
-          longitude={event.longitude}
-        />
+        <EventMarker key={event.id} event={event} />
       ))}
     </MapContainer>
   );

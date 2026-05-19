@@ -1,5 +1,6 @@
 /**Ce fichier contient des événements fictifs pour le développement du frontend */
-export const eventsMock = [
+import type { Event } from "../types";
+export const eventsMock: Event[] = [
   {
     id: 1,
     title: "Jazz Night in the City",
@@ -8,7 +9,7 @@ export const eventsMock = [
     latitude: 43.2965,
     longitude: 5.3698,
     address: "Quai du Port, Marseille, France",
-    categories: ["music", "festival"],
+    categories: ["musique", "festival"],
     image: "https://images.unsplash.com/photo-1511379938547-c1f69419868d",
     source: "city-events.com",
   },

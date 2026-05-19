@@ -4,12 +4,14 @@
 /**Liste des catégories possibles pour les événements. */
 export const EVENT_CATEGORIES = [
   "musique",
+  "cinema",
   "culture",
   "art",
   "sport",
   "food",
   "famille",
   "festival",
+  "tech",
   "vie_nocturne",
   "conference",
   "associatif",
