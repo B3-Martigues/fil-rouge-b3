@@ -230,12 +230,6 @@ export default function Home() {
                       <dt>Ville</dt>
                       <dd>{event.city ?? "Ville non renseignée"}</dd>
                     </div>
-                    <div>
-                      <dt>Code postal</dt>
-                      <dd>
-                        {event.postal_code ?? "Code postal non renseigné"}
-                      </dd>
-                    </div>
                   </dl>
                 </div>
               </article>
