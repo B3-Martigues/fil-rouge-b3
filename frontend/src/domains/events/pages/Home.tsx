@@ -6,7 +6,7 @@
 import { useMemo, useState } from "react";
 
 import useDataStore from "../../../shared/store/dataStore";
-import { EVENT_CATEGORIES, type EventCategory } from "../types/category";
+import { EVENT_CATEGORIES, type EventCategory } from "../types/event-categories";
 
 type SortValue = "date-asc" | "date-desc" | "title-asc" | "title-desc" | "city-asc";
 

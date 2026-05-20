@@ -1,4 +1,4 @@
-import type { Event } from "../types/category";
+import type { Event } from "../types/event-categories";
 
 export const eventsMock: Event[] = [
   {

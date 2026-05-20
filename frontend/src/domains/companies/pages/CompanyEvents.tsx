@@ -3,7 +3,7 @@ import { useState } from "react";
 import { toast } from "react-toastify";
 
 import useAuthStore from "../../auth/store/authStore";
-import { EVENT_CATEGORIES, type Event } from "../../events/types/category";
+import { EVENT_CATEGORIES, type Event } from "../../events/types/event-categories";
 import useDataStore from "../../../shared/store/dataStore";
 import { ROUTES } from "../../../shared/constants/routes";
 import { useCompanyAccess } from "../hooks/useCompanyAccess";

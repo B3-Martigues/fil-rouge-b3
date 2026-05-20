@@ -2,7 +2,7 @@
 import { NavLink } from "react-router-dom";
 import { ROUTES } from "../../constants/routes";
 import LogoutButton from "../../../domains/auth/components/LogoutButton";
-import { useCompanyAccess } from "../../../domains/company/hooks/useCompanyAccess";
+import { useCompanyAccess } from "../../../domains/companies/hooks/useCompanyAccess";
 
 export default function HeaderCompany() {
   const { canManageEvents } = useCompanyAccess();

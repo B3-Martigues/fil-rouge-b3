@@ -15,9 +15,9 @@ import CompanyRegister from "../domains/auth/pages/CompanyRegister";
 import Login from "../domains/auth/pages/Login";
 import Profile from "../domains/user/pages/Profile";
 import AdminDashboard from "../domains/admin/pages/AdminDashboard";
-import CompanyDashboard from "../domains/company/pages/CompanyDashboard";
-import CompanyEvents from "../domains/company/pages/CompanyEvents";
-import CompanyProfile from "../domains/company/pages/CompanyProfile";
+import CompanyDashboard from "../domains/companies/pages/CompanyDashboard";
+import CompanyEvents from "../domains/companies/pages/CompanyEvents";
+import CompanyProfile from "../domains/companies/pages/CompanyProfile";
 
 import PublicLayout from "../shared/layouts/PublicLayout";
 import PrivateLayout from "../shared/layouts/PrivateLayout";

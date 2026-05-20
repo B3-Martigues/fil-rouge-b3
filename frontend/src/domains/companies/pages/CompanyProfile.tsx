@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "react-toastify";
 
 import useAuthStore from "../../auth/store/authStore";
-import { CATEGORIES, type CategoryName } from "../types/category";
+import { CATEGORIES, type CategoryName } from "../types/company-categories";
 import type { Company } from "../types/company";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import Button from "../../../shared/components/ui/Button";

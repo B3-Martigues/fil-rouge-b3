@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import useAuthStore from "../../auth/store/authStore";
-import { EVENT_CATEGORIES, type Event } from "../../events/types/category";
+import { EVENT_CATEGORIES, type Event } from "../../events/types/event-categories";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
 import Input from "../../../shared/components/ui/Input";
