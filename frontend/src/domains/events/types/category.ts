@@ -3,19 +3,20 @@
 
 /**Liste des catégories possibles pour les événements. */
 export const EVENT_CATEGORIES = [
-  "musique",
-  "cinema",
   "culture",
+  "musique",
   "art",
-  "sport",
-  "food",
-  "famille",
-  "festival",
-  "tech",
-  "vie_nocturne",
-  "conference",
-  "associatif",
   "tourisme",
+  "associatif",
+  "famille",
+  "sport",
+  "festival",
+  "concert",
+  "cinema",
+  "theatre",
+  "gastronomie",
+  "technologie",
+  "gaming",
 ] as const; /** "as const" permet de dire à TypeScript que les valeurs sont fixes (read only) */
 
 /**Création du type EventCategory à partir du tableau EVENT_CATEGORIES
@@ -30,10 +31,15 @@ export type Event = {
   date: string;
   latitude: number;
   longitude: number;
-  address: string;
-  /**Liste des catégories liées à l'événement */
-  categories: EventCategory[];
+  address?: string;
+  city?: string;
+  postal_code?: number;
+  category: EventCategory;
+  categories?: EventCategory[];
   image?: string;
   source?: string;
   company_id?: number | null;
+  is_approved?: boolean;
+  created_at?: string;
+  updated_at?: string;
 };

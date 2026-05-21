@@ -1,5 +1,5 @@
 /**Ce fichier contient des événements fictifs pour le développement du frontend */
-import type { Event } from "../types";
+import type { Event } from "../types/category";
 export const eventsMock: Event[] = [
   {
     id: 1,
@@ -8,7 +8,12 @@ export const eventsMock: Event[] = [
     date: "2026-05-01T19:00:00Z",
     latitude: 43.2965,
     longitude: 5.3698,
-    address: "Quai du Port, Marseille, France",
+    address: "Quai du Port",
+    city: "Marseille",
+    postal_code: 13002,
+    /**Catégorie principale */
+    category: "musique",
+    /**Catégories secondaires */
     categories: ["musique", "festival"],
     image: "https://images.unsplash.com/photo-1511379938547-c1f69419868d",
     source: "city-events.com",
@@ -20,8 +25,11 @@ export const eventsMock: Event[] = [
     date: "2026-05-05T12:00:00Z",
     latitude: 43.4084,
     longitude: 5.0552,
-    address: "Esplanade Charles-de-Gaulle, Martigues, France",
-    categories: ["food"],
+    address: "Esplanade Charles-de-Gaulle",
+    city: "Martigues",
+    postal_code: 13500,
+    category: "gastronomie",
+    categories: ["gastronomie", "festival"],
     image: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1",
     source: "foodfest.pl",
   },
@@ -32,7 +40,10 @@ export const eventsMock: Event[] = [
     date: "2026-05-10T21:00:00Z",
     latitude: 43.4466,
     longitude: 5.215,
-    address: "Plage des Marettes, Carry-le-Rouet, France",
+    address: "Plage des Marettes",
+    city: "Carry-le-Rouet",
+    postal_code: 13620,
+    category: "cinema",
     categories: ["cinema"],
     image: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba",
     source: "cinemaopenair.com",
@@ -44,8 +55,11 @@ export const eventsMock: Event[] = [
     date: "2026-05-15T18:00:00Z",
     latitude: 43.4177,
     longitude: 5.2146,
-    address: "Zone d'activités des Étangs, Vitrolles, France",
-    categories: ["tech"],
+    address: "Zone d'activités des Étangs",
+    city: "Vitrolles",
+    postal_code: 13127,
+    category: "technologie",
+    categories: ["technologie"],
     image: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d",
     source: "meetup.com",
     company_id: 1,

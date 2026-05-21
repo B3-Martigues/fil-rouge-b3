@@ -3,15 +3,21 @@ import { MapContainer, TileLayer } from "react-leaflet";
 import { eventsMock } from "../mocks/events.mock";
 import EventMarker from "./EventMarker";
 
+import UserLocationMarker from "./UserLocationMarker";
+import useUserLocation from "../hooks/useUserLocation";
+
 /**Composant de carte principale basé sur leaflet */
 /**Objectif:
  * - Afficher une carte interactive centrée sur une zone donnée
  */
 export default function EventMap() {
+  const { position } = useUserLocation();
+  console.log(position);
   return (
     /**Conteneur principal de la carte leaflet
      * il gère le rendu, le zoom, le déplacement et les interactions
      */
+
     <MapContainer
       center={[43.2965, 5.3698]} // Marseille en phase de développement
       zoom={13} // Niveau de zoom initial
@@ -27,6 +33,12 @@ export default function EventMap() {
       {eventsMock.map((event) => (
         <EventMarker key={event.id} event={event} />
       ))}
+      {position && (
+        <UserLocationMarker
+          latitude={position.latitude}
+          longitude={position.longitude}
+        />
+      )}
     </MapContainer>
   );
 }
