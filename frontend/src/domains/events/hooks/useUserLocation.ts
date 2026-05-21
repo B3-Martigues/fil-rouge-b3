@@ -20,8 +20,11 @@ export default function useUserLocation() {
   useEffect(() => {
     /**Vérifie si la géolocalisation est supportée */
     if (!navigator.geolocation) {
-      setError("La géolocalisation n'est pas supportée");
-      setLoading(false);
+      setTimeout(() => {// setTimeout - utilisé pour éviter le warning React
+        setError("La géolocalisation n'est pas supportée");
+        setLoading(false);
+      }, 0);
+
       return;
     }
 

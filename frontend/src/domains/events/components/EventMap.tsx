@@ -34,6 +34,7 @@ export default function EventMap() {
       {eventsMock.map((event) => (
         <EventMarker key={event.id} event={event} />
       ))}
+      {/**Affichage de la position utilisateur et recentrage automatique de la carte */}
       {position && (
         <>
           <UserLocationMarker

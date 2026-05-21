@@ -4,7 +4,7 @@
 
 import { Popup } from "react-leaflet";
 import type { Event } from "../types/category";
-
+import Button from "../../../shared/components/ui/Button";
 type Props = {
   event: Event;
 };
@@ -50,6 +50,14 @@ export default function EventPopup({ event }: Props) {
             Voir la source
           </a>
         )}
+        {/**Lien vers Google Maps pour calculer un itinéraire vers l'événement */}
+        <a
+          href={`https://www.google.com/maps/dir/?api=1&destination=${event.latitude},${event.longitude}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Button> Itinéraire</Button>
+        </a>
       </div>
     </Popup>
   );
