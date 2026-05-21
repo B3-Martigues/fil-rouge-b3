@@ -5,6 +5,7 @@ import EventMarker from "./EventMarker";
 
 import UserLocationMarker from "./UserLocationMarker";
 import useUserLocation from "../hooks/useUserLocation";
+import MapAutoCenter from "./MapAutoCenter";
 
 /**Composant de carte principale basé sur leaflet */
 /**Objectif:
@@ -34,10 +35,17 @@ export default function EventMap() {
         <EventMarker key={event.id} event={event} />
       ))}
       {position && (
-        <UserLocationMarker
-          latitude={position.latitude}
-          longitude={position.longitude}
-        />
+        <>
+          <UserLocationMarker
+            latitude={position.latitude}
+            longitude={position.longitude}
+          />
+
+          <MapAutoCenter
+            latitude={position.latitude}
+            longitude={position.longitude}
+          />
+        </>
       )}
     </MapContainer>
   );
