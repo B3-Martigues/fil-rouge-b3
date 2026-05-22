@@ -185,7 +185,10 @@ export default function CompanyProfile() {
         <p>Bienvenue {user?.username}</p>
       </section>
 
-      <section className="company-event-form" aria-labelledby="company-profile-title">
+      <section
+        className="company-event-form"
+        aria-labelledby="company-profile-title"
+      >
         <h2 id="company-profile-title">Modifier mes informations</h2>
 
         <form onSubmit={handleSubmit} noValidate>
@@ -204,7 +207,11 @@ export default function CompanyProfile() {
               />
             </FormField>
 
-            <FormField label="Email" htmlFor="company-email" error={errors.email}>
+            <FormField
+              label="Email"
+              htmlFor="company-email"
+              error={errors.email}
+            >
               <Input
                 id="company-email"
                 type="email"
@@ -232,7 +239,11 @@ export default function CompanyProfile() {
               </FormField>
             </div>
 
-            <FormField label="Site web" htmlFor="company-website" error={errors.website}>
+            <FormField
+              label="Site web"
+              htmlFor="company-website"
+              error={errors.website}
+            >
               <Input
                 id="company-website"
                 type="url"
@@ -253,13 +264,19 @@ export default function CompanyProfile() {
             </FormField>
 
             <div className="company-event-form__wide">
-              <FormField label="Adresse" htmlFor="company-address" error={errors.address}>
+              <FormField
+                label="Adresse"
+                htmlFor="company-address"
+                error={errors.address}
+              >
                 <Input
                   id="company-address"
                   type="text"
                   value={form.address}
                   hasError={!!errors.address}
-                  onChange={(event) => updateField("address", event.target.value)}
+                  onChange={(event) =>
+                    updateField("address", event.target.value)
+                  }
                 />
               </FormField>
             </div>
@@ -280,7 +297,11 @@ export default function CompanyProfile() {
               />
             </FormField>
 
-            <FormField label="SIRET" htmlFor="company-siret" error={errors.siret}>
+            <FormField
+              label="SIRET"
+              htmlFor="company-siret"
+              error={errors.siret}
+            >
               <Input
                 id="company-siret"
                 type="text"
@@ -304,7 +325,9 @@ export default function CompanyProfile() {
                   </label>
                 ))}
               </div>
-              {errors.categories && <ErrorMessage message={errors.categories} />}
+              {errors.categories && (
+                <ErrorMessage message={errors.categories} />
+              )}
             </fieldset>
           </div>
 

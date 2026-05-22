@@ -8,7 +8,9 @@ import type { EventCategory } from "./event-categories";
 /** Type principal representant un evenement. */
 export type Event = {
   id: number; /** Identifiant unique de l'evenement. */
-  company_id?: number | null; /** Identifiant de l'entreprise ayant cree l'evenement. */
+  company_id?:
+    | number
+    | null; /** Identifiant de l'entreprise ayant cree l'evenement. */
   title: string; /** Titre de l'evenement. */
   description: string; /** Description de l'evenement. */
   date: string; /** Date et heure de l'evenement. */

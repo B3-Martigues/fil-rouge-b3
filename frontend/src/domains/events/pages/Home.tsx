@@ -6,9 +6,17 @@
 import { useMemo, useState } from "react";
 
 import useDataStore from "../../../shared/store/dataStore";
-import { EVENT_CATEGORIES, type EventCategory } from "../types/event-categories";
-
-type SortValue = "date-asc" | "date-desc" | "title-asc" | "title-desc" | "city-asc";
+import {
+  EVENT_CATEGORIES,
+  type EventCategory,
+} from "../types/event-categories";
+import EventMap from "../components/EventMap";
+type SortValue =
+  | "date-asc"
+  | "date-desc"
+  | "title-asc"
+  | "title-desc"
+  | "city-asc";
 
 const normalizeText = (value: string) =>
   value
@@ -17,8 +25,13 @@ const normalizeText = (value: string) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
-const getEventCategories = (event: { category: EventCategory; categories?: EventCategory[] }) =>
-  event.categories && event.categories.length > 0 ? event.categories : [event.category];
+const getEventCategories = (event: {
+  category: EventCategory;
+  categories?: EventCategory[];
+}) =>
+  event.categories && event.categories.length > 0
+    ? event.categories
+    : [event.category];
 
 export default function Home() {
   const events = useDataStore((s) => s.events);
@@ -35,7 +48,9 @@ export default function Home() {
             .map((event) => event.city?.trim())
             .filter((eventCity): eventCity is string => Boolean(eventCity)),
         ),
-      ).sort((firstCity, secondCity) => firstCity.localeCompare(secondCity, "fr-FR")),
+      ).sort((firstCity, secondCity) =>
+        firstCity.localeCompare(secondCity, "fr-FR"),
+      ),
     [events],
   );
 
@@ -47,7 +62,8 @@ export default function Home() {
         if (event.is_approved === false) return false;
 
         const eventCategories = getEventCategories(event);
-        const matchesCategory = category === "all" || eventCategories.includes(category);
+        const matchesCategory =
+          category === "all" || eventCategories.includes(category);
         const matchesCity = city === "all" || event.city === city;
         const searchableContent = normalizeText(
           [
@@ -61,7 +77,11 @@ export default function Home() {
           ].join(" "),
         );
 
-        return matchesCategory && matchesCity && searchableContent.includes(normalizedSearch);
+        return (
+          matchesCategory &&
+          matchesCity &&
+          searchableContent.includes(normalizedSearch)
+        );
       })
       .sort((firstEvent, secondEvent) => {
         if (sort === "date-desc") {
@@ -80,7 +100,10 @@ export default function Home() {
         }
 
         if (sort === "city-asc") {
-          return (firstEvent.city ?? "").localeCompare(secondEvent.city ?? "", "fr-FR");
+          return (firstEvent.city ?? "").localeCompare(
+            secondEvent.city ?? "",
+            "fr-FR",
+          );
         }
 
         return (
@@ -90,13 +113,15 @@ export default function Home() {
       });
   }, [category, city, events, search, sort]);
 
-  const hasFilters = search.trim() !== "" || category !== "all" || city !== "all";
+  const hasFilters =
+    search.trim() !== "" || category !== "all" || city !== "all";
 
   return (
     <div className="events-home">
       <section className="events-home__header">
-        <h1>Bienvenue sur la carte des événements</h1>
+        <h1>Bienvenue sur la page d'accueil'</h1>
         <p>Explorez les événements disponibles autour de vous.</p>
+        <EventMap />
       </section>
 
       <section className="events-list" aria-labelledby="events-list-title">
@@ -183,7 +208,9 @@ export default function Home() {
         </p>
 
         {visibleEvents.length === 0 ? (
-          <p className="admin-empty">Aucun événement ne correspond à votre recherche.</p>
+          <p className="admin-empty">
+            Aucun événement ne correspond à votre recherche.
+          </p>
         ) : (
           <div className="events-list__grid">
             {visibleEvents.map((event) => (

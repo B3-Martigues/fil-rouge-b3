@@ -8,7 +8,10 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import useAuthStore from "../../auth/store/authStore";
-import { EVENT_CATEGORIES, type Event } from "../../events/types/event-categories";
+import {
+  EVENT_CATEGORIES,
+  type Event,
+} from "../../events/types/event-categories";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
 import Input from "../../../shared/components/ui/Input";
@@ -110,7 +113,8 @@ export default function CompanyDashboard() {
   const [errors, setErrors] = useState<CompanyEventErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const imagePreviewUrl = form.image.trim();
-  const canPreviewImage = imagePreviewUrl !== "" && URL.canParse(imagePreviewUrl);
+  const canPreviewImage =
+    imagePreviewUrl !== "" && URL.canParse(imagePreviewUrl);
 
   const updateField = <Key extends keyof CompanyEventForm>(
     field: Key,
@@ -194,8 +198,10 @@ export default function CompanyDashboard() {
         <p>Ajoutez un évènement public rattache a votre entreprise.</p>
       </section>
 
-      <section className="company-event-form" aria-labelledby="company-event-form-title">
-
+      <section
+        className="company-event-form"
+        aria-labelledby="company-event-form-title"
+      >
         <form onSubmit={handleSubmit} noValidate>
           <div className="company-event-form__grid">
             <FormField label="Titre" htmlFor="event-title" error={errors.title}>
@@ -204,7 +210,9 @@ export default function CompanyDashboard() {
                 type="text"
                 value={form.title}
                 hasError={!!errors.title}
-                aria-describedby={errors.title ? "event-title-error" : undefined}
+                aria-describedby={
+                  errors.title ? "event-title-error" : undefined
+                }
                 onChange={(event) => updateField("title", event.target.value)}
               />
             </FormField>
@@ -223,7 +231,9 @@ export default function CompanyDashboard() {
                   </label>
                 ))}
               </div>
-              {errors.categories && <ErrorMessage message={errors.categories} />}
+              {errors.categories && (
+                <ErrorMessage message={errors.categories} />
+              )}
             </div>
 
             <div className="company-event-form__wide">
@@ -240,12 +250,18 @@ export default function CompanyDashboard() {
                   aria-describedby={
                     errors.description ? "event-description-error" : undefined
                   }
-                  onChange={(event) => updateField("description", event.target.value)}
+                  onChange={(event) =>
+                    updateField("description", event.target.value)
+                  }
                 />
               </FormField>
             </div>
 
-            <FormField label="Date et heure" htmlFor="event-date" error={errors.date}>
+            <FormField
+              label="Date et heure"
+              htmlFor="event-date"
+              error={errors.date}
+            >
               <Input
                 id="event-date"
                 type="datetime-local"
@@ -256,14 +272,20 @@ export default function CompanyDashboard() {
               />
             </FormField>
 
-            <FormField label="Adresse" htmlFor="event-address" error={errors.address}>
+            <FormField
+              label="Adresse"
+              htmlFor="event-address"
+              error={errors.address}
+            >
               <Input
                 id="event-address"
                 type="text"
                 autoComplete="street-address"
                 value={form.address}
                 hasError={!!errors.address}
-                aria-describedby={errors.address ? "event-address-error" : undefined}
+                aria-describedby={
+                  errors.address ? "event-address-error" : undefined
+                }
                 onChange={(event) => updateField("address", event.target.value)}
               />
             </FormField>
@@ -295,11 +317,17 @@ export default function CompanyDashboard() {
                 aria-describedby={
                   errors.postal_code ? "event-postal-code-error" : undefined
                 }
-                onChange={(event) => updateField("postal_code", event.target.value)}
+                onChange={(event) =>
+                  updateField("postal_code", event.target.value)
+                }
               />
             </FormField>
 
-            <FormField label="Latitude" htmlFor="event-latitude" error={errors.latitude}>
+            <FormField
+              label="Latitude"
+              htmlFor="event-latitude"
+              error={errors.latitude}
+            >
               <Input
                 id="event-latitude"
                 step="any"
@@ -307,12 +335,20 @@ export default function CompanyDashboard() {
                 max="90"
                 value={form.latitude}
                 hasError={!!errors.latitude}
-                aria-describedby={errors.latitude ? "event-latitude-error" : undefined}
-                onChange={(event) => updateField("latitude", event.target.value)}
+                aria-describedby={
+                  errors.latitude ? "event-latitude-error" : undefined
+                }
+                onChange={(event) =>
+                  updateField("latitude", event.target.value)
+                }
               />
             </FormField>
 
-            <FormField label="Longitude" htmlFor="event-longitude" error={errors.longitude}>
+            <FormField
+              label="Longitude"
+              htmlFor="event-longitude"
+              error={errors.longitude}
+            >
               <Input
                 id="event-longitude"
                 step="any"
@@ -320,25 +356,35 @@ export default function CompanyDashboard() {
                 max="180"
                 value={form.longitude}
                 hasError={!!errors.longitude}
-                aria-describedby={errors.longitude ? "event-longitude-error" : undefined}
-                onChange={(event) => updateField("longitude", event.target.value)}
+                aria-describedby={
+                  errors.longitude ? "event-longitude-error" : undefined
+                }
+                onChange={(event) =>
+                  updateField("longitude", event.target.value)
+                }
               />
             </FormField>
 
             <div className="company-event-form__wide company-event-form__image-field">
-              <FormField label="Image" htmlFor="event-image" error={errors.image}>
+              <FormField
+                label="Image"
+                htmlFor="event-image"
+                error={errors.image}
+              >
                 <Input
                   id="event-image"
                   type="url"
                   value={form.image}
                   hasError={!!errors.image}
-                  aria-describedby={errors.image ? "event-image-error" : undefined}
+                  aria-describedby={
+                    errors.image ? "event-image-error" : undefined
+                  }
                   onChange={(event) => updateField("image", event.target.value)}
                 />
               </FormField>
 
               <div className="company-event-form__image-preview">
-              <span>Aperçu de l'image</span>
+                <span>Aperçu de l'image</span>
                 {canPreviewImage && (
                   <img src={imagePreviewUrl} alt="" loading="lazy" />
                 )}
