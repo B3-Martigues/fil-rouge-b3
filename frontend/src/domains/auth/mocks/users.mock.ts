@@ -43,7 +43,7 @@ export const usersMock: User[] = [
     email: "company@gmail.com",
     password: "12341234",
     role: "company",
-    is_active: false, /**Compte entreprise en attente de validation administrateur */
+    is_active: false /**Compte entreprise en attente de validation administrateur */,
     preferences: {
       jour: false,
       culture: true,
@@ -53,24 +53,6 @@ export const usersMock: User[] = [
       associatif: false,
       famille: false,
       sport: false,
-    },
-  },
-  {
-    id: 4,
-    username: "AdminTest",
-    email: "admin@test.fr",
-    password: "Admin123!",
-    role: "admin",
-    is_active: true,
-    preferences: {
-      jour: true,
-      culture: true,
-      musique: true,
-      art: true,
-      tourisme: true,
-      associatif: true,
-      famille: true,
-      sport: true,
     },
   },
 ];

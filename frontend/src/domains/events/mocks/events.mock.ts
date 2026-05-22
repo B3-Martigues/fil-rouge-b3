@@ -1,5 +1,5 @@
 /**Ce fichier contient des événements fictifs pour le développement du frontend */
-import type { Event } from "../types/category";
+import type { Event } from "../types/event-categories";
 export const eventsMock: Event[] = [
   {
     id: 1,

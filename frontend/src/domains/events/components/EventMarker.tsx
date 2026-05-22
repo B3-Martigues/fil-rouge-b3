@@ -1,6 +1,6 @@
 import { Marker } from "react-leaflet";
 
-import type { Event } from "../types/category"
+import type { Event } from "../types/event-categories";
 import EventPopup from "./EventPopup";
 
 type Props = {

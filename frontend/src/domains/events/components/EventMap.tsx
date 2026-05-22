@@ -13,7 +13,6 @@ import MapAutoCenter from "./MapAutoCenter";
  */
 export default function EventMap() {
   const { position } = useUserLocation();
-  console.log(position);
   return (
     /**Conteneur principal de la carte leaflet
      * il gère le rendu, le zoom, le déplacement et les interactions

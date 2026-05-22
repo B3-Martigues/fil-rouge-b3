@@ -9,8 +9,8 @@ import {
   type CompanyRegisterFormData,
 } from "../validations/register.schema";
 import type { AuthenticatedUser, User } from "../../user/types/user";
-import type { Company } from "../../user/types/company";
-import { CATEGORIES } from "../../user/types/category";
+import type { Company } from "../../companies/types/company";
+import { CATEGORIES } from "../../companies/types/company-categories";
 import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../store/authStore";
 import { usersMock } from "../mocks/users.mock";

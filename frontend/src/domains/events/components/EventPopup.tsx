@@ -3,7 +3,7 @@
  */
 
 import { Popup } from "react-leaflet";
-import type { Event } from "../types/category";
+import type { Event } from "../types/event-categories";
 import Button from "../../../shared/components/ui/Button";
 type Props = {
   event: Event;
