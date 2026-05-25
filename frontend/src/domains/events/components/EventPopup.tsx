@@ -5,6 +5,7 @@
 import { Popup } from "react-leaflet";
 import type { Event } from "../types/event-categories";
 import Button from "../../../shared/components/ui/Button";
+import FavoriteButton from "./FavoriteButton";
 type Props = {
   event: Event;
 };
@@ -21,6 +22,7 @@ export default function EventPopup({ event }: Props) {
             style={{ width: "300px", height: "220px" }}
           />
         )}
+        <FavoriteButton event={event} />
         {/**TITRE */}
         <h3>{event.title}</h3>
         {/**DATE */}
