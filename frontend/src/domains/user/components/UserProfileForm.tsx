@@ -9,6 +9,8 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
 
 import useAuthStore from "../../auth/store/authStore";
 
@@ -32,6 +34,10 @@ import { toast } from "react-toastify";
 export default function UserProfileForm() {
   const user = useAuthStore((s) => s.currentUser);
   const updateUser = useAuthStore((s) => s.updateUser);
+  const navigate = useNavigate();
+  const logout = useAuthStore((s) => s.logout);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
 
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -52,7 +58,7 @@ export default function UserProfileForm() {
       email: user?.email ?? "",
     },
   });
-
+   
   /**Soumission du formulaire */
   const onSubmit = async (data: ProfileFormData) => {
     setLoading(true);
@@ -82,6 +88,22 @@ export default function UserProfileForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  /**Suppression de compte */
+  const handleDeleteAccount = () => {
+    if (!user) return;
+
+    const userIndex = usersMock.findIndex((u) => u.id === user.id);
+
+    if (userIndex !== -1) {
+      usersMock.splice(userIndex, 1);
+    }
+
+    logout();
+    toast.success("Compte supprimé");
+
+    navigate("/login");
   };
 
   return (
@@ -125,7 +147,56 @@ export default function UserProfileForm() {
         <Button type="submit" loading={loading}>
           Enregistrer les modifications
         </Button>
+        <Button
+          type="button"
+          onClick={() => navigate("/profile/change-password")}
+        >
+           Modifier le mot  passe
+        </Button>
+
+        <Button type="button" onClick={() => setShowDeleteModal(true)}>
+          Supprimer mon compte
+        </Button>
       </form>
+
+      {showDeleteModal && createPortal(
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{ 
+            backgroundColor: 'white', 
+            padding: '24px', 
+            borderRadius: '8px', 
+            maxWidth: '448px', 
+            width: '100%', 
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+            color: '#1a1a1a'
+          }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '8px' }}>
+              ⚠️ Suppression du compte
+            </h2>
+            <p style={{ marginBottom: '16px', color: '#4a5568' }}>
+              Cette action est <strong>définitive</strong>.  
+              Toutes vos données seront supprimées.
+            </p>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <Button type="button" onClick={() => setShowDeleteModal(false)}>
+                Annuler
+              </Button>
+              <Button type="button" onClick={handleDeleteAccount}>
+                Oui, supprimer
+              </Button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

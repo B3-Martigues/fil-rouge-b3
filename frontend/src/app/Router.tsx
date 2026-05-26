@@ -22,6 +22,7 @@ import CompanyLayout from "../shared/layouts/CompanyLayout";
 import Favorites from "../domains/user/pages/Favorites";
 import History from "../domains/user/pages/History";
 import CompanyProfile from "../domains/company/pages/CompanyProfile";
+import ChangePassword from "../domains/user/components/ChangePassword";
 
 type Props = {
   children: ReactNode;
@@ -70,13 +71,16 @@ const Router = () => {
       <Route
         element={
           <PrivateRoute>
-            <PrivateLayout />
+            <RoleRoute role="user">
+              <PrivateLayout />
+            </RoleRoute>
           </PrivateRoute>
         }
       >
         <Route path={ROUTES.USER.PROFILE} element={<Profile />} />
         <Route path={ROUTES.USER.FAVORITES} element={<Favorites />} />
         <Route path={ROUTES.USER.HISTORY} element={<History />} />
+        <Route path={ROUTES.USER.CHANGE_PASSWORD} element={<ChangePassword/>}/>
       </Route>
 
       {/* ADMIN */}
