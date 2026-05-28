@@ -220,3 +220,23 @@ Informations affichées:
 - icônes météo dynamiques
 
 La météo est affichée uniquement pour les événements à venir dans le 7 prochains jours
+
+# Préférences utilisateur
+
+Après inscritption l'utilisateur est invité à sélectionner ses préférences sous forme de catégories d'événements
+
+Les préférences permettent de:
+
+- personnaliser l'expérience utilisateur
+- préparer un futur système de récommandations
+- filtrer les événements selon les centres d'intérêt
+- centraliser les goûts utilisateur dans le profile
+
+Le système utilise:
+
+- un onboarding après inscription
+- des cartes cliquables pour sélectionner les catégories
+- un hook React dédié à la gestion locale des préférences
+- des types TypeScript partagés avec les catégories d'événements
+
+Les préférences sont actuellement stockées côte frontend via le store local.

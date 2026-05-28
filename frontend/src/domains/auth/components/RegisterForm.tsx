@@ -20,7 +20,6 @@ import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
 
-
 // UI
 import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
@@ -67,16 +66,7 @@ export default function RegisterForm() {
         password: data.password,
         role: "user",
         is_active: true,
-        preferences: {
-          jour: false,
-          culture: false,
-          musique: false,
-          art: false,
-          tourisme: false,
-          associatif: false,
-          famille: false,
-          sport: false,
-        },
+        preferences: [],
       };
 
       addUser(newUser);
@@ -86,7 +76,7 @@ export default function RegisterForm() {
       login(safeUser);
 
       toast.success("Compte cree avec succes");
-      navigate(ROUTES.USER.PROFILE);
+      navigate(ROUTES.USER.PREFERENCES);
     } catch {
       setServerError("Erreur lors de l'inscription");
     } finally {
