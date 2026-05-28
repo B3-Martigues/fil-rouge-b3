@@ -13,7 +13,7 @@ import Register from "../domains/auth/pages/Register";
 import Login from "../domains/auth/pages/Login";
 import Profile from "../domains/user/pages/Profile";
 import AdminDashboard from "../domains/admin/pages/AdminDashboard";
-import CompanyDashboard from "../domains/company/pages/CompanyDashboard";
+import CompanyDashboard from "../domains/companies/pages/CompanyDashboard";
 
 import PublicLayout from "../shared/layouts/PublicLayout";
 import PrivateLayout from "../shared/layouts/PrivateLayout";
@@ -21,7 +21,7 @@ import AdminLayout from "../shared/layouts/AdminLayout";
 import CompanyLayout from "../shared/layouts/CompanyLayout";
 import Favorites from "../domains/user/pages/Favorites";
 import History from "../domains/user/pages/History";
-import CompanyProfile from "../domains/company/pages/CompanyProfile";
+import CompanyProfile from "../domains/companies/pages/CompanyProfile";
 import ChangePassword from "../domains/user/components/ChangePassword";
 
 type Props = {
