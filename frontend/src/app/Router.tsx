@@ -14,6 +14,7 @@ import UserRegister from "../domains/auth/pages/UserRegister";
 import CompanyRegister from "../domains/auth/pages/CompanyRegister";
 import Login from "../domains/auth/pages/Login";
 import Profile from "../domains/user/pages/Profile";
+import ChangePassword from "../domains/user/components/ChangePassword";
 import AdminDashboard from "../domains/admin/pages/AdminDashboard";
 import CompanyDashboard from "../domains/companies/pages/CompanyDashboard";
 import CompanyEvents from "../domains/companies/pages/CompanyEvents";
@@ -87,6 +88,7 @@ const Router = () => {
         <Route path={ROUTES.USER.PROFILE} element={<Profile />} />
         <Route path={ROUTES.USER.FAVORITES} element={<Favorites />} />
         <Route path={ROUTES.USER.HISTORY} element={<History />} />
+        <Route path={ROUTES.USER.CHANGE_PASSWORD} element={<ChangePassword/>}/>
       </Route>
 
       {/* ADMIN */}

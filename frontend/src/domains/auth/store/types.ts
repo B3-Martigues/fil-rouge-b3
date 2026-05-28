@@ -16,4 +16,8 @@ export type AuthState = {
 
   login: (user: AuthenticatedUser) => void;
   logout: () => void;
+
+
+  /**Met à jour les données utilisateur */
+  updateUser: (updatedUser: Partial<AuthenticatedUser>) => void;
 };
