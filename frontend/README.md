@@ -183,3 +183,40 @@ Cette architecture a été pensée pour:
 - améliorer la maintenabilité
 - simplifier la scalabilité du frontend
 - préparer l'intégration future avec le backend
+
+## Fonctionalités implémentées
+
+# Carte interactive des événements
+
+L'application affiche une carte interactive basée sur Leaflet et React-Leaflet
+
+Fonctionnalités disponibles:
+
+- affichage dynamique des événements sur la carte
+- géolocalisation utilisateur
+- recentrage automatique de la carte
+- popup détaillé pour chaque événement
+- filtrage des événements passés
+
+# Gestion des favoris
+
+Les utilisateurs connectés peuvent:
+
+- ajouter un événement aux favoris
+- retirer un événement des favoris
+- consulter une page dédiée aux événements favoris
+
+Les favoris sont actuellement sauvegardés dans le localStorage avec une clé unique par utilisateur.
+
+# Intégration météo (Open-Meteo API)
+
+L'application récupère les données météo via l'API OPEN-METEO
+
+Informations affichées:
+
+- température
+- vent
+- conditions météo
+- icônes météo dynamiques
+
+La météo est affichée uniquement pour les événements à venir dans le 7 prochains jours

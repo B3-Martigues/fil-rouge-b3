@@ -51,3 +51,17 @@ export function getWeatherInfo(code: number) {
       return { label: "Météo inconnue", icon: Cloud };
   }
 }
+
+/**Vérifie si la météo peut être affichée pour un événement donné*/
+export function canDisplayWeather(eventDate: string): boolean {
+  const today = new Date();
+  const event = new Date(eventDate);
+
+  /**Différence en millisecondes*/
+  const diff = event.getTime() - today.getTime();
+
+  /**Conversion millisecondes en jours */
+  const diffDays = diff / (1000 * 60 * 60 * 24);
+
+  return diffDays >= 0 && diffDays <= 7;
+}

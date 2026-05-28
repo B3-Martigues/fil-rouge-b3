@@ -7,20 +7,29 @@ import type { Event } from "../types/event-categories";
 import Button from "../../../shared/components/ui/Button";
 import FavoriteButton from "./FavoriteButton";
 import { useWeather } from "../../../shared/hooks/useWeather";
-import { getWeatherInfo } from "../../../shared/utils/weather";
+import {
+  canDisplayWeather,
+  getWeatherInfo,
+} from "../../../shared/utils/weather";
 import { Thermometer, Wind } from "lucide-react";
 type Props = {
   event: Event;
 };
 
 export default function EventPopup({ event }: Props) {
+  /**Récupération des données météo liées à l'événement */
   const { weather, loading, error } = useWeather({
     date: event.date,
     latitude: event.latitude,
     longitude: event.longitude,
   });
+  /**Transformation du code météo  en informations UI (label + icône)*/
   const weatherInfo = weather ? getWeatherInfo(weather.weatherCode) : null;
+  /**Composant icône météo dynamique */
   const WeatherIcon = weatherInfo?.icon;
+  /**Verifie si la météo doit être affichée (événement à venir dans les 7 prochaines jours) */
+  const shouldDisplayWeather = canDisplayWeather(event.date);
+
   return (
     <Popup>
       <div className="event-popup">
@@ -34,33 +43,35 @@ export default function EventPopup({ event }: Props) {
         )}
         <FavoriteButton event={event} />
         {/**WEATHER */}
-        <div className="event-weather">
-          <h3>Météo</h3>
-          {loading && <p>Chargement meteo...</p>}
-          {error && <p style={{ color: "red" }}>{error}</p>}
+        {shouldDisplayWeather && (
+          <div className="event-weather">
+            <h3>Météo</h3>
+            {loading && <p>Chargement meteo...</p>}
+            {error && <p style={{ color: "red" }}>{error}</p>}
 
-          {!loading && !error && weather && weatherInfo && (
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <div>
-                <Thermometer size={18} />{" "}
-                <span>{weather.temperature}°C</span>{" "}
+            {!loading && !error && weather && weatherInfo && (
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div>
+                  <Thermometer size={18} />{" "}
+                  <span>{weather.temperature}°C</span>{" "}
+                </div>
+                <div>
+                  <Wind size={18} />
+                  <span>{weather.wind} km/h</span>{" "}
+                </div>
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "10px" }}
+                >
+                  {WeatherIcon && <WeatherIcon size={20} />}{" "}
+                  <span>{weatherInfo.label}</span>
+                </div>
               </div>
-              <div>
-                <Wind size={18} />
-                <span>{weather.wind}km/h</span>{" "}
-              </div>
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "10px" }}
-              >
-                {WeatherIcon && <WeatherIcon size={20} />}{" "}
-                <span>{weatherInfo.label}</span>
-              </div>
-            </div>
-          )}
-          {!loading && !error && !weather && !weatherInfo && (
-            <p>Aucune donnée météo disponible</p>
-          )}
-        </div>
+            )}
+            {!loading && !error && !weather && !weatherInfo && (
+              <p>Aucune donnée météo disponible</p>
+            )}
+          </div>
+        )}
         {/**TITRE */}
         <h3>{event.title}</h3>
         {/**DATE */}
