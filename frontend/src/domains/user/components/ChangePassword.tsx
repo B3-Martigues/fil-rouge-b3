@@ -8,11 +8,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 
 import useAuthStore from "../../auth/store/authStore";
-import { usersMock } from "../../auth/mocks/users.mock";
 
 import {
-  changePasswordSchema, type
-  ChangePasswordFormData,
+  changePasswordSchema,
+  type ChangePasswordFormData,
 } from "../validations/changePassword.schema";
 
 // UI
@@ -20,43 +19,50 @@ import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
+import useDataStore from "../../../shared/store/dataStore";
 
 import { toast } from "react-toastify";
 
 export default function ChangePassword() {
   const user = useAuthStore((s) => s.currentUser);
+  const updateUser = useDataStore.getState().updateUser;
+
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
-const {
-  register,
-  handleSubmit,
-  formState: { errors },
-} = useForm<ChangePasswordFormData>({
-  resolver: zodResolver(changePasswordSchema),
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ChangePasswordFormData>({
+    resolver: zodResolver(changePasswordSchema),
 
-  mode: "onTouched",
+    mode: "onTouched",
 
-  defaultValues: {
-    oldPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  },
-});
-
+    defaultValues: {
+      oldPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
+  });
   const onSubmit = async (data: ChangePasswordFormData) => {
     setLoading(true);
     setServerError(null);
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 800));
+      if (!user) {
+        setServerError("Utilisateur non trouvé");
+        return;
+      }
 
-      const existingUser = usersMock.find((u) => u.id === user?.id);
-
+      const existingUser = useDataStore
+        .getState()
+        .users.find((u) => u.id === user.id);
       if (!existingUser) {
-        setLoading(false);
+        setServerError("Utilisateur introuvable");
         return;
       }
 
@@ -67,8 +73,12 @@ const {
         return;
       }
 
-      // update password
-      existingUser.password = data.newPassword;
+      if (data.newPassword !== data.confirmPassword) {
+        setServerError("Les mots de passe ne correspondent pas");
+        return;
+      }
+
+      updateUser(user.id, { password: data.newPassword });
 
       toast.success("Mot de passe mis à jour");
 
@@ -96,7 +106,7 @@ const {
             hasError={!!errors.oldPassword}
             aria-describedby="oldPassword-error"
             {...register("oldPassword")}
-        />
+          />
         </FormField>
 
         <FormField
@@ -110,7 +120,7 @@ const {
             hasError={!!errors.newPassword}
             aria-describedby="newPassword-error"
             {...register("newPassword")}
-        />
+          />
         </FormField>
 
         <FormField
@@ -124,7 +134,7 @@ const {
             hasError={!!errors.confirmPassword}
             aria-describedby="confirmPassword-error"
             {...register("confirmPassword")}
-        />
+          />
         </FormField>
 
         {serverError && <ErrorMessage message={serverError} />}
