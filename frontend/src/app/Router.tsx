@@ -26,6 +26,8 @@ import AdminLayout from "../shared/layouts/AdminLayout";
 import CompanyLayout from "../shared/layouts/CompanyLayout";
 import Favorites from "../domains/user/pages/Favorites";
 import History from "../domains/user/pages/History";
+import UserPreferences from "../domains/user/pages/UserPreferences";
+import UserProfilePreferences from "../domains/user/pages/UserProfilePreferences";
 
 type Props = {
   children: ReactNode;
@@ -88,8 +90,19 @@ const Router = () => {
         <Route path={ROUTES.USER.PROFILE} element={<Profile />} />
         <Route path={ROUTES.USER.FAVORITES} element={<Favorites />} />
         <Route path={ROUTES.USER.HISTORY} element={<History />} />
-        <Route path={ROUTES.USER.CHANGE_PASSWORD} element={<ChangePassword/>}/>
+        <Route
+          path={ROUTES.USER.CHANGE_PASSWORD}
+          element={<ChangePassword />}
+        />
+        <Route
+          path={ROUTES.USER.ONBOARDING_PREFERENCES}
+          element={<UserPreferences />}
+        />
       </Route>
+      <Route
+        path={ROUTES.USER.PREFERENCES}
+        element={<UserProfilePreferences />}
+      />
 
       {/* ADMIN */}
       <Route

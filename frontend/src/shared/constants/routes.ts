@@ -9,7 +9,14 @@ export const ROUTES = {
     REGISTER_COMPANY: "/register/company",
   },
 
-  USER: { PROFILE: "/profile", FAVORITES: "/favorites", HISTORY: "/history", CHANGE_PASSWORD: "/profile/change-password"  },
+  USER: {
+    PROFILE: "/profile",
+    FAVORITES: "/favorites",
+    HISTORY: "/history",
+    CHANGE_PASSWORD: "/profile/change-password",
+    ONBOARDING_PREFERENCES: "onboarding/preferences",
+    PREFERENCES: "/preferences",
+  },
 
   ADMIN: {
     DASHBOARD: "/admin",

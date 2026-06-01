@@ -30,14 +30,15 @@ import FormField from "../../../shared/components/ui/FormField";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 
 import { toast } from "react-toastify";
+import useDataStore from "../../../shared/store/dataStore";
 
 export default function UserProfileForm() {
   const user = useAuthStore((s) => s.currentUser);
   const updateUser = useAuthStore((s) => s.updateUser);
+  const updateDataUser = useDataStore((s) => s.updateUser);
   const navigate = useNavigate();
   const logout = useAuthStore((s) => s.logout);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-
 
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -58,9 +59,13 @@ export default function UserProfileForm() {
       email: user?.email ?? "",
     },
   });
-   
+
   /**Soumission du formulaire */
   const onSubmit = async (data: ProfileFormData) => {
+    if (!user) {
+      setServerError("Utilisateur non connecté");
+      return;
+    }
     setLoading(true);
     setServerError(null);
 
@@ -78,6 +83,11 @@ export default function UserProfileForm() {
 
       /**Mise à jour du store Zustand */
       updateUser({
+        username: data.username,
+        email: data.email,
+      });
+
+      updateDataUser(user.id, {
         username: data.username,
         email: data.email,
       });
@@ -107,96 +117,145 @@ export default function UserProfileForm() {
   };
 
   return (
-    <div>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        flexDirection: "column",
+        alignItems: "center",
+      }}
+    >
       <h1>Mon profil</h1>
 
       {/*FORMULAIRE PRINCIPAL */}
-      <form onSubmit={handleSubmit(onSubmit)} noValidate>
-        {/*CHAMP: NOM UTILISATEUR */}
-        <FormField
-          label="Nom d'utilisateur"
-          htmlFor="username"
-          error={errors.username?.message}
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        noValidate
+        style={{ width: "30%" }}
+      >
+        <div style={{ marginBottom: "50px" }}>
+          {/*CHAMP: NOM UTILISATEUR */}
+          <FormField
+            label="Nom d'utilisateur"
+            htmlFor="username"
+            error={errors.username?.message}
+          >
+            <Input
+              id="username"
+              type="text"
+              placeholder="Votre nom"
+              hasError={!!errors.username}
+              {...register("username")}
+            />
+          </FormField>
+
+          {/*CHAMP: EMAIL */}
+          <FormField
+            label="Email"
+            htmlFor="email"
+            error={errors.email?.message}
+          >
+            <Input
+              id="email"
+              type="email"
+              placeholder="Votre email"
+              autoComplete="email"
+              hasError={!!errors.email}
+              aria-describedby="email-error"
+              {...register("email")}
+            />
+          </FormField>
+
+          {/*ERREUR SERVEUR */}
+          {serverError && <ErrorMessage message={serverError} />}
+          {/*BOUTON SUBMIT */}
+          <Button type="submit" loading={loading}>
+            Enregistrer les modifications
+          </Button>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            flexDirection: "column",
+            gap: "30px",
+          }}
         >
-          <Input
-            id="username"
-            type="text"
-            placeholder="Votre nom"
-            hasError={!!errors.username}
-            {...register("username")}
-          />
-        </FormField>
+          <Button
+            type="button"
+            onClick={() => navigate("/profile/change-password")}
+          >
+            Modifier le mot de passe
+          </Button>
 
-        {/*CHAMP: EMAIL */}
-        <FormField label="Email" htmlFor="email" error={errors.email?.message}>
-          <Input
-            id="email"
-            type="email"
-            placeholder="Votre email"
-            autoComplete="email"
-            hasError={!!errors.email}
-            aria-describedby="email-error"
-            {...register("email")}
-          />
-        </FormField>
+          <Button type="button" onClick={() => navigate("/preferences")}>
+            Modifier mes préférences
+          </Button>
 
-        {/*ERREUR SERVEUR */}
-        {serverError && <ErrorMessage message={serverError} />}
-
-        {/*BOUTON SUBMIT */}
-        <Button type="submit" loading={loading}>
-          Enregistrer les modifications
-        </Button>
-        <Button
-          type="button"
-          onClick={() => navigate("/profile/change-password")}
-        >
-           Modifier le mot  passe
-        </Button>
-
-        <Button type="button" onClick={() => setShowDeleteModal(true)}>
-          Supprimer mon compte
-        </Button>
+          <Button type="button" onClick={() => setShowDeleteModal(true)}>
+            Supprimer mon compte
+          </Button>
+        </div>
       </form>
 
-      {showDeleteModal && createPortal(
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999
-        }}>
-          <div style={{ 
-            backgroundColor: 'white', 
-            padding: '24px', 
-            borderRadius: '8px', 
-            maxWidth: '448px', 
-            width: '100%', 
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-            color: '#1a1a1a'
-          }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '8px' }}>
-              ⚠️ Suppression du compte
-            </h2>
-            <p style={{ marginBottom: '16px', color: '#4a5568' }}>
-              Cette action est <strong>définitive</strong>.  
-              Toutes vos données seront supprimées.
-            </p>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <Button type="button" onClick={() => setShowDeleteModal(false)}>
-                Annuler
-              </Button>
-              <Button type="button" onClick={handleDeleteAccount}>
-                Oui, supprimer
-              </Button>
+      {showDeleteModal &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "24px",
+                borderRadius: "8px",
+                maxWidth: "448px",
+                width: "100%",
+                boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                color: "#1a1a1a",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: "1.25rem",
+                  fontWeight: "bold",
+                  marginBottom: "8px",
+                }}
+              >
+                ⚠️ Suppression du compte
+              </h2>
+              <p style={{ marginBottom: "16px", color: "#4a5568" }}>
+                Cette action est <strong>définitive</strong>. Toutes vos données
+                seront supprimées.
+              </p>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <Button type="button" onClick={() => setShowDeleteModal(false)}>
+                  Annuler
+                </Button>
+                <Button type="button" onClick={handleDeleteAccount}>
+                  Oui, supprimer
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
