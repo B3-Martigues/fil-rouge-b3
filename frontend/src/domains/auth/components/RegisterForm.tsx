@@ -21,6 +21,7 @@ import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
+import { createWelcomeNotification } from "../../notifications/services/notificationFactory";
 
 const createLocalId = () => Date.now();
 const normalizeComparable = (value: string) => value.trim().toLowerCase();
@@ -32,6 +33,7 @@ export default function RegisterForm() {
   const users = useDataStore((s) => s.users);
   const addAccount = useDataStore((s) => s.addAccount);
   const addUser = useDataStore((s) => s.addUser);
+  const dispatchNotification = useDataStore((s) => s.dispatchNotification);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -100,6 +102,9 @@ export default function RegisterForm() {
 
       addAccount(account);
       addUser(newUser);
+      void dispatchNotification(
+        createWelcomeNotification({ user: newUser }),
+      );
       login(toAuthenticatedUser(account, newUser));
 
       toast.success("Compte cree avec succes");

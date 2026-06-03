@@ -5,8 +5,18 @@ import useDataStore from "../../../shared/store/dataStore";
 export default function Favorites() {
   const { favorites } = useFavorites();
   const events = useDataStore((s) => s.events);
+  const companies = useDataStore((s) => s.companies);
+  const activeCompanyIds = new Set(
+    companies
+      .filter((company) => company.is_active && !company.deleted_at)
+      .map((company) => company.id),
+  );
   const favoriteEvents = events.filter(
-    (event) => favorites.includes(event.id) && event.is_active && !event.deleted_at,
+    (event) =>
+      favorites.includes(event.id) &&
+      event.is_active &&
+      !event.deleted_at &&
+      activeCompanyIds.has(event.company_id),
   );
 
   if (favoriteEvents.length === 0) {

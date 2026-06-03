@@ -10,6 +10,7 @@ import {
   changePasswordSchema,
   type ChangePasswordFormData,
 } from "../validations/changePassword.schema";
+import { createPasswordChangedNotification } from "../../notifications/services/notificationFactory";
 
 import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
@@ -20,6 +21,8 @@ export default function ChangePassword() {
   const user = useAuthStore((s) => s.currentUser);
   const updateAccount = useDataStore((s) => s.updateAccount);
   const accounts = useDataStore((s) => s.accounts);
+  const users = useDataStore((s) => s.users);
+  const dispatchNotification = useDataStore((s) => s.dispatchNotification);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -51,8 +54,17 @@ export default function ChangePassword() {
       }
 
       const account = accounts.find((item) => item.id === user.account_id);
+      const notificationUser = users.find(
+        (item) => item.id === user.user_id && !item.deleted_at,
+      );
+
       if (!account) {
         setServerError("Compte introuvable");
+        return;
+      }
+
+      if (!notificationUser) {
+        setServerError("Profil utilisateur introuvable");
         return;
       }
 
@@ -65,6 +77,12 @@ export default function ChangePassword() {
         password_hash: data.newPassword,
         password_changed_at: new Date().toISOString(),
       });
+      void dispatchNotification(
+        createPasswordChangedNotification({
+          user: notificationUser,
+          profileUrl: "/profile",
+        }),
+      );
 
       toast.success("Mot de passe mis a jour");
       navigate("/profile");

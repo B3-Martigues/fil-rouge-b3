@@ -6,13 +6,17 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import useAuthStore from "../domains/auth/store/authStore";
+import type { Role } from "../domains/user/types/user";
 import { ROUTES } from "../shared/constants/routes";
+import useDataStore from "../shared/store/dataStore";
 
 import Home from "../domains/events/pages/Home";
 import Register from "../domains/auth/pages/Register";
 import UserRegister from "../domains/auth/pages/UserRegister";
 import CompanyRegister from "../domains/auth/pages/CompanyRegister";
 import Login from "../domains/auth/pages/Login";
+import ForgotPassword from "../domains/auth/pages/ForgotPassword";
+import ResetPassword from "../domains/auth/pages/ResetPassword";
 import Profile from "../domains/user/pages/Profile";
 import ChangePassword from "../domains/user/components/ChangePassword";
 import AdminDashboard from "../domains/admin/pages/AdminDashboard";
@@ -36,18 +40,43 @@ type Props = {
  */
 const PrivateRoute = ({ children }: Props) => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  return isAuthenticated ? (
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const accounts = useDataStore((s) => s.accounts);
+  const users = useDataStore((s) => s.users);
+  const companies = useDataStore((s) => s.companies);
+
+  const account = currentUser
+    ? accounts.find((item) => item.id === currentUser.account_id)
+    : undefined;
+  const hasValidAccount = !!account && account.is_active && !account.deleted_at;
+  const hasValidProfile =
+    currentUser?.role === "company"
+      ? companies.some(
+          (company) =>
+            company.id === currentUser.company_id &&
+            company.account_id === currentUser.account_id &&
+            !company.deleted_at,
+        )
+      : users.some(
+          (user) =>
+            user.id === currentUser?.user_id &&
+            user.account_id === currentUser?.account_id &&
+            user.role === currentUser?.role &&
+            !user.deleted_at,
+        );
+
+  return isAuthenticated && currentUser && hasValidAccount && hasValidProfile ? (
     children
   ) : (
-    <Navigate to={ROUTES.PUBLIC.HOME} replace />
+    <Navigate to={ROUTES.PUBLIC.LOGIN} replace />
   );
 };
 
 /**
  * Protection par rôle utilisateur
  */
-const RoleRoute = ({ children, role }: Props & { role: string }) => {
-  const userRole = useAuthStore((s) => s.role);
+const RoleRoute = ({ children, role }: Props & { role: Role }) => {
+  const userRole = useAuthStore((s) => s.currentUser?.role ?? s.role);
 
   if (!userRole) {
     return <Navigate to={ROUTES.PUBLIC.LOGIN} replace />;
@@ -73,6 +102,14 @@ const Router = () => {
           element={<CompanyRegister />}
         />
         <Route path={ROUTES.PUBLIC.LOGIN} element={<Login />} />
+        <Route
+          path={ROUTES.PUBLIC.FORGOT_PASSWORD}
+          element={<ForgotPassword />}
+        />
+        <Route
+          path={ROUTES.PUBLIC.RESET_PASSWORD}
+          element={<ResetPassword />}
+        />
       </Route>
 
       {/* USER */}

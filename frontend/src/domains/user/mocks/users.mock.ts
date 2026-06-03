@@ -38,6 +38,42 @@ export const usersMock: User[] = [
     created_at: "2026-05-21T14:05:00.000Z",
     updated_at: "2026-05-30T08:00:00.000Z",
   },
+  {
+    id: 10,
+    account_id: 10,
+    username: "Eclat Culture",
+    role_id: ROLE_IDS.company,
+    role: "company",
+    created_at: "2026-05-19T08:00:00.000Z",
+    updated_at: "2026-05-19T08:00:00.000Z",
+  },
+  {
+    id: 11,
+    account_id: 11,
+    username: "Food Lab Provence",
+    role_id: ROLE_IDS.company,
+    role: "company",
+    created_at: "2026-05-19T09:00:00.000Z",
+    updated_at: "2026-05-19T09:00:00.000Z",
+  },
+  {
+    id: 12,
+    account_id: 12,
+    username: "Atelier Horizon",
+    role_id: ROLE_IDS.company,
+    role: "company",
+    created_at: "2026-05-28T11:00:00.000Z",
+    updated_at: "2026-05-28T11:00:00.000Z",
+  },
+  {
+    id: 13,
+    account_id: 13,
+    username: "Outdoor Sud",
+    role_id: ROLE_IDS.company,
+    role: "company",
+    created_at: "2026-05-22T16:30:00.000Z",
+    updated_at: "2026-05-22T16:30:00.000Z",
+  },
 ];
 
 export const userEventPreferencesMock: UserEventPreference[] = [

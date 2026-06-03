@@ -6,7 +6,7 @@ const dateTimeFormatOptions: Intl.DateTimeFormatOptions = {
 };
 
 export type EventStatus = "past" | "current" | "upcoming";
-export type EventPeriodMode = "week" | "month" | "year";
+export type EventPeriodMode = "day" | "week" | "month" | "year";
 
 export function isUpcomingEvent(endDate: string): boolean {
   return new Date(endDate) >= new Date();
@@ -73,6 +73,18 @@ export function getPeriodRange(
   mode: EventPeriodMode,
   value: string,
 ): { start: Date; end: Date } {
+  if (mode === "day") {
+    const start = new Date(value);
+    const end = new Date(start);
+
+    start.setHours(0, 0, 0, 0);
+    end.setDate(end.getDate() + 1);
+    end.setHours(0, 0, 0, 0);
+    end.setMilliseconds(-1);
+
+    return { start, end };
+  }
+
   if (mode === "week") {
     const weekStart = parseWeekInputValue(value);
     const weekEnd = new Date(weekStart);
@@ -103,10 +115,18 @@ export function getPeriodRange(
 }
 
 export function getDefaultPeriodValue(mode: EventPeriodMode, date = new Date()) {
+  if (mode === "day") return formatDayInputValue(date);
   if (mode === "week") return formatWeekInputValue(date);
   if (mode === "month") return formatMonthInputValue(date);
 
   return String(date.getFullYear());
+}
+
+function formatDayInputValue(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+    2,
+    "0",
+  )}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 export function formatWeekInputValue(date: Date): string {

@@ -24,6 +24,7 @@ import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
+import { createWelcomeNotification } from "../../notifications/services/notificationFactory";
 
 const createLocalId = () => Date.now();
 const normalizeComparable = (value: string) => value.trim().toLowerCase();
@@ -38,6 +39,7 @@ export default function CompanyRegisterForm() {
   const addUser = useDataStore((s) => s.addUser);
   const addCompany = useDataStore((s) => s.addCompany);
   const addCompanyMember = useDataStore((s) => s.addCompanyMember);
+  const dispatchNotification = useDataStore((s) => s.dispatchNotification);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -161,6 +163,9 @@ export default function CompanyRegisterForm() {
       addUser(memberUser);
       addCompany(company);
       addCompanyMember(companyMember);
+      void dispatchNotification(
+        createWelcomeNotification({ user: memberUser, company }),
+      );
       login(toAuthenticatedCompany({ account, user: memberUser, company }));
 
       toast.success("Compte entreprise cree. En attente de validation");

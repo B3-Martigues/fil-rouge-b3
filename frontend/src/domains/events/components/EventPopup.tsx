@@ -2,7 +2,6 @@ import { Popup } from "react-leaflet";
 import { Thermometer, Wind } from "lucide-react";
 
 import type { Event } from "../types/event-categories";
-import Button from "../../../shared/components/ui/Button";
 import FavoriteButton from "./FavoriteButton";
 import { useWeather } from "../../../shared/hooks/useWeather";
 import {
@@ -100,11 +99,12 @@ export default function EventPopup({ event }: Props) {
           </p>
         ) : null}
         <a
+          className="btn"
           href={`https://www.google.com/maps/dir/?api=1&destination=${event.latitude},${event.longitude}`}
           target="_blank"
           rel="noopener noreferrer"
         >
-          <Button>Itineraire</Button>
+          Itineraire
         </a>
       </div>
     </Popup>

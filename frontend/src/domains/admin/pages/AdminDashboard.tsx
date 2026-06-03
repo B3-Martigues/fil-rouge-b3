@@ -23,6 +23,10 @@ import {
   formatEventDateRange,
   toDateTimeLocalValue,
 } from "../../events/utils/event";
+import {
+  createCompanyApprovedNotification,
+  createEventApprovedNotification,
+} from "../../notifications/services/notificationFactory";
 
 type UserDraft = {
   display_name: string;
@@ -83,11 +87,84 @@ const normalizeText = (value: string) =>
 
 const normalizeComparable = (value: string) => value.trim().toLowerCase();
 
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const passwordPattern =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,}$/;
+
+const isValidEmail = (value: string) => emailPattern.test(value.trim());
+
+const isStrongPassword = (value: string) => passwordPattern.test(value);
+
+const isValidOptionalUrl = (value: string) => {
+  const trimmedValue = value.trim();
+  return trimmedValue === "" || URL.canParse(trimmedValue);
+};
+
 const isValidOptionalCoordinate = (value: string, min: number, max: number) => {
   if (value.trim() === "") return true;
 
   const numberValue = Number(value);
   return !Number.isNaN(numberValue) && numberValue >= min && numberValue <= max;
+};
+
+const parseOptionalCoordinate = (value: string) => {
+  const trimmedValue = value.trim();
+  return trimmedValue === "" ? null : Number(trimmedValue);
+};
+
+const createNextId = (items: { id: number }[]) =>
+  Math.max(0, ...items.map((item) => item.id)) + 1;
+
+const validateCompanyDraft = (draft: CompanyDraft) => {
+  if (draft.name.trim().length < 2) {
+    return "Le nom de l'entreprise est obligatoire";
+  }
+
+  if (!isValidEmail(draft.contact_email)) {
+    return "L'email de contact est invalide";
+  }
+
+  if (draft.description.trim().length < 10) {
+    return "La description doit contenir au moins 10 caracteres";
+  }
+
+  if (!isValidOptionalUrl(draft.website)) {
+    return "URL du site invalide";
+  }
+
+  if (!isValidOptionalUrl(draft.logo)) {
+    return "URL du logo invalide";
+  }
+
+  if (!isValidOptionalCoordinate(draft.latitude, -90, 90)) {
+    return "La latitude doit etre comprise entre -90 et 90";
+  }
+
+  if (!isValidOptionalCoordinate(draft.longitude, -180, 180)) {
+    return "La longitude doit etre comprise entre -180 et 180";
+  }
+
+  if (draft.address.trim().length < 5) {
+    return "L'adresse est obligatoire";
+  }
+
+  if (draft.city.trim().length < 2) {
+    return "La ville est obligatoire";
+  }
+
+  if (!/^\d{5}$/.test(draft.postal_code.trim())) {
+    return "Le code postal doit contenir 5 chiffres";
+  }
+
+  if (!/^\d{10}$/.test(draft.contact_phone_number.trim())) {
+    return "Le telephone doit contenir 10 chiffres";
+  }
+
+  if (!/^\d{14}$/.test(draft.siret.trim())) {
+    return "Le SIRET doit contenir 14 chiffres";
+  }
+
+  return null;
 };
 
 const formatPhoneNumber = (phoneNumber?: string) =>
@@ -179,6 +256,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const accountsData = useDataStore((s) => s.accounts);
   const usersData = useDataStore((s) => s.users);
   const companiesData = useDataStore((s) => s.companies);
+  const companyMembersData = useDataStore((s) => s.companyMembers);
   const eventsData = useDataStore((s) => s.events);
   const addAccount = useDataStore((s) => s.addAccount);
   const updateAccount = useDataStore((s) => s.updateAccount);
@@ -193,6 +271,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const updateEvent = useDataStore((s) => s.updateEvent);
   const approveEventInStore = useDataStore((s) => s.approveEvent);
   const deleteEventFromStore = useDataStore((s) => s.deleteEvent);
+  const dispatchNotification = useDataStore((s) => s.dispatchNotification);
   const accountSummaries = useMemo(
     () => buildAccountSummaries(accountsData, usersData, companiesData),
     [accountsData, usersData, companiesData],
@@ -261,6 +340,21 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const getCompanyName = (companyId: number) =>
     activeCompaniesData.find((company) => company.id === companyId)?.name ??
     "Non rattache";
+
+  const getCompanyNotificationUser = (company: Company) => {
+    const companyMember = companyMembersData.find(
+      (item) => item.company_id === company.id && !item.deleted_at,
+    );
+
+    return (
+      usersData.find(
+        (user) => user.id === companyMember?.user_id && !user.deleted_at,
+      ) ??
+      usersData.find(
+        (user) => user.account_id === company.account_id && !user.deleted_at,
+      )
+    );
+  };
 
   const stats = [
     { label: "Evenements", value: activeEventsData.length },
@@ -369,6 +463,18 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     }
 
     activateCompanyInStore(companyId);
+    const notificationUser = getCompanyNotificationUser(company);
+
+    if (!notificationUser) {
+      toast.error("Aucun membre entreprise rattache pour notifier ce compte");
+    } else {
+      void dispatchNotification(
+        createCompanyApprovedNotification({
+          company,
+          user: notificationUser,
+        }),
+      );
+    }
     toast.success(`${company.name} est maintenant activee`);
   };
 
@@ -377,6 +483,12 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
 
     const contactEmail = companyDraft.contact_email.trim();
     const siret = companyDraft.siret.trim();
+    const validationError = validateCompanyDraft(companyDraft);
+
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
 
     if (hasDuplicateCompanyContactEmail(contactEmail, editingCompanyId)) {
       toast.error("Cet email de contact est deja utilise");
@@ -393,8 +505,8 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       contact_email: contactEmail,
       description: companyDraft.description.trim(),
       website: companyDraft.website.trim(),
-      latitude: companyDraft.latitude ? Number(companyDraft.latitude) : null,
-      longitude: companyDraft.longitude ? Number(companyDraft.longitude) : null,
+      latitude: parseOptionalCoordinate(companyDraft.latitude),
+      longitude: parseOptionalCoordinate(companyDraft.longitude),
       address: companyDraft.address.trim(),
       city: companyDraft.city.trim(),
       postal_code: companyDraft.postal_code.trim(),
@@ -441,6 +553,18 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     const displayName = userDraft.display_name.trim();
     const loginEmail = userDraft.login_email.trim();
 
+    if (!isValidEmail(loginEmail)) {
+      toast.error("L'email de connexion est invalide");
+      return;
+    }
+
+    if (!isStrongPassword(userDraft.password_hash)) {
+      toast.error(
+        "Le mot de passe doit contenir au moins 8 caracteres, une majuscule, une minuscule, un chiffre et un caractere special",
+      );
+      return;
+    }
+
     if (isCreatingUser) {
       if (userDraft.role === "company") {
         toast.error("Creez les entreprises via le formulaire entreprise");
@@ -457,7 +581,8 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         return;
       }
 
-      const accountId = Date.now();
+      const accountId = createNextId(accountsData);
+      const userId = createNextId(usersData);
       const createdAt = new Date().toISOString();
       const account: Account = {
         id: accountId,
@@ -470,7 +595,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         updated_at: createdAt,
       };
       const user: User = {
-        id: accountId + 1,
+        id: userId,
         account_id: accountId,
         username: displayName,
         role_id: ROLE_IDS[userDraft.role],
@@ -578,6 +703,21 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       return;
     }
 
+    const selectedCompanyId = Number(eventDraft.company_id);
+    const selectedCompany = activeCompaniesData.find(
+      (company) => company.id === selectedCompanyId,
+    );
+
+    if (!selectedCompany) {
+      toast.error("Entreprise introuvable");
+      return;
+    }
+
+    if (eventDraft.is_active && !selectedCompany.is_active) {
+      toast.error("Impossible de publier un evenement d'une entreprise inactive");
+      return;
+    }
+
     if (!eventDraft.start_date || !eventDraft.end_date) {
       toast.error("Les dates de debut et de fin sont obligatoires");
       return;
@@ -639,22 +779,22 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       description: eventDraft.description.trim(),
       start_date: new Date(eventDraft.start_date).toISOString(),
       end_date: new Date(eventDraft.end_date).toISOString(),
-      latitude: eventDraft.latitude ? Number(eventDraft.latitude) : null,
-      longitude: eventDraft.longitude ? Number(eventDraft.longitude) : null,
+      latitude: parseOptionalCoordinate(eventDraft.latitude),
+      longitude: parseOptionalCoordinate(eventDraft.longitude),
       address: eventDraft.address.trim(),
       category_slugs: eventDraft.category_slugs,
       city: eventDraft.city.trim(),
       postal_code: eventDraft.postal_code.trim(),
       image: eventDraft.image.trim(),
       source: eventDraft.source?.trim() || null,
-      company_id: Number(eventDraft.company_id),
+      company_id: selectedCompanyId,
       is_active: eventDraft.is_active,
       created_at: now,
       updated_at: now,
     };
 
     if (isCreatingEvent) {
-      addEvent({ id: Date.now(), ...payload });
+      addEvent({ id: createNextId(eventsData), ...payload });
       toast.success("Evenement cree");
     } else if (editingEventId) {
       const event = eventsData.find((item) => item.id === editingEventId);
@@ -700,7 +840,29 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       return;
     }
 
+    const company = companiesData.find((item) => item.id === event.company_id);
+
+    if (!company || company.deleted_at || !company.is_active) {
+      toast.error("Impossible de publier un evenement rattache a une entreprise inactive");
+      return;
+    }
+
     approveEventInStore(eventId);
+    const notificationUser = company
+      ? getCompanyNotificationUser(company)
+      : null;
+
+    if (!company || !notificationUser) {
+      toast.error("Aucun membre entreprise rattache pour notifier cet evenement");
+    } else {
+      void dispatchNotification(
+        createEventApprovedNotification({
+          company,
+          event,
+          user: notificationUser,
+        }),
+      );
+    }
     toast.success(`${event.title} est maintenant visible`);
   };
 

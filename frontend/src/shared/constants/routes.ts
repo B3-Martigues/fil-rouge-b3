@@ -4,6 +4,8 @@ export const ROUTES = {
   PUBLIC: {
     HOME: "/",
     LOGIN: "/login",
+    FORGOT_PASSWORD: "/forgot-password",
+    RESET_PASSWORD: "/reset-password/:token",
     REGISTER: "/register",
     REGISTER_USER: "/register/user",
     REGISTER_COMPANY: "/register/company",

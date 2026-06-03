@@ -2,6 +2,7 @@
 import { NavLink } from "react-router-dom";
 import { ROUTES } from "../../constants/routes";
 import LogoutButton from "../../../domains/auth/components/LogoutButton";
+import NotificationCenter from "../../../domains/notifications/components/NotificationCenter";
 
 export default function HeaderAdmin() {
   return (
@@ -19,6 +20,7 @@ export default function HeaderAdmin() {
 
         {/* Gestion des comptes */}
         <NavLink to={ROUTES.ADMIN.USERS}>Comptes</NavLink>
+        <NotificationCenter />
 
         {/* Déconnexion administrateur */}
         <LogoutButton />

@@ -146,6 +146,10 @@ export default function LoginForm() {
         <Link to={ROUTES.PUBLIC.REGISTER}>
           <strong>Pas encore inscrit ?</strong>
         </Link>
+        <br />
+        <Link to={ROUTES.PUBLIC.FORGOT_PASSWORD}>
+          <strong>Mot de passe oublie ?</strong>
+        </Link>
       </form>
     </div>
   );

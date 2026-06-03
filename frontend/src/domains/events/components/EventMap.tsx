@@ -22,6 +22,15 @@ export default function EventMap({ periodStart, periodEnd }: EventMapProps) {
   const { position } = useUserLocation();
   const events = useDataStore((s) => s.events);
   const companies = useDataStore((s) => s.companies);
+  const activeCompaniesById = useMemo(
+    () =>
+      new Map(
+        companies
+          .filter((company) => company.is_active && !company.deleted_at)
+          .map((company) => [company.id, company]),
+      ),
+    [companies],
+  );
   const mappableEvents = useMemo(
     () =>
       events
@@ -29,20 +38,18 @@ export default function EventMap({ periodStart, periodEnd }: EventMapProps) {
           (event) =>
             event.is_active &&
             !event.deleted_at &&
+            activeCompaniesById.has(event.company_id) &&
             getEventStatus(event) !== "past" &&
             isEventInPeriod(event, periodStart, periodEnd),
         )
         .map((event) => {
           if (hasEventCoordinates(event)) return event;
 
-          const company = companies.find(
-            (item) => item.id === event.company_id && !item.deleted_at,
-          );
+          const company = activeCompaniesById.get(event.company_id);
 
           if (
             company?.latitude == null ||
-            company.longitude == null ||
-            !company.is_active
+            company.longitude == null
           ) {
             return null;
           }
@@ -57,7 +64,7 @@ export default function EventMap({ periodStart, periodEnd }: EventMapProps) {
           (event): event is Event & { latitude: number; longitude: number } =>
             event != null,
         ),
-    [companies, events, periodEnd, periodStart],
+    [activeCompaniesById, events, periodEnd, periodStart],
   );
   const mapPoints = useMemo(
     () => [

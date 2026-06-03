@@ -58,6 +58,7 @@ const statusSections: {
 
 export default function Home() {
   const events = useDataStore((s) => s.events);
+  const companies = useDataStore((s) => s.companies);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<EventCategory | "all">("all");
   const [city, setCity] = useState("all");
@@ -67,6 +68,15 @@ export default function Home() {
   const [mapPeriodValue, setMapPeriodValue] = useState(() =>
     getDefaultPeriodValue("week"),
   );
+  const activeCompanyIds = useMemo(
+    () =>
+      new Set(
+        companies
+          .filter((company) => company.is_active && !company.deleted_at)
+          .map((company) => company.id),
+      ),
+    [companies],
+  );
   const availableCities = useMemo(
     () =>
       Array.from(
@@ -74,13 +84,14 @@ export default function Home() {
           events
             .filter((event) => event.is_active)
             .filter((event) => !event.deleted_at)
+            .filter((event) => activeCompanyIds.has(event.company_id))
             .map((event) => event.city.trim())
             .filter(Boolean),
         ),
       ).sort((firstCity, secondCity) =>
         firstCity.localeCompare(secondCity, "fr-FR"),
       ),
-    [events],
+    [activeCompanyIds, events],
   );
 
   const visibleEvents = useMemo(() => {
@@ -89,6 +100,7 @@ export default function Home() {
     return events
       .filter((event) => {
         if (!event.is_active || event.deleted_at) return false;
+        if (!activeCompanyIds.has(event.company_id)) return false;
 
         const eventCategories = getEventCategories(event);
         const matchesCategory =
@@ -137,7 +149,7 @@ export default function Home() {
           new Date(secondEvent.start_date).getTime()
         );
       });
-  }, [category, city, events, search, sort]);
+  }, [activeCompanyIds, category, city, events, search, sort]);
 
   const groupedEvents = useMemo(
     () =>
@@ -225,6 +237,7 @@ export default function Home() {
                 handleMapPeriodModeChange(event.target.value as EventPeriodMode)
               }
             >
+              <option value="day">Journee</option>
               <option value="week">Semaine</option>
               <option value="month">Mois</option>
               <option value="year">Annee</option>
@@ -236,7 +249,9 @@ export default function Home() {
             <input
               className="input"
               type={
-                mapPeriodMode === "week"
+                mapPeriodMode === "day"
+                  ? "date"
+                  : mapPeriodMode === "week"
                   ? "week"
                   : mapPeriodMode === "month"
                     ? "month"

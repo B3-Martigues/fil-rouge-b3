@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 
 import LogoutButton from "../../../domains/auth/components/LogoutButton";
+import NotificationCenter from "../../../domains/notifications/components/NotificationCenter";
 import { ROUTES } from "../../constants/routes";
 
 export default function HeaderCompany() {
@@ -9,8 +10,9 @@ export default function HeaderCompany() {
       <nav style={{ display: "flex", justifyContent: "center", gap: "50px" }}>
         <NavLink to={ROUTES.PUBLIC.HOME}>Accueil</NavLink>
         <NavLink to={ROUTES.COMPANY.PROFILE}>Profil</NavLink>
-        <NavLink to={ROUTES.COMPANY.EVENTS}>Mes évènements</NavLink>
-        <NavLink to={ROUTES.COMPANY.CREATE}>Nouvel évènement</NavLink>
+        <NavLink to={ROUTES.COMPANY.EVENTS}>Mes evenements</NavLink>
+        <NavLink to={ROUTES.COMPANY.CREATE}>Nouvel evenement</NavLink>
+        <NotificationCenter />
         <LogoutButton />
       </nav>
     </header>
