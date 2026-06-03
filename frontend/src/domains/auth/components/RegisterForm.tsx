@@ -1,3 +1,9 @@
+/**Formulaire d'inscription
+ * Utilise:
+ * - React Hook Form + Zod pour la validation
+ * - composants UI (Input, Button, FormField)
+ * - composant feedback (ErrorMessage)
+ */
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,10 +23,14 @@ import {
 import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
+
+// UI
 import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
+// FEEDBACK
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
+
 import { createWelcomeNotification } from "../../notifications/services/notificationFactory";
 
 const createLocalId = () => Date.now();
@@ -55,6 +65,7 @@ export default function RegisterForm() {
 
       const loginEmail = data.login_email.trim();
       const username = data.username.trim();
+      /**Vérification email déjà utilsé */
       const existingAccount = accounts.find(
         (account) =>
           normalizeComparable(account.login_email) ===
@@ -62,7 +73,7 @@ export default function RegisterForm() {
       );
 
       if (existingAccount) {
-        setServerError("Cet email est deja utilise");
+        setServerError("Cet email est déjà utilisé");
         return;
       }
 
@@ -73,7 +84,7 @@ export default function RegisterForm() {
       );
 
       if (existingUsername) {
-        setServerError("Ce nom d'utilisateur est deja utilise");
+        setServerError("Ce nom d'utilisateur est déjà utilisé");
         return;
       }
 
@@ -102,13 +113,11 @@ export default function RegisterForm() {
 
       addAccount(account);
       addUser(newUser);
-      void dispatchNotification(
-        createWelcomeNotification({ user: newUser }),
-      );
+      void dispatchNotification(createWelcomeNotification({ user: newUser }));
       login(toAuthenticatedUser(account, newUser));
 
-      toast.success("Compte cree avec succes");
-      navigate(ROUTES.PUBLIC.HOME);
+      toast.success("Compte créé avec succès");
+      navigate(ROUTES.USER.ONBOARDING);
     } catch {
       setServerError("Erreur lors de l'inscription");
     } finally {

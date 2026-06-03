@@ -30,6 +30,7 @@ import AdminLayout from "../shared/layouts/AdminLayout";
 import CompanyLayout from "../shared/layouts/CompanyLayout";
 import Favorites from "../domains/user/pages/Favorites";
 import History from "../domains/user/pages/History";
+import Onboarding from "../domains/user/pages/Onboarding";
 
 type Props = {
   children: ReactNode;
@@ -65,7 +66,10 @@ const PrivateRoute = ({ children }: Props) => {
             !user.deleted_at,
         );
 
-  return isAuthenticated && currentUser && hasValidAccount && hasValidProfile ? (
+  return isAuthenticated &&
+    currentUser &&
+    hasValidAccount &&
+    hasValidProfile ? (
     children
   ) : (
     <Navigate to={ROUTES.PUBLIC.LOGIN} replace />
@@ -125,7 +129,11 @@ const Router = () => {
         <Route path={ROUTES.USER.PROFILE} element={<Profile />} />
         <Route path={ROUTES.USER.FAVORITES} element={<Favorites />} />
         <Route path={ROUTES.USER.HISTORY} element={<History />} />
-        <Route path={ROUTES.USER.CHANGE_PASSWORD} element={<ChangePassword/>}/>
+        <Route
+          path={ROUTES.USER.CHANGE_PASSWORD}
+          element={<ChangePassword />}
+        />
+        <Route path={ROUTES.USER.ONBOARDING} element={<Onboarding />} />
       </Route>
 
       {/* ADMIN */}

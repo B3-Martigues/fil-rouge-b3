@@ -10,9 +10,7 @@ import type { CompanyMember } from "../../domains/companies/types/company-member
 import { eventsMock } from "../../domains/events/mocks/events.mock";
 import type { Event } from "../../domains/events/types/event";
 import { notificationTypesMock } from "../../domains/notifications/mocks/notification-types.mock";
-import {
-  getNotificationTypeConfig,
-} from "../../domains/notifications/mocks/notification-types.mock";
+import { getNotificationTypeConfig } from "../../domains/notifications/mocks/notification-types.mock";
 import {
   sendNotificationEmail,
   type EmailDeliveryResult,
@@ -106,6 +104,10 @@ type DataState = {
 
   toggleFavorite: (userId: number, eventId: number) => void;
   recordHistory: (userId: number, eventId: number) => void;
+  setUserEventPreferences: (
+    userId: number,
+    preferences: UserEventPreference[],
+  ) => void;
 };
 
 const now = () => new Date().toISOString();
@@ -365,9 +367,7 @@ const useDataStore = create<DataState>()(
             status: "failed",
             sent_at: now(),
             error:
-              error instanceof Error
-                ? error.message
-                : "Erreur d'envoi email",
+              error instanceof Error ? error.message : "Erreur d'envoi email",
           };
 
           set((state) => ({
@@ -417,7 +417,8 @@ const useDataStore = create<DataState>()(
       syncTodaysFavoriteEventNotifications: (userId) => {
         const state = get();
         const user = state.users.find(
-          (item) => item.id === userId && item.role === "user" && !item.deleted_at,
+          (item) =>
+            item.id === userId && item.role === "user" && !item.deleted_at,
         );
 
         if (!user) return;
@@ -527,7 +528,8 @@ const useDataStore = create<DataState>()(
           (item) => item.id === resetToken.account_id && !item.deleted_at,
         );
         const user = state.users.find(
-          (item) => item.account_id === resetToken.account_id && !item.deleted_at,
+          (item) =>
+            item.account_id === resetToken.account_id && !item.deleted_at,
         );
 
         if (!account || !user) {
@@ -547,7 +549,9 @@ const useDataStore = create<DataState>()(
             item.id === resetToken.account_id ? updatedAccount : item,
           ),
           passwordResetTokens: currentState.passwordResetTokens.map((item) =>
-            item.token === token ? { ...item, used_at: passwordChangedAt } : item,
+            item.token === token
+              ? { ...item, used_at: passwordChangedAt }
+              : item,
           ),
         }));
 
@@ -877,6 +881,13 @@ const useDataStore = create<DataState>()(
             ],
           };
         }),
+      setUserEventPreferences: (userId, preferences) =>
+        set((state) => ({
+          userEventPreferences: [
+            ...state.userEventPreferences.filter((p) => p.user_id !== userId),
+            ...preferences,
+          ],
+        })),
     }),
     { name: "app-data-storage-v6" },
   ),
