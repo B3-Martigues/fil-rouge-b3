@@ -31,6 +31,7 @@ import CompanyLayout from "../shared/layouts/CompanyLayout";
 import Favorites from "../domains/user/pages/Favorites";
 import History from "../domains/user/pages/History";
 import Onboarding from "../domains/user/pages/Onboarding";
+import ProfilePreferences from "../domains/user/pages/ProfilePreferences";
 
 type Props = {
   children: ReactNode;
@@ -134,6 +135,10 @@ const Router = () => {
           element={<ChangePassword />}
         />
         <Route path={ROUTES.USER.ONBOARDING} element={<Onboarding />} />
+        <Route
+          path={ROUTES.USER.PREFERENCES}
+          element={<ProfilePreferences />}
+        />
       </Route>
 
       {/* ADMIN */}

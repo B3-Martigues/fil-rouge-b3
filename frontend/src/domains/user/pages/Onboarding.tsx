@@ -4,7 +4,6 @@ import { useUserPreferences } from "../hooks/useUserPreferences";
 import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
-import type { EventCategory } from "../../events/types/event-categories";
 
 /**Page d'onboarding pour choisir les préférences utilisateur */
 export default function Onboarding() {
@@ -15,20 +14,11 @@ export default function Onboarding() {
     (s) => s.setUserEventPreferences,
   );
 
-  const buildPreferences = (userId: number, categories: EventCategory[]) => {
-    return categories.map((cat, index) => ({
-      id: Date.now() + index,
-      user_id: userId,
-      event_category_id: index,
-      category_slug: cat,
-    }));
-  };
-
   /**Sauvegarde les préférences et redirige vers l'accueil */
   const handleSave = () => {
     if (!user) return;
-    const mapped = buildPreferences(user.id, preferences);
-    setUserEventPreferences(user.id, mapped);
+
+    setUserEventPreferences(user.id, preferences);
     navigate(ROUTES.PUBLIC.HOME);
   };
   return (

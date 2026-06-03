@@ -17,6 +17,7 @@ export const ROUTES = {
     HISTORY: "/history",
     CHANGE_PASSWORD: "/profile/change-password",
     ONBOARDING: "/onboarding",
+    PREFERENCES: "/preferences",
   },
 
   ADMIN: {

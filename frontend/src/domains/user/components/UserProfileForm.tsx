@@ -159,15 +159,29 @@ export default function UserProfileForm() {
         <Button type="submit" loading={loading}>
           Enregistrer les modifications
         </Button>
-        <Button
-          type="button"
-          onClick={() => navigate("/profile/change-password")}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            flexDirection: "column",
+            gap: "30px",
+          }}
         >
-          Modifier le mot de passe
-        </Button>
-        <Button type="button" onClick={() => setShowDeleteModal(true)}>
-          Supprimer mon compte
-        </Button>
+          <Button
+            type="button"
+            onClick={() => navigate("/profile/change-password")}
+          >
+            Modifier le mot de passe
+          </Button>
+
+          <Button type="button" onClick={() => navigate("/preferences")}>
+            Modifier mes préférences
+          </Button>
+
+          <Button type="button" onClick={() => setShowDeleteModal(true)}>
+            Supprimer mon compte
+          </Button>
+        </div>
       </form>
 
       {showDeleteModal &&

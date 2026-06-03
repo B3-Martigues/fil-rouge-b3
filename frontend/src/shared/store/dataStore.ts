@@ -40,6 +40,7 @@ import type {
   UserEventPreference,
 } from "../../domains/user/types/user";
 import { ROLE_IDS } from "../../domains/user/types/user";
+import type { EventCategoryName } from "../../domains/events/types/event-categories";
 
 type PasswordResetResult = {
   ok: boolean;
@@ -106,7 +107,7 @@ type DataState = {
   recordHistory: (userId: number, eventId: number) => void;
   setUserEventPreferences: (
     userId: number,
-    preferences: UserEventPreference[],
+    categories: EventCategoryName[],
   ) => void;
 };
 
@@ -881,13 +882,24 @@ const useDataStore = create<DataState>()(
             ],
           };
         }),
-      setUserEventPreferences: (userId, preferences) =>
-        set((state) => ({
-          userEventPreferences: [
-            ...state.userEventPreferences.filter((p) => p.user_id !== userId),
-            ...preferences,
-          ],
-        })),
+      setUserEventPreferences: (userId, categories) =>
+        set((state) => {
+          const filtered = state.userEventPreferences.filter(
+            (p) => p.user_id !== userId,
+          );
+
+          const newPrefs: UserEventPreference[] = categories.map(
+            (cat, index) => ({
+              id: Date.now() + index,
+              user_id: userId,
+              event_category_id: index,
+              category_slug: cat,
+            }),
+          );
+          return {
+            userEventPreferences: [...filtered, ...newPrefs],
+          };
+        }),
     }),
     { name: "app-data-storage-v6" },
   ),
