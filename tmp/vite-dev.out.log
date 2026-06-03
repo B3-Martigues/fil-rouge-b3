@@ -43,3 +43,30 @@
 [2m15:43:29[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/user/components/ChangePassword.tsx, /src/domains/events/pages/Home.tsx, /src/domains/admin/pages/AdminDashboard.tsx, /src/domains/companies/pages/CompanyDashboard.tsx, /src/domains/companies/pages/CompanyEvents.tsx, /src/domains/companies/pages/CompanyProfile.tsx, /src/domains/user/pages/Favorites.tsx, /src/domains/user/pages/History.tsx, /src/domains/auth/components/LoginForm.tsx, /src/domains/auth/components/RegisterForm.tsx, /src/domains/events/components/EventMap.tsx and 4 more[22m
 [2m15:50:46[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/user/components/ChangePassword.tsx, /src/domains/events/pages/Home.tsx, /src/domains/admin/pages/AdminDashboard.tsx, /src/domains/companies/pages/CompanyDashboard.tsx, /src/domains/companies/pages/CompanyEvents.tsx, /src/domains/companies/pages/CompanyProfile.tsx, /src/domains/user/pages/Favorites.tsx, /src/domains/user/pages/History.tsx, /src/domains/auth/components/LoginForm.tsx, /src/domains/auth/components/RegisterForm.tsx, /src/domains/events/components/EventMap.tsx and 4 more[22m
 [2m15:50:51[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/user/components/ChangePassword.tsx, /src/domains/events/pages/Home.tsx, /src/domains/admin/pages/AdminDashboard.tsx, /src/domains/companies/pages/CompanyDashboard.tsx, /src/domains/companies/pages/CompanyEvents.tsx, /src/domains/companies/pages/CompanyProfile.tsx, /src/domains/user/pages/Favorites.tsx, /src/domains/user/pages/History.tsx, /src/domains/auth/components/LoginForm.tsx, /src/domains/auth/components/RegisterForm.tsx, /src/domains/events/components/EventMap.tsx and 4 more[22m
+[2m15:54:48[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/shared/components/layout/HeaderCompany.tsx[22m
+[2m15:56:48[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/shared/components/layout/HeaderCompany.tsx[22m
+[2m15:56:48[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/shared/components/layout/HeaderCompany.tsx[22m
+[2m16:06:56[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/admin/pages/AdminDashboard.tsx[22m
+[2m16:17:18[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/events/components/EventPopup.tsx[22m
+[2m16:17:18[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/events/components/EventPopup.tsx[22m
+[2m16:17:22[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/events/components/EventPopup.tsx[22m
+[2m16:17:31[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/events/components/EventPopup.tsx[22m
+[2m16:17:42[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/user/pages/Favorites.tsx[22m
+[2m16:17:46[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/user/pages/History.tsx[22m
+[2m16:18:12[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/auth/components/RegisterForm.tsx[22m
+[2m16:18:29[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/auth/components/CompanyRegisterForm.tsx[22m
+[2m16:18:44[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/user/components/UserProfileForm.tsx[22m
+[2m16:18:55[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/companies/pages/CompanyProfile.tsx[22m
+[2m16:19:13[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/admin/pages/AdminDashboard.tsx[22m
+[2m16:19:26[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/admin/pages/AdminDashboard.tsx[22m
+[2m16:19:34[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/admin/pages/AdminDashboard.tsx[22m
+[2m16:19:50[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/admin/pages/AdminDashboard.tsx[22m
+[2m16:19:57[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/admin/pages/AdminDashboard.tsx[22m
+[2m16:20:12[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/admin/pages/AdminDashboard.tsx[22m
+[2m16:20:26[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/companies/pages/CompanyEvents.tsx[22m
+[2m16:20:34[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/companies/pages/CompanyEvents.tsx[22m
+[2m16:20:43[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/auth/components/LoginForm.tsx[22m
+[2m09:35:53[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/events/pages/Home.tsx, /src/domains/admin/pages/AdminDashboard.tsx, /src/domains/companies/pages/CompanyEvents.tsx, /src/domains/user/pages/History.tsx, /src/domains/events/components/EventMap.tsx, /src/domains/events/components/EventPopup.tsx[22m
+[2m09:36:03[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/events/components/EventMap.tsx[22m
+[2m09:36:43[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/events/pages/Home.tsx[22m
+[2m09:37:01[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
