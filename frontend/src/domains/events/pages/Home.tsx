@@ -41,17 +41,17 @@ const statusSections: {
 }[] = [
   {
     status: "current",
-    title: "Evenements en cours",
+    title: "Événements en cours",
     empty: "Aucun evenement en cours ne correspond a votre recherche.",
   },
   {
     status: "upcoming",
-    title: "Evenements prochains",
+    title: "Événements prochains",
     empty: "Aucun evenement prochain ne correspond a votre recherche.",
   },
   {
     status: "past",
-    title: "Evenements passes",
+    title: "Événements passes",
     empty: "Aucun evenement passe ne correspond a votre recherche.",
   },
 ];
@@ -225,7 +225,7 @@ export default function Home() {
     <div className="events-home">
       <section className="events-home__header">
         <h1>Bienvenue sur la page d'accueil</h1>
-        <p>Explorez les evenements disponibles autour de vous.</p>
+        <p>Explorez les événements disponibles autour de vous.</p>
 
         <div className="events-map-controls" aria-label="Filtres de la carte">
           <label>
@@ -269,9 +269,9 @@ export default function Home() {
       </section>
 
       <section className="events-list" aria-labelledby="events-list-title">
-        <h2 id="events-list-title">Evenements</h2>
+        <h2 id="events-list-title">Événements</h2>
 
-        <div className="events-toolbar" aria-label="Filtres des evenements">
+        <div className="events-toolbar" aria-label="Filtres des événements">
           <label>
             Rechercher
             <input

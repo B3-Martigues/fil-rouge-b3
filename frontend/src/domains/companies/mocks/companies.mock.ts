@@ -77,7 +77,7 @@ export const companiesMock: Company[] = [
     contact_email: "contact@outdoor-sud.fr",
     role_id: 3,
     description:
-      "Association sportive locale dediee aux sorties nature et evenements plein air.",
+      "Association sportive locale dediee aux sorties nature et événements plein air.",
     website: "https://outdoor-sud.fr",
     latitude: 43.214,
     longitude: 5.539,

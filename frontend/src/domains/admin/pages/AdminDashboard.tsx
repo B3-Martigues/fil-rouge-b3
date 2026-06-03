@@ -357,12 +357,12 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   };
 
   const stats = [
-    { label: "Evenements", value: activeEventsData.length },
+    { label: "Événements", value: activeEventsData.length },
     { label: "Utilisateurs", value: users.length },
     { label: "Entreprises", value: companies.length },
     { label: "Administrateurs", value: admins.length },
     { label: "Entreprises en attente", value: pendingCompanies.length },
-    { label: "Evenements en attente", value: pendingEvents.length },
+    { label: "Événements en attente", value: pendingEvents.length },
   ];
 
   const filteredUsers = useMemo(
@@ -877,7 +877,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
           <h2>
             {isDashboardView && "Panel administrateur"}
             {isAccountsView && "Comptes"}
-            {isEventsView && "Evenements"}
+            {isEventsView && "Événements"}
           </h2>
           {isAccountsView && (
             <button className="btn" type="button" onClick={startUserCreate}>
@@ -893,7 +893,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         <p>
           {isDashboardView && "Statistiques et validations"}
           {isAccountsView && "Gestion des comptes"}
-          {isEventsView && "Gestion des evenements publies"}
+          {isEventsView && "Gestion des événements publies"}
         </p>
       </section>
 
@@ -1004,7 +1004,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
 
           <section className="admin-section admin-section--wide">
             <div className="admin-section__title">
-              <h2>Evenements en attente</h2>
+              <h2>Événements en attente</h2>
               <span className="admin-count">{pendingEvents.length}</span>
             </div>
 
@@ -1231,7 +1231,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
               />
             )}
 
-            <div className="admin-toolbar" aria-label="Filtres des evenements">
+            <div className="admin-toolbar" aria-label="Filtres des événements">
               <label>
                 Rechercher
                 <input
@@ -1292,7 +1292,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
             {filteredEvents.length === 0 ? (
               <p className="admin-empty">Aucun evenement ne correspond aux filtres.</p>
             ) : (
-              <div className="admin-table admin-table--events" role="table" aria-label="Evenements">
+              <div className="admin-table admin-table--events" role="table" aria-label="Événements">
                 {filteredEvents.map((event) => (
                   <div className="admin-table__row" role="row" key={event.id}>
                     <span>{event.title}</span>

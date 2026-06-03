@@ -10,7 +10,7 @@ export default function HeaderCompany() {
       <nav style={{ display: "flex", justifyContent: "center", gap: "50px" }}>
         <NavLink to={ROUTES.PUBLIC.HOME}>Accueil</NavLink>
         <NavLink to={ROUTES.COMPANY.PROFILE}>Profil</NavLink>
-        <NavLink to={ROUTES.COMPANY.EVENTS}>Mes evenements</NavLink>
+        <NavLink to={ROUTES.COMPANY.EVENTS}>Mes événements</NavLink>
         <NavLink to={ROUTES.COMPANY.CREATE}>Nouvel evenement</NavLink>
         <NotificationCenter />
         <LogoutButton />

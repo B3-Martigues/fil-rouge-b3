@@ -86,7 +86,7 @@ export const eventsMock: Event[] = [
     company_id: 102,
     title: "Atelier cuisine mediterraneenne",
     description:
-      "Session passee pour tester l'affichage de l'historique et des evenements termines.",
+      "Session passee pour tester l'affichage de l'historique et des événements termines.",
     start_date: "2026-05-24T13:00:00.000Z",
     end_date: "2026-05-24T16:00:00.000Z",
     latitude: 43.5263,

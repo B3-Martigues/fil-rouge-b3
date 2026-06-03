@@ -194,7 +194,7 @@ export default function CompanyDashboard() {
         <h2>Votre compte est en attente de validation</h2>
         <p>
           Votre compte doit etre valide par un administrateur avant de pouvoir
-          creer des evenements.
+          creer des événements.
         </p>
       </div>
     );

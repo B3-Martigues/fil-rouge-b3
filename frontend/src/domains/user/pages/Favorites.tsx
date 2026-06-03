@@ -26,7 +26,7 @@ export default function Favorites() {
   return (
     <div>
       <h1>Page de favoris</h1>
-      <h2>Mes evenements favoris</h2>
+      <h2>Mes événements favoris</h2>
       <div style={{ display: "flex", justifyContent: "center", gap: "30px" }}>
         {favoriteEvents.map((event) => (
           <div

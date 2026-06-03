@@ -78,7 +78,7 @@ export function createWelcomeNotification(params: {
     title: "Bienvenue sur la plateforme",
     message: company
       ? `${company.name}, votre compte entreprise a bien ete cree. Il est en attente de validation par un administrateur.`
-      : `${params.user.username}, votre compte a bien ete cree. Vous pouvez maintenant explorer les evenements et gerer vos favoris.`,
+      : `${params.user.username}, votre compte a bien ete cree. Vous pouvez maintenant explorer les événements et gerer vos favoris.`,
     action_url: getAppUrl(
       company ? ROUTES.COMPANY.DASHBOARD : ROUTES.PUBLIC.HOME,
     ),
@@ -96,7 +96,7 @@ export function createCompanyApprovedNotification(params: {
     company_id: params.company.id,
     notification_type_id: getNotificationTypeBySlug("company_approved").id,
     title: "Votre compte entreprise est valide",
-    message: `${params.company.name} a ete validee. Vous pouvez maintenant gerer vos evenements.`,
+    message: `${params.company.name} a ete validee. Vous pouvez maintenant gerer vos événements.`,
     action_url: getAppUrl(ROUTES.COMPANY.PROFILE),
   };
 }

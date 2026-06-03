@@ -261,7 +261,7 @@ export default function CompanyEvents() {
         <h2>Votre compte est en attente de validation</h2>
         <p>
           Votre compte doit etre valide par un administrateur avant de pouvoir
-          gerer des evenements.
+          gerer des événements.
         </p>
       </div>
     );
@@ -270,14 +270,14 @@ export default function CompanyEvents() {
   return (
     <div className="company-dashboard">
       <section className="company-dashboard__header">
-        <h2>Mes evenements</h2>
-        <p>Consultez, modifiez ou supprimez les evenements de votre entreprise.</p>
+        <h2>Mes événements</h2>
+        <p>Consultez, modifiez ou supprimez les événements de votre entreprise.</p>
       </section>
 
       <section className="company-events" aria-labelledby="company-events-title">
-        <h2 id="company-events-title">Liste des evenements</h2>
+        <h2 id="company-events-title">Liste des événements</h2>
 
-        <div className="admin-toolbar" aria-label="Filtres des evenements entreprise">
+        <div className="admin-toolbar" aria-label="Filtres des événements entreprise">
           <label>
             Rechercher
             <input
