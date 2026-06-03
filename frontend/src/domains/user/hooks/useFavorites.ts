@@ -1,55 +1,34 @@
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
+
 import useAuthStore from "../../auth/store/authStore";
+import useDataStore from "../../../shared/store/dataStore";
 
-/**Hook de gestion des événements favoris utilisateur */
 export default function useFavorites() {
-  /**Récupération des données utilisateur */
   const { currentUser, isAuthenticated } = useAuthStore();
+  const favoriteRows = useDataStore((s) => s.favorites);
+  const toggleFavoriteInStore = useDataStore((s) => s.toggleFavorite);
 
-  /**Liste des IDs des événements favoris */
-  const [favorites, setFavorites] = useState<number[]>([]);
+  const userId =
+    isAuthenticated && currentUser?.role === "user" ? currentUser.user_id : undefined;
 
-  /**Clé unique localStorage par utilisateur */
-  const storageKey = currentUser ? `favorites_user_${currentUser.id}` : null;
+  const favorites = useMemo(
+    () =>
+      userId
+        ? favoriteRows
+            .filter((favorite) => favorite.user_id === userId && !favorite.deleted_at)
+            .map((favorite) => favorite.event_id)
+        : [],
+    [favoriteRows, userId],
+  );
 
-  /**Chargement des favoris depuis localStorage */
-  useEffect(() => {
-    if (!isAuthenticated || !currentUser || currentUser.role !== "user") {
-      setFavorites([]);
-      return;
-    }
-    /**Lecture des favoris sauvegardés */
-    const storedFavorites = localStorage.getItem(storageKey!);
-
-    /**Conversion JSON en tableau */
-    if (storedFavorites) {
-      setFavorites(JSON.parse(storedFavorites));
-    }
-  }, [isAuthenticated, currentUser, storageKey]);
-
-  /**Ajoute ou retire un événement des favoris */
   const toggleFavorite = (eventId: number) => {
-    /**Protection utilisateur */
-    if (!isAuthenticated || !currentUser || currentUser.role !== "user") {
-      return;
-    }
+    if (!userId) return;
 
-    /**Vérifie si l'événement est déjà en favoris */
-    const updatedFavorites = favorites.includes(eventId)
-      ? favorites.filter((id) => id !== eventId)
-      : [...favorites, eventId];
-
-    /**Mise à jour React state */
-    setFavorites(updatedFavorites);
-
-    /**Sauvegarde localStorage */
-    localStorage.setItem(storageKey!, JSON.stringify(updatedFavorites));
+    toggleFavoriteInStore(userId, eventId);
   };
 
-  /**Vérifie si un événement est favoris */
-  const isFavorite = (eventId: number) => {
-    return favorites.includes(eventId);
-  };
+  const isFavorite = (eventId: number) => favorites.includes(eventId);
+
   return {
     favorites,
     toggleFavorite,

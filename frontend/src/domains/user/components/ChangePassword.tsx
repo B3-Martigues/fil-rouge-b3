@@ -1,34 +1,26 @@
-/**
- * Page de changement de mot de passe
- */
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 import useAuthStore from "../../auth/store/authStore";
-
+import useDataStore from "../../../shared/store/dataStore";
 import {
   changePasswordSchema,
   type ChangePasswordFormData,
 } from "../validations/changePassword.schema";
 
-// UI
 import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
-import useDataStore from "../../../shared/store/dataStore";
-
-import { toast } from "react-toastify";
 
 export default function ChangePassword() {
   const user = useAuthStore((s) => s.currentUser);
-  const updateUser = useDataStore.getState().updateUser;
-
+  const updateAccount = useDataStore((s) => s.updateAccount);
+  const accounts = useDataStore((s) => s.accounts);
   const navigate = useNavigate();
-
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -38,50 +30,43 @@ export default function ChangePassword() {
     formState: { errors },
   } = useForm<ChangePasswordFormData>({
     resolver: zodResolver(changePasswordSchema),
-
     mode: "onTouched",
-
     defaultValues: {
       oldPassword: "",
       newPassword: "",
       confirmPassword: "",
     },
   });
+
   const onSubmit = async (data: ChangePasswordFormData) => {
     setLoading(true);
     setServerError(null);
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 800));
+
       if (!user) {
-        setServerError("Utilisateur non trouvé");
+        setServerError("Utilisateur non trouve");
         return;
       }
 
-      const existingUser = useDataStore
-        .getState()
-        .users.find((u) => u.id === user.id);
-      if (!existingUser) {
-        setServerError("Utilisateur introuvable");
+      const account = accounts.find((item) => item.id === user.account_id);
+      if (!account) {
+        setServerError("Compte introuvable");
         return;
       }
 
-      // vérifier ancien mot de passe
-      if (existingUser.password !== data.oldPassword) {
+      if (account.password_hash !== data.oldPassword) {
         setServerError("Ancien mot de passe incorrect");
-        setLoading(false);
         return;
       }
 
-      if (data.newPassword !== data.confirmPassword) {
-        setServerError("Les mots de passe ne correspondent pas");
-        return;
-      }
+      updateAccount(user.account_id, {
+        password_hash: data.newPassword,
+        password_changed_at: new Date().toISOString(),
+      });
 
-      updateUser(user.id, { password: data.newPassword });
-
-      toast.success("Mot de passe mis à jour");
-
+      toast.success("Mot de passe mis a jour");
       navigate("/profile");
     } catch {
       setServerError("Erreur lors du changement de mot de passe");

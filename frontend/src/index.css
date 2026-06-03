@@ -120,6 +120,23 @@ p {
   font-weight: 700;
 }
 
+.auth-form-section {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.auth-form-section legend {
+  padding: 0 6px;
+  color: var(--text-h);
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .input {
   width: 100%;
   min-width: 0;
@@ -209,6 +226,25 @@ textarea.input {
   gap: 8px;
 }
 
+.events-map-controls {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) minmax(180px, 260px);
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--social-bg);
+}
+
+.events-map-controls label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-h);
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .events-list {
   display: grid;
   gap: 16px;
@@ -216,7 +252,7 @@ textarea.input {
 
 .events-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 2fr) minmax(160px, 1fr) minmax(160px, 1fr) auto;
+  grid-template-columns: minmax(220px, 2fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(160px, 1fr) auto;
   gap: 12px;
   align-items: end;
   padding: 16px;
@@ -247,6 +283,38 @@ textarea.input {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 16px;
+}
+
+.events-status-section {
+  display: grid;
+  gap: 12px;
+}
+
+.events-status-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.events-status-section__header h3 {
+  margin: 0;
+  color: var(--text-h);
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.events-status-section__header span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--text-h);
+  font-weight: 700;
 }
 
 .event-card {
@@ -871,6 +939,10 @@ textarea.input {
   }
 
   .events-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .events-map-controls {
     grid-template-columns: 1fr;
   }
 

@@ -1,55 +1,95 @@
 import { MapContainer, TileLayer } from "react-leaflet";
+import { useMemo } from "react";
 
-import { eventsMock } from "../mocks/events.mock";
 import EventMarker from "./EventMarker";
-
 import UserLocationMarker from "./UserLocationMarker";
 import useUserLocation from "../hooks/useUserLocation";
-import MapAutoCenter from "./MapAutoCenter";
-import { isUpcomingEvent } from "../utils/event";
-/**Composant de carte principale basé sur leaflet */
-/**Objectif:
- * - Afficher une carte interactive centrée sur une zone donnée
- */
-export default function EventMap() {
-  const { position } = useUserLocation();
-  /**Liste des événements à venir */
-  const upcomingEvents = eventsMock.filter((event) =>
-    isUpcomingEvent(event.date),
-  );
-  return (
-    /**Conteneur principal de la carte leaflet
-     * il gère le rendu, le zoom, le déplacement et les interactions
-     */
+import MapFitBounds from "./MapFitBounds";
+import {
+  getEventStatus,
+  hasEventCoordinates,
+  isEventInPeriod,
+} from "../utils/event";
+import useDataStore from "../../../shared/store/dataStore";
+import type { Event } from "../types/event";
 
+type EventMapProps = {
+  periodStart: Date;
+  periodEnd: Date;
+};
+
+export default function EventMap({ periodStart, periodEnd }: EventMapProps) {
+  const { position } = useUserLocation();
+  const events = useDataStore((s) => s.events);
+  const companies = useDataStore((s) => s.companies);
+  const mappableEvents = useMemo(
+    () =>
+      events
+        .filter(
+          (event) =>
+            event.is_active &&
+            !event.deleted_at &&
+            getEventStatus(event) !== "past" &&
+            isEventInPeriod(event, periodStart, periodEnd),
+        )
+        .map((event) => {
+          if (hasEventCoordinates(event)) return event;
+
+          const company = companies.find(
+            (item) => item.id === event.company_id && !item.deleted_at,
+          );
+
+          if (
+            company?.latitude == null ||
+            company.longitude == null ||
+            !company.is_active
+          ) {
+            return null;
+          }
+
+          return {
+            ...event,
+            latitude: company.latitude,
+            longitude: company.longitude,
+          };
+        })
+        .filter(
+          (event): event is Event & { latitude: number; longitude: number } =>
+            event != null,
+        ),
+    [companies, events, periodEnd, periodStart],
+  );
+  const mapPoints = useMemo(
+    () => [
+      ...mappableEvents.map((event) => ({
+        latitude: event.latitude,
+        longitude: event.longitude,
+      })),
+      ...(position ? [position] : []),
+    ],
+    [mappableEvents, position],
+  );
+
+  return (
     <MapContainer
-      center={[43.2965, 5.3698]} // Marseille en phase de développement
-      zoom={13} // Niveau de zoom initial
-      scrollWheelZoom={true} // Permet le zoom avec la molette
+      center={[43.2965, 5.3698]}
+      zoom={13}
+      scrollWheelZoom={true}
       style={{ height: "500px", width: "100%" }}
     >
-      {/* TileLayer défini le fond de carte */}
       <TileLayer
-        attribution="&copy; OpenStreetMap</a> contributors"
+        attribution="&copy; OpenStreetMap contributors"
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      {/* Affichage dynamique des événements mockés  */}
-      {upcomingEvents.map((event) => (
+      <MapFitBounds points={mapPoints} />
+      {mappableEvents.map((event) => (
         <EventMarker key={event.id} event={event} />
       ))}
-      {/**Affichage de la position utilisateur et recentrage automatique de la carte */}
       {position && (
-        <>
-          <UserLocationMarker
-            latitude={position.latitude}
-            longitude={position.longitude}
-          />
-
-          <MapAutoCenter
-            latitude={position.latitude}
-            longitude={position.longitude}
-          />
-        </>
+        <UserLocationMarker
+          latitude={position.latitude}
+          longitude={position.longitude}
+        />
       )}
     </MapContainer>
   );

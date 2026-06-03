@@ -1,11 +1,27 @@
-import { eventsMock } from "../../../domains/events/mocks/events.mock";
-/**Evénement(mock) utilisé pour tester l'integration avec l'API météo */
-const event = eventsMock[0];
-/**URL de l'API Open-Meteo construite dynamiquement à partir des coordonnées de l'événement */
-const url = `https://api.open-meteo.com/v1/forecast?latitude=${event.latitude}&longitude=${event.longitude}&daily=temperature_2m_max,precipitation_sum,wind_speed_10m_max,weather_code&timezone=auto`;
+import type { WeatherResponse } from "./weather.types";
 
-/**Fonction permettant de récupérer les données météo */
-export async function fetchWeather() {
+type FetchWeatherParams = {
+  latitude: number;
+  longitude: number;
+};
+
+export async function fetchWeather({
+  latitude,
+  longitude,
+}: FetchWeatherParams): Promise<WeatherResponse> {
+  const searchParams = new URLSearchParams({
+    latitude: latitude.toString(),
+    longitude: longitude.toString(),
+    daily:
+      "temperature_2m_max,precipitation_sum,wind_speed_10m_max,weather_code",
+    timezone: "auto",
+  });
+  const url = `https://api.open-meteo.com/v1/forecast?${searchParams.toString()}`;
   const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error("Weather request failed");
+  }
+
   return await response.json();
 }

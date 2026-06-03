@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { toast } from "react-toastify";
 
 import useAuthStore from "../../auth/store/authStore";
@@ -12,40 +12,48 @@ import useDataStore from "../../../shared/store/dataStore";
 
 type CompanyProfileForm = {
   name: string;
-  email: string;
+  contact_email: string;
   description: string;
   website: string;
+  latitude: string;
+  longitude: string;
   address: string;
+  city: string;
+  postal_code: string;
   logo: string;
-  phone_number: string;
+  contact_phone_number: string;
   siret: string;
   categories: CategoryName[];
 };
 
 type CompanyProfileErrors = Partial<Record<keyof CompanyProfileForm, string>>;
 
-const toSlug = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-
 const toForm = (company: Company): CompanyProfileForm => ({
   name: company.name,
-  email: company.email,
-  description: company.description,
-  website: company.website,
+  contact_email: company.contact_email,
+  description: company.description ?? "",
+  website: company.website ?? "",
+  latitude: company.latitude?.toString() ?? "",
+  longitude: company.longitude?.toString() ?? "",
   address: company.address,
-  logo: company.logo,
-  phone_number: company.phone_number.toString().padStart(10, "0"),
-  siret: company.siret,
-  categories: company.categories
-    .map((category) => category.name)
-    .filter((category): category is CategoryName =>
-      CATEGORIES.includes(category as CategoryName),
-    ),
+  city: company.city,
+  postal_code: company.postal_code,
+  logo: company.logo ?? "",
+  contact_phone_number: company.contact_phone_number ?? "",
+  siret: company.siret ?? "",
+  categories: company.category_slugs.filter((category): category is CategoryName =>
+    CATEGORIES.includes(category as CategoryName),
+  ),
 });
+
+const isValidOptionalCoordinate = (value: string, min: number, max: number) => {
+  if (value.trim() === "") return true;
+
+  const numberValue = Number(value);
+  return !Number.isNaN(numberValue) && numberValue >= min && numberValue <= max;
+};
+
+const normalizeComparable = (value: string) => value.trim().toLowerCase();
 
 const validateForm = (form: CompanyProfileForm): CompanyProfileErrors => {
   const errors: CompanyProfileErrors = {};
@@ -54,8 +62,8 @@ const validateForm = (form: CompanyProfileForm): CompanyProfileErrors => {
     errors.name = "Le nom de l'entreprise est requis";
   }
 
-  if (!form.email.includes("@")) {
-    errors.email = "Email invalide";
+  if (!form.contact_email.includes("@")) {
+    errors.contact_email = "Email invalide";
   }
 
   if (form.description.trim().length < 10) {
@@ -70,12 +78,28 @@ const validateForm = (form: CompanyProfileForm): CompanyProfileErrors => {
     errors.logo = "URL du logo invalide";
   }
 
+  if (!isValidOptionalCoordinate(form.latitude, -90, 90)) {
+    errors.latitude = "La latitude doit etre comprise entre -90 et 90";
+  }
+
+  if (!isValidOptionalCoordinate(form.longitude, -180, 180)) {
+    errors.longitude = "La longitude doit etre comprise entre -180 et 180";
+  }
+
   if (form.address.trim().length < 5) {
     errors.address = "Adresse requise";
   }
 
-  if (!/^\d{10}$/.test(form.phone_number)) {
-    errors.phone_number = "Le telephone doit contenir 10 chiffres";
+  if (form.city.trim().length < 2) {
+    errors.city = "Ville requise";
+  }
+
+  if (!/^\d{5}$/.test(form.postal_code.trim())) {
+    errors.postal_code = "Le code postal doit contenir 5 chiffres";
+  }
+
+  if (!/^\d{10}$/.test(form.contact_phone_number)) {
+    errors.contact_phone_number = "Le telephone doit contenir 10 chiffres";
   }
 
   if (!/^\d{14}$/.test(form.siret)) {
@@ -94,18 +118,12 @@ export default function CompanyProfile() {
   const login = useAuthStore((s) => s.login);
   const companies = useDataStore((s) => s.companies);
   const updateCompany = useDataStore((s) => s.updateCompany);
-  const company = companies.find((item) => item.id === user?.id);
+  const company = companies.find((item) => item.id === user?.company_id);
   const [form, setForm] = useState<CompanyProfileForm | null>(
     company ? toForm(company) : null,
   );
   const [errors, setErrors] = useState<CompanyProfileErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (company) {
-      setForm(toForm(company));
-    }
-  }, [company]);
 
   const updateField = <Key extends keyof CompanyProfileForm>(
     field: Key,
@@ -144,26 +162,49 @@ export default function CompanyProfile() {
       return;
     }
 
+    const contactEmail = form.contact_email.trim();
+    const siret = form.siret.trim();
+    const existingContactEmail = companies.find(
+      (item) =>
+        item.id !== company.id &&
+        normalizeComparable(item.contact_email) === normalizeComparable(contactEmail),
+    );
+
+    if (existingContactEmail) {
+      setServerError("Cet email de contact est deja utilise");
+      return;
+    }
+
+    const existingSiret = companies.find(
+      (item) =>
+        item.id !== company.id &&
+        normalizeComparable(item.siret ?? "") === normalizeComparable(siret),
+    );
+
+    if (existingSiret) {
+      setServerError("Ce SIRET est deja utilise");
+      return;
+    }
+
     updateCompany(company.id, {
       name: form.name.trim(),
-      email: form.email.trim(),
+      contact_email: contactEmail,
       description: form.description.trim(),
       website: form.website.trim(),
+      latitude: form.latitude ? Number(form.latitude) : null,
+      longitude: form.longitude ? Number(form.longitude) : null,
       address: form.address.trim(),
+      city: form.city.trim(),
+      postal_code: form.postal_code.trim(),
       logo: form.logo.trim(),
-      phone_number: Number(form.phone_number),
-      siret: form.siret.trim(),
-      categories: form.categories.map((category, index) => ({
-        id: index + 1,
-        name: category,
-        slug: toSlug(category),
-      })),
+      contact_phone_number: form.contact_phone_number.trim(),
+      siret,
+      category_slugs: form.categories,
     });
 
     login({
       ...user,
       username: form.name.trim(),
-      email: form.email.trim(),
     });
 
     toast.success("Profil entreprise mis a jour");
@@ -208,16 +249,18 @@ export default function CompanyProfile() {
             </FormField>
 
             <FormField
-              label="Email"
-              htmlFor="company-email"
-              error={errors.email}
+              label="Email de contact"
+              htmlFor="company-contact-email"
+              error={errors.contact_email}
             >
               <Input
-                id="company-email"
+                id="company-contact-email"
                 type="email"
-                value={form.email}
-                hasError={!!errors.email}
-                onChange={(event) => updateField("email", event.target.value)}
+                value={form.contact_email}
+                hasError={!!errors.contact_email}
+                onChange={(event) =>
+                  updateField("contact_email", event.target.value)
+                }
               />
             </FormField>
 
@@ -263,6 +306,36 @@ export default function CompanyProfile() {
               />
             </FormField>
 
+            <FormField
+              label="Latitude"
+              htmlFor="company-latitude"
+              error={errors.latitude}
+            >
+              <Input
+                id="company-latitude"
+                type="number"
+                step="any"
+                value={form.latitude}
+                hasError={!!errors.latitude}
+                onChange={(event) => updateField("latitude", event.target.value)}
+              />
+            </FormField>
+
+            <FormField
+              label="Longitude"
+              htmlFor="company-longitude"
+              error={errors.longitude}
+            >
+              <Input
+                id="company-longitude"
+                type="number"
+                step="any"
+                value={form.longitude}
+                hasError={!!errors.longitude}
+                onChange={(event) => updateField("longitude", event.target.value)}
+              />
+            </FormField>
+
             <div className="company-event-form__wide">
               <FormField
                 label="Adresse"
@@ -281,18 +354,45 @@ export default function CompanyProfile() {
               </FormField>
             </div>
 
+            <FormField label="Ville" htmlFor="company-city" error={errors.city}>
+              <Input
+                id="company-city"
+                type="text"
+                value={form.city}
+                hasError={!!errors.city}
+                onChange={(event) => updateField("city", event.target.value)}
+              />
+            </FormField>
+
+            <FormField
+              label="Code postal"
+              htmlFor="company-postal-code"
+              error={errors.postal_code}
+            >
+              <Input
+                id="company-postal-code"
+                type="text"
+                inputMode="numeric"
+                value={form.postal_code}
+                hasError={!!errors.postal_code}
+                onChange={(event) =>
+                  updateField("postal_code", event.target.value)
+                }
+              />
+            </FormField>
+
             <FormField
               label="Telephone"
               htmlFor="company-phone"
-              error={errors.phone_number}
+              error={errors.contact_phone_number}
             >
               <Input
                 id="company-phone"
                 type="tel"
-                value={form.phone_number}
-                hasError={!!errors.phone_number}
+                value={form.contact_phone_number}
+                hasError={!!errors.contact_phone_number}
                 onChange={(event) =>
-                  updateField("phone_number", event.target.value)
+                  updateField("contact_phone_number", event.target.value)
                 }
               />
             </FormField>

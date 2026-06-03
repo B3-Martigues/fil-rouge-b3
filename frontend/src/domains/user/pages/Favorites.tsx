@@ -1,27 +1,22 @@
-import { eventsMock } from "../../events/mocks/events.mock";
-import useFavorites from "../hooks/useFavorites";
 import FavoriteButton from "../../events/components/FavoriteButton";
+import useFavorites from "../hooks/useFavorites";
+import useDataStore from "../../../shared/store/dataStore";
 
-/* * Page affichant les événements favoris de l'utilisateur. */
 export default function Favorites() {
-  /**Récupération des IDs favoris */
   const { favorites } = useFavorites();
-
-  /**Filtrage des événements selon les favoris */
-  const favoriteEvents = eventsMock.filter((event) =>
-    favorites.includes(event.id),
+  const events = useDataStore((s) => s.events);
+  const favoriteEvents = events.filter(
+    (event) => favorites.includes(event.id) && event.is_active && !event.deleted_at,
   );
 
-  /**Cas vide */
   if (favoriteEvents.length === 0) {
-    return <p>Aucun événement en favoris</p>;
+    return <p>Aucun evenement en favoris</p>;
   }
 
   return (
     <div>
       <h1>Page de favoris</h1>
-      <h2>Mes événements favoris</h2>
-      {/**Liste des événements favoris */}
+      <h2>Mes evenements favoris</h2>
       <div style={{ display: "flex", justifyContent: "center", gap: "30px" }}>
         {favoriteEvents.map((event) => (
           <div
@@ -41,7 +36,6 @@ export default function Favorites() {
             )}
             <h3>{event.title}</h3>
             <p>{event.description}</p>
-            {/**Bouton favoris (toggle - remove/add) */}
             <FavoriteButton event={event} />
           </div>
         ))}

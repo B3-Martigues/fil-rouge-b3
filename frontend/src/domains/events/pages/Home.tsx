@@ -1,8 +1,3 @@
-/**
- * Page d'accueil publique.
- * Affiche la carte et la recherche d'événements.
- */
-
 import { useMemo, useState } from "react";
 
 import useDataStore from "../../../shared/store/dataStore";
@@ -11,6 +6,16 @@ import {
   type EventCategory,
 } from "../types/event-categories";
 import EventMap from "../components/EventMap";
+import {
+  formatDateTime,
+  formatEventDateRange,
+  getDefaultPeriodValue,
+  getEventStatus,
+  getPeriodRange,
+  type EventPeriodMode,
+} from "../utils/event";
+import type { Event } from "../types/event";
+
 type SortValue =
   | "date-asc"
   | "date-desc"
@@ -26,12 +31,30 @@ const normalizeText = (value: string) =>
     .replace(/[\u0300-\u036f]/g, "");
 
 const getEventCategories = (event: {
-  category: EventCategory;
-  categories?: EventCategory[];
-}) =>
-  event.categories && event.categories.length > 0
-    ? event.categories
-    : [event.category];
+  category_slugs: EventCategory[];
+}) => event.category_slugs;
+
+const statusSections: {
+  status: ReturnType<typeof getEventStatus>;
+  title: string;
+  empty: string;
+}[] = [
+  {
+    status: "current",
+    title: "Evenements en cours",
+    empty: "Aucun evenement en cours ne correspond a votre recherche.",
+  },
+  {
+    status: "upcoming",
+    title: "Evenements prochains",
+    empty: "Aucun evenement prochain ne correspond a votre recherche.",
+  },
+  {
+    status: "past",
+    title: "Evenements passes",
+    empty: "Aucun evenement passe ne correspond a votre recherche.",
+  },
+];
 
 export default function Home() {
   const events = useDataStore((s) => s.events);
@@ -39,14 +62,20 @@ export default function Home() {
   const [category, setCategory] = useState<EventCategory | "all">("all");
   const [city, setCity] = useState("all");
   const [sort, setSort] = useState<SortValue>("date-asc");
+  const [mapPeriodMode, setMapPeriodMode] =
+    useState<EventPeriodMode>("week");
+  const [mapPeriodValue, setMapPeriodValue] = useState(() =>
+    getDefaultPeriodValue("week"),
+  );
   const availableCities = useMemo(
     () =>
       Array.from(
         new Set(
           events
-            .filter((event) => event.is_approved !== false)
-            .map((event) => event.city?.trim())
-            .filter((eventCity): eventCity is string => Boolean(eventCity)),
+            .filter((event) => event.is_active)
+            .filter((event) => !event.deleted_at)
+            .map((event) => event.city.trim())
+            .filter(Boolean),
         ),
       ).sort((firstCity, secondCity) =>
         firstCity.localeCompare(secondCity, "fr-FR"),
@@ -59,7 +88,7 @@ export default function Home() {
 
     return events
       .filter((event) => {
-        if (event.is_approved === false) return false;
+        if (!event.is_active || event.deleted_at) return false;
 
         const eventCategories = getEventCategories(event);
         const matchesCategory =
@@ -69,9 +98,9 @@ export default function Home() {
           [
             event.title,
             event.description,
-            event.address ?? "",
-            event.city ?? "",
-            event.postal_code?.toString() ?? "",
+            event.address,
+            event.city,
+            event.postal_code,
             eventCategories.join(" "),
             event.source ?? "",
           ].join(" "),
@@ -86,8 +115,8 @@ export default function Home() {
       .sort((firstEvent, secondEvent) => {
         if (sort === "date-desc") {
           return (
-            new Date(secondEvent.date).getTime() -
-            new Date(firstEvent.date).getTime()
+            new Date(secondEvent.start_date).getTime() -
+            new Date(firstEvent.start_date).getTime()
           );
         }
 
@@ -100,34 +129,134 @@ export default function Home() {
         }
 
         if (sort === "city-asc") {
-          return (firstEvent.city ?? "").localeCompare(
-            secondEvent.city ?? "",
-            "fr-FR",
-          );
+          return firstEvent.city.localeCompare(secondEvent.city, "fr-FR");
         }
 
         return (
-          new Date(firstEvent.date).getTime() -
-          new Date(secondEvent.date).getTime()
+          new Date(firstEvent.start_date).getTime() -
+          new Date(secondEvent.start_date).getTime()
         );
       });
   }, [category, city, events, search, sort]);
 
+  const groupedEvents = useMemo(
+    () =>
+      visibleEvents.reduce(
+        (groups, event) => {
+          groups[getEventStatus(event)].push(event);
+
+          return groups;
+        },
+        {
+          current: [] as Event[],
+          upcoming: [] as Event[],
+          past: [] as Event[],
+        },
+      ),
+    [visibleEvents],
+  );
+
+  const mapPeriod = useMemo(
+    () => getPeriodRange(mapPeriodMode, mapPeriodValue),
+    [mapPeriodMode, mapPeriodValue],
+  );
+
   const hasFilters =
     search.trim() !== "" || category !== "all" || city !== "all";
+
+  const handleMapPeriodModeChange = (mode: EventPeriodMode) => {
+    setMapPeriodMode(mode);
+    setMapPeriodValue(getDefaultPeriodValue(mode));
+  };
+
+  const renderEventCard = (event: Event) => (
+    <article className="event-card" key={event.id}>
+      <img
+        className="event-card__image"
+        src={event.image}
+        alt=""
+        loading="lazy"
+      />
+
+      <div className="event-card__content">
+        <div className="event-card__meta">
+          <span>{getEventCategories(event).join(", ")}</span>
+          <time dateTime={event.start_date}>{formatEventDateRange(event)}</time>
+        </div>
+
+        <h3>{event.title}</h3>
+        <p>{event.description}</p>
+
+        <dl className="event-card__details">
+          <div>
+            <dt>Debut</dt>
+            <dd>{formatDateTime(event.start_date)}</dd>
+          </div>
+          <div>
+            <dt>Fin</dt>
+            <dd>{formatDateTime(event.end_date)}</dd>
+          </div>
+          <div>
+            <dt>Adresse</dt>
+            <dd>{event.address}</dd>
+          </div>
+          <div>
+            <dt>Ville</dt>
+            <dd>{event.city}</dd>
+          </div>
+        </dl>
+      </div>
+    </article>
+  );
 
   return (
     <div className="events-home">
       <section className="events-home__header">
-        <h1>Bienvenue sur la page d'accueil'</h1>
-        <p>Explorez les événements disponibles autour de vous.</p>
-        <EventMap />
+        <h1>Bienvenue sur la page d'accueil</h1>
+        <p>Explorez les evenements disponibles autour de vous.</p>
+
+        <div className="events-map-controls" aria-label="Filtres de la carte">
+          <label>
+            Periode
+            <select
+              className="input"
+              value={mapPeriodMode}
+              onChange={(event) =>
+                handleMapPeriodModeChange(event.target.value as EventPeriodMode)
+              }
+            >
+              <option value="week">Semaine</option>
+              <option value="month">Mois</option>
+              <option value="year">Annee</option>
+            </select>
+          </label>
+
+          <label>
+            Selection
+            <input
+              className="input"
+              type={
+                mapPeriodMode === "week"
+                  ? "week"
+                  : mapPeriodMode === "month"
+                    ? "month"
+                    : "number"
+              }
+              min={mapPeriodMode === "year" ? "1900" : undefined}
+              max={mapPeriodMode === "year" ? "2100" : undefined}
+              value={mapPeriodValue}
+              onChange={(event) => setMapPeriodValue(event.target.value)}
+            />
+          </label>
+        </div>
+
+        <EventMap periodStart={mapPeriod.start} periodEnd={mapPeriod.end} />
       </section>
 
       <section className="events-list" aria-labelledby="events-list-title">
-        <h2 id="events-list-title">Tous les événements</h2>
+        <h2 id="events-list-title">Evenements</h2>
 
-        <div className="events-toolbar" aria-label="Filtres des événements">
+        <div className="events-toolbar" aria-label="Filtres des evenements">
           <label>
             Rechercher
             <input
@@ -140,7 +269,7 @@ export default function Home() {
           </label>
 
           <label>
-            Catégorie
+            Categorie
             <select
               className="input"
               value={category}
@@ -148,7 +277,7 @@ export default function Home() {
                 setCategory(event.target.value as EventCategory | "all")
               }
             >
-              <option value="all">Toutes les catégories</option>
+              <option value="all">Toutes les categories</option>
               {EVENT_CATEGORIES.map((eventCategory) => (
                 <option key={eventCategory} value={eventCategory}>
                   {eventCategory}
@@ -180,8 +309,8 @@ export default function Home() {
               value={sort}
               onChange={(event) => setSort(event.target.value as SortValue)}
             >
-              <option value="date-asc">Date croissante</option>
-              <option value="date-desc">Date décroissante</option>
+              <option value="date-asc">Debut croissant</option>
+              <option value="date-desc">Debut decroissant</option>
               <option value="title-asc">Titre A-Z</option>
               <option value="title-desc">Titre Z-A</option>
               <option value="city-asc">Ville A-Z</option>
@@ -198,71 +327,39 @@ export default function Home() {
                 setCity("all");
               }}
             >
-              Réinitialiser
+              Reinitialiser
             </button>
           )}
         </div>
 
         <p className="events-list__count">
-          {visibleEvents.length} événement{visibleEvents.length > 1 ? "s" : ""}
+          {visibleEvents.length} evenement{visibleEvents.length > 1 ? "s" : ""}
         </p>
 
-        {visibleEvents.length === 0 ? (
-          <p className="admin-empty">
-            Aucun événement ne correspond à votre recherche.
-          </p>
-        ) : (
-          <div className="events-list__grid">
-            {visibleEvents.map((event) => (
-              <article className="event-card" key={event.id}>
-                {event.image && (
-                  <img
-                    className="event-card__image"
-                    src={event.image}
-                    alt=""
-                    loading="lazy"
-                  />
-                )}
+        {statusSections.map((section) => {
+          const sectionEvents = groupedEvents[section.status];
 
-                <div className="event-card__content">
-                  <div className="event-card__meta">
-                    <span>{getEventCategories(event).join(", ")}</span>
-                    <time dateTime={event.date}>
-                      {new Date(event.date).toLocaleDateString("fr-FR", {
-                        day: "2-digit",
-                        month: "long",
-                        year: "numeric",
-                      })}
-                    </time>
-                  </div>
+          return (
+            <section
+              className="events-status-section"
+              aria-labelledby={`events-${section.status}-title`}
+              key={section.status}
+            >
+              <div className="events-status-section__header">
+                <h3 id={`events-${section.status}-title`}>{section.title}</h3>
+                <span>{sectionEvents.length}</span>
+              </div>
 
-                  <h3>{event.title}</h3>
-                  <p>{event.description}</p>
-
-                  <dl className="event-card__details">
-                    <div>
-                      <dt>Horaire</dt>
-                      <dd>
-                        {new Date(event.date).toLocaleTimeString("fr-FR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Adresse</dt>
-                      <dd>{event.address ?? "Adresse non renseignée"}</dd>
-                    </div>
-                    <div>
-                      <dt>Ville</dt>
-                      <dd>{event.city ?? "Ville non renseignée"}</dd>
-                    </div>
-                  </dl>
+              {sectionEvents.length === 0 ? (
+                <p className="admin-empty">{section.empty}</p>
+              ) : (
+                <div className="events-list__grid">
+                  {sectionEvents.map(renderEventCard)}
                 </div>
-              </article>
-            ))}
-          </div>
-        )}
+              )}
+            </section>
+          );
+        })}
       </section>
     </div>
   );

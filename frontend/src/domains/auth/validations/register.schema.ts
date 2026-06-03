@@ -13,7 +13,7 @@ const passwordSchema = z
 export const registerSchema = z
   .object({
     username: z.string().min(2, "Nom d'utilisateur trop court"),
-    email: z
+    login_email: z
       .email({ message: "Format d'email invalide" })
       .nonempty("Email requis"),
     password: passwordSchema,
@@ -29,16 +29,26 @@ export type RegisterFormData = z.infer<typeof registerSchema>;
 export const companyRegisterSchema = z
   .object({
     name: z.string().min(2, "Nom de l'entreprise requis"),
-    email: z
-      .email({ message: "Format d'email invalide" })
-      .nonempty("Email requis"),
+    member_name: z.string().min(2, "Nom du membre requis").max(50, "Nom trop long"),
+    member_job_role: z
+      .string()
+      .min(2, "Fonction du membre requise")
+      .max(50, "Fonction trop longue"),
+    login_email: z
+      .email({ message: "Format d'email de connexion invalide" })
+      .nonempty("Email de connexion requis"),
+    contact_email: z
+      .email({ message: "Format d'email de contact invalide" })
+      .nonempty("Email de contact requis"),
     password: passwordSchema,
     confirmPassword: z.string().min(1, "Confirmation requise"),
     description: z.string().min(10, "Description trop courte"),
     website: z.string().url("URL du site invalide"),
     address: z.string().min(5, "Adresse requise"),
+    city: z.string().min(2, "Ville requise"),
+    postal_code: z.string().regex(/^\d{5}$/, "Le code postal doit contenir 5 chiffres"),
     logo: z.string().url("URL du logo invalide"),
-    phone_number: z
+    contact_phone_number: z
       .string()
       .regex(/^\d{10}$/, "Le telephone doit contenir 10 chiffres"),
     siret: z.string().regex(/^\d{14}$/, "Le SIRET doit contenir 14 chiffres"),

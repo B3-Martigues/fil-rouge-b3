@@ -11,7 +11,8 @@ import { toast } from "react-toastify";
 import { loginSchema, type LoginFormData } from "../validations/login.schema";
 import useAuthStore from "../store/authStore";
 import { ROUTES } from "../../../shared/constants/routes";
-import type { AuthenticatedUser, Role } from "../../user/types/user";
+import type { Role } from "../../user/types/user";
+import { toAuthenticatedCompany, toAuthenticatedUser } from "../../user/types/user";
 import useDataStore from "../../../shared/store/dataStore";
 
 import Input from "../../../shared/components/ui/Input";
@@ -19,16 +20,20 @@ import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 
+const normalizeComparable = (value: string) => value.trim().toLowerCase();
+
 const getRedirectPathByRole = (role: Role) => {
   if (role === "admin") return ROUTES.ADMIN.DASHBOARD;
   if (role === "company") return ROUTES.COMPANY.EVENTS;
-  return ROUTES.USER.PROFILE;
+  return ROUTES.PUBLIC.HOME;
 };
 
 export default function LoginForm() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
+  const companies = useDataStore((s) => s.companies);
 
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -49,17 +54,41 @@ export default function LoginForm() {
     try {
       await new Promise((resolve) => setTimeout(resolve, 800));
 
-      const user = users.find(
-        (u) => u.email === data.email && u.password === data.password,
+      const loginEmail = data.login_email.trim();
+      const account = accounts.find(
+        (item) =>
+          normalizeComparable(item.login_email) === normalizeComparable(loginEmail) &&
+          item.password_hash === data.password &&
+          !item.deleted_at,
       );
 
-      if (!user) {
+      if (!account) {
         setServerError("Email ou mot de passe incorrect");
         return;
       }
 
-      const { password, ...rest } = user;
-      const safeUser: AuthenticatedUser = rest;
+      if (!account.is_active) {
+        setServerError("Ce compte est desactive");
+        return;
+      }
+
+      const company = companies.find(
+        (item) => item.account_id === account.id && !item.deleted_at,
+      );
+      const user = users.find(
+        (item) => item.account_id === account.id && !item.deleted_at,
+      );
+      const safeUser = company
+        ? toAuthenticatedCompany({ account, user, company })
+        : user
+          ? toAuthenticatedUser(account, user)
+          : null;
+
+      if (!safeUser) {
+        setServerError("Profil rattache au compte introuvable");
+        return;
+      }
+
       login(safeUser);
 
       navigate(getRedirectPathByRole(safeUser.role), { replace: true });
@@ -74,15 +103,19 @@ export default function LoginForm() {
       <h1>Connexion</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
-        <FormField label="Email" htmlFor="email" error={errors.email?.message}>
+        <FormField
+          label="Email"
+          htmlFor="email"
+          error={errors.login_email?.message}
+        >
           <Input
             id="email"
             type="email"
             autoComplete="email"
             placeholder="Votre email"
-            hasError={!!errors.email}
+            hasError={!!errors.login_email}
             aria-describedby="email-error"
-            {...register("email")}
+            {...register("login_email")}
           />
         </FormField>
 
