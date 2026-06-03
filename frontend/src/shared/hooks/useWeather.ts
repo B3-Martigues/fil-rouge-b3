@@ -11,7 +11,7 @@ import {
  * Il appelle l'API Open-Meteo et transforme les données pour un usage UI
  */
 export function useWeather(event: {
-  date: string;
+  start_date: string;
   latitude: number;
   longitude: number;
 }) {
@@ -30,8 +30,8 @@ export function useWeather(event: {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (event.latitude == null || event.longitude == null || !event.date) {
-      setWeather(null);
+    if (event.latitude == null || event.longitude == null || !event.start_date) {
+      queueMicrotask(() => setWeather(null));
       return;
     }
 
@@ -40,10 +40,13 @@ export function useWeather(event: {
       try {
         setLoading(true);
         setError(null);
-        const data: WeatherResponse = await fetchWeather();
+        const data: WeatherResponse = await fetchWeather({
+          latitude: event.latitude,
+          longitude: event.longitude,
+        });
 
         /**Normalisation de la date de l'événement(suppression de l'heure) */
-        const normalizedDate = normalizeDate(event.date);
+        const normalizedDate = normalizeDate(event.start_date);
 
         /**Recherche de l'index correspondant au jour de l'événement */
         const index = getWeatherIndex(normalizedDate, data.daily.time);
@@ -51,14 +54,14 @@ export function useWeather(event: {
         /**Extraction des données météo pour ce jour */
         const result = extractWeatherForEvent(data, index);
         setWeather(result);
-      } catch (err) {
+      } catch {
         setError("Erreur lors du chargement de la météo");
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [event.latitude, event.longitude, event.date]);
+  }, [event.latitude, event.longitude, event.start_date]);
   return {
     weather,
     loading,

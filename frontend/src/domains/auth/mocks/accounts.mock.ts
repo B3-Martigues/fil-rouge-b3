@@ -1,0 +1,88 @@
+import type { Account } from "../../user/types/user";
+import { ACCOUNT_TYPE_IDS } from "../../user/types/user";
+
+const createdAt = "2026-05-18T09:00:00.000Z";
+const password = "Password#2026";
+
+export const accountsMock: Account[] = [
+  {
+    id: 1,
+    account_type_id: ACCOUNT_TYPE_IDS.user,
+    account_type: "user",
+    login_email: "franceska@gmail.com",
+    password_hash: password,
+    is_active: true,
+    created_at: createdAt,
+    updated_at: createdAt,
+  },
+  {
+    id: 2,
+    account_type_id: ACCOUNT_TYPE_IDS.user,
+    account_type: "user",
+    login_email: "admin@gmail.com",
+    password_hash: password,
+    is_active: true,
+    created_at: createdAt,
+    updated_at: createdAt,
+  },
+  {
+    id: 3,
+    account_type_id: ACCOUNT_TYPE_IDS.user,
+    account_type: "user",
+    login_email: "luc@gmail.com",
+    password_hash: password,
+    is_active: true,
+    created_at: "2026-05-20T10:30:00.000Z",
+    updated_at: "2026-05-20T10:30:00.000Z",
+  },
+  {
+    id: 4,
+    account_type_id: ACCOUNT_TYPE_IDS.user,
+    account_type: "user",
+    login_email: "inactive@gmail.com",
+    password_hash: password,
+    is_active: false,
+    created_at: "2026-05-21T14:00:00.000Z",
+    updated_at: "2026-05-30T08:00:00.000Z",
+  },
+  {
+    id: 10,
+    account_type_id: ACCOUNT_TYPE_IDS.company,
+    account_type: "company",
+    login_email: "culture@example.fr",
+    password_hash: password,
+    is_active: true,
+    created_at: "2026-05-19T08:00:00.000Z",
+    updated_at: "2026-05-19T08:00:00.000Z",
+  },
+  {
+    id: 11,
+    account_type_id: ACCOUNT_TYPE_IDS.company,
+    account_type: "company",
+    login_email: "food@example.fr",
+    password_hash: password,
+    is_active: true,
+    created_at: "2026-05-19T09:00:00.000Z",
+    updated_at: "2026-05-19T09:00:00.000Z",
+  },
+  {
+    id: 12,
+    account_type_id: ACCOUNT_TYPE_IDS.company,
+    account_type: "company",
+    login_email: "pending-company@example.fr",
+    password_hash: password,
+    is_active: true,
+    created_at: "2026-05-28T11:00:00.000Z",
+    updated_at: "2026-05-28T11:00:00.000Z",
+  },
+  {
+    id: 13,
+    account_type_id: ACCOUNT_TYPE_IDS.company,
+    account_type: "company",
+    login_email: "sport@example.fr",
+    password_hash: password,
+    is_active: true,
+    created_at: "2026-05-22T16:30:00.000Z",
+    updated_at: "2026-05-22T16:30:00.000Z",
+  },
+];

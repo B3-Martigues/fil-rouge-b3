@@ -1,8 +1,3 @@
-/**
- * Tableau de bord entreprise.
- * Permet aux comptes valides de creer leurs propres évènements.
- */
-
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -10,8 +5,9 @@ import { toast } from "react-toastify";
 import useAuthStore from "../../auth/store/authStore";
 import {
   EVENT_CATEGORIES,
-  type Event,
+  type EventCategory,
 } from "../../events/types/event-categories";
+import type { Event } from "../../events/types/event";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
 import Input from "../../../shared/components/ui/Input";
@@ -23,13 +19,14 @@ import { ROUTES } from "../../../shared/constants/routes";
 type CompanyEventForm = {
   title: string;
   description: string;
-  date: string;
+  start_date: string;
+  end_date: string;
   address: string;
   city: string;
   postal_code: string;
   latitude: string;
   longitude: string;
-  categories: Event["category"][];
+  categories: EventCategory[];
   image: string;
 };
 
@@ -38,7 +35,8 @@ type CompanyEventErrors = Partial<Record<keyof CompanyEventForm, string>>;
 const emptyEventForm = (): CompanyEventForm => ({
   title: "",
   description: "",
-  date: "",
+  start_date: "",
+  end_date: "",
   address: "",
   city: "",
   postal_code: "",
@@ -48,14 +46,11 @@ const emptyEventForm = (): CompanyEventForm => ({
   image: "",
 });
 
-const isValidCoordinate = (value: string, min: number, max: number) => {
+const isValidOptionalCoordinate = (value: string, min: number, max: number) => {
+  if (value.trim() === "") return true;
+
   const numberValue = Number(value);
-  return (
-    value.trim() !== "" &&
-    !Number.isNaN(numberValue) &&
-    numberValue >= min &&
-    numberValue <= max
-  );
+  return !Number.isNaN(numberValue) && numberValue >= min && numberValue <= max;
 };
 
 const validateEventForm = (form: CompanyEventForm): CompanyEventErrors => {
@@ -69,8 +64,20 @@ const validateEventForm = (form: CompanyEventForm): CompanyEventErrors => {
     errors.description = "La description doit contenir au moins 10 caracteres";
   }
 
-  if (!form.date) {
-    errors.date = "La date est requise";
+  if (!form.start_date) {
+    errors.start_date = "La date de debut est requise";
+  }
+
+  if (!form.end_date) {
+    errors.end_date = "La date de fin est requise";
+  }
+
+  if (
+    form.start_date &&
+    form.end_date &&
+    new Date(form.end_date) < new Date(form.start_date)
+  ) {
+    errors.end_date = "La date de fin doit etre apres la date de debut";
   }
 
   if (form.categories.length === 0) {
@@ -89,15 +96,17 @@ const validateEventForm = (form: CompanyEventForm): CompanyEventErrors => {
     errors.postal_code = "Le code postal doit contenir 5 chiffres";
   }
 
-  if (!isValidCoordinate(form.latitude, -90, 90)) {
+  if (!isValidOptionalCoordinate(form.latitude, -90, 90)) {
     errors.latitude = "La latitude doit etre comprise entre -90 et 90";
   }
 
-  if (!isValidCoordinate(form.longitude, -180, 180)) {
+  if (!isValidOptionalCoordinate(form.longitude, -180, 180)) {
     errors.longitude = "La longitude doit etre comprise entre -180 et 180";
   }
 
-  if (form.image && !URL.canParse(form.image)) {
+  if (!form.image.trim()) {
+    errors.image = "L'image est requise";
+  } else if (!URL.canParse(form.image)) {
     errors.image = "L'URL de l'image est invalide";
   }
 
@@ -124,7 +133,7 @@ export default function CompanyDashboard() {
     setErrors((currentErrors) => ({ ...currentErrors, [field]: undefined }));
   };
 
-  const toggleCategory = (category: Event["category"]) => {
+  const toggleCategory = (category: EventCategory) => {
     updateField(
       "categories",
       form.categories.includes(category)
@@ -137,7 +146,7 @@ export default function CompanyDashboard() {
     event.preventDefault();
     setServerError(null);
 
-    if (!currentUser) {
+    if (!currentUser?.company_id) {
       setServerError("Impossible d'identifier l'entreprise connectee");
       return;
     }
@@ -152,27 +161,27 @@ export default function CompanyDashboard() {
     const now = new Date().toISOString();
     const newEvent: Event = {
       id: Date.now(),
-      company_id: currentUser.id,
+      company_id: currentUser.company_id,
       title: form.title.trim(),
       description: form.description.trim(),
-      date: new Date(form.date).toISOString(),
-      latitude: Number(form.latitude),
-      longitude: Number(form.longitude),
+      start_date: new Date(form.start_date).toISOString(),
+      end_date: new Date(form.end_date).toISOString(),
+      latitude: form.latitude ? Number(form.latitude) : null,
+      longitude: form.longitude ? Number(form.longitude) : null,
       address: form.address.trim(),
       city: form.city.trim(),
-      postal_code: Number(form.postal_code),
-      category: form.categories[0],
-      categories: form.categories,
-      image: form.image.trim() || undefined,
-      source: "Évènement créé par une entreprise",
-      is_approved: false,
+      postal_code: form.postal_code.trim(),
+      category_slugs: form.categories,
+      image: form.image.trim(),
+      source: "Evenement cree par une entreprise",
+      is_active: false,
       created_at: now,
       updated_at: now,
     };
 
     addEvent(newEvent);
     setForm(emptyEventForm());
-    toast.success("Évènement envoyé en attente de validation");
+    toast.success("Evenement envoye en attente de publication");
     navigate(ROUTES.COMPANY.EVENTS);
     requestAnimationFrame(() => {
       window.scrollTo({ top: 0, left: 0 });
@@ -184,8 +193,8 @@ export default function CompanyDashboard() {
       <div className="company-dashboard">
         <h2>Votre compte est en attente de validation</h2>
         <p>
-          Votre compte doit etre validé par un administrateur avant de pouvoir
-          creer des évènements
+          Votre compte doit etre valide par un administrateur avant de pouvoir
+          creer des evenements.
         </p>
       </div>
     );
@@ -194,8 +203,8 @@ export default function CompanyDashboard() {
   return (
     <div className="company-dashboard">
       <section className="company-dashboard__header">
-        <h2>Nouvel évènement</h2>
-        <p>Ajoutez un évènement public rattache a votre entreprise.</p>
+        <h2>Nouvel evenement</h2>
+        <p>Ajoutez un evenement public rattache a votre entreprise.</p>
       </section>
 
       <section
@@ -258,17 +267,40 @@ export default function CompanyDashboard() {
             </div>
 
             <FormField
-              label="Date et heure"
-              htmlFor="event-date"
-              error={errors.date}
+              label="Date de debut"
+              htmlFor="event-start-date"
+              error={errors.start_date}
             >
               <Input
-                id="event-date"
+                id="event-start-date"
                 type="datetime-local"
-                value={form.date}
-                hasError={!!errors.date}
-                aria-describedby={errors.date ? "event-date-error" : undefined}
-                onChange={(event) => updateField("date", event.target.value)}
+                value={form.start_date}
+                hasError={!!errors.start_date}
+                aria-describedby={
+                  errors.start_date ? "event-start-date-error" : undefined
+                }
+                onChange={(event) =>
+                  updateField("start_date", event.target.value)
+                }
+              />
+            </FormField>
+
+            <FormField
+              label="Date de fin"
+              htmlFor="event-end-date"
+              error={errors.end_date}
+            >
+              <Input
+                id="event-end-date"
+                type="datetime-local"
+                value={form.end_date}
+                hasError={!!errors.end_date}
+                aria-describedby={
+                  errors.end_date ? "event-end-date-error" : undefined
+                }
+                onChange={(event) =>
+                  updateField("end_date", event.target.value)
+                }
               />
             </FormField>
 
@@ -330,6 +362,7 @@ export default function CompanyDashboard() {
             >
               <Input
                 id="event-latitude"
+                type="number"
                 step="any"
                 min="-90"
                 max="90"
@@ -351,6 +384,7 @@ export default function CompanyDashboard() {
             >
               <Input
                 id="event-longitude"
+                type="number"
                 step="any"
                 min="-180"
                 max="180"
@@ -384,7 +418,7 @@ export default function CompanyDashboard() {
               </FormField>
 
               <div className="company-event-form__image-preview">
-                <span>Aperçu de l'image</span>
+                <span>Apercu de l'image</span>
                 {canPreviewImage && (
                   <img src={imagePreviewUrl} alt="" loading="lazy" />
                 )}
@@ -394,7 +428,7 @@ export default function CompanyDashboard() {
 
           {serverError && <ErrorMessage message={serverError} />}
 
-          <Button type="submit">Ajouter l'évènement</Button>
+          <Button type="submit">Ajouter l'evenement</Button>
         </form>
       </section>
     </div>

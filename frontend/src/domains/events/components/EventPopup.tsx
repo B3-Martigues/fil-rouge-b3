@@ -1,8 +1,6 @@
-/**Popup affiché lors du clic sur un événement sur la carte
- * Affiche les informations principales de l'énévement
- */
-
 import { Popup } from "react-leaflet";
+import { Thermometer, Wind } from "lucide-react";
+
 import type { Event } from "../types/event-categories";
 import Button from "../../../shared/components/ui/Button";
 import FavoriteButton from "./FavoriteButton";
@@ -11,103 +9,102 @@ import {
   canDisplayWeather,
   getWeatherInfo,
 } from "../../../shared/utils/weather";
-import { Thermometer, Wind } from "lucide-react";
+import { formatEventDateRange } from "../utils/event";
+
 type Props = {
-  event: Event;
+  event: Event & { latitude: number; longitude: number };
+};
+
+const getSourceHref = (source?: string | null) => {
+  const value = source?.trim();
+  if (!value || /\s/.test(value)) return null;
+
+  if (URL.canParse(value)) return value;
+
+  const sourceWithProtocol = `https://${value}`;
+  return URL.canParse(sourceWithProtocol) ? sourceWithProtocol : null;
 };
 
 export default function EventPopup({ event }: Props) {
-  /**Récupération des données météo liées à l'événement */
   const { weather, loading, error } = useWeather({
-    date: event.date,
+    start_date: event.start_date,
     latitude: event.latitude,
     longitude: event.longitude,
   });
-  /**Transformation du code météo  en informations UI (label + icône)*/
   const weatherInfo = weather ? getWeatherInfo(weather.weatherCode) : null;
-  /**Composant icône météo dynamique */
   const WeatherIcon = weatherInfo?.icon;
-  /**Verifie si la météo doit être affichée (événement à venir dans les 7 prochaines jours) */
-  const shouldDisplayWeather = canDisplayWeather(event.date);
+  const shouldDisplayWeather = canDisplayWeather(event.start_date);
+  const sourceLabel = event.source?.trim();
+  const sourceHref = getSourceHref(sourceLabel);
 
   return (
     <Popup>
       <div className="event-popup">
-        {/* IMAGE EVENT */}
-        {event.image && (
-          <img
-            src={event.image}
-            alt={event.title}
-            style={{ width: "300px", height: "220px" }}
-          />
-        )}
+        <img
+          src={event.image}
+          alt={event.title}
+          style={{ width: "300px", height: "220px" }}
+        />
         <FavoriteButton event={event} />
-        {/**WEATHER */}
+
         {shouldDisplayWeather && (
           <div className="event-weather">
-            <h3>Météo</h3>
+            <h3>Meteo</h3>
             {loading && <p>Chargement meteo...</p>}
             {error && <p style={{ color: "red" }}>{error}</p>}
 
             {!loading && !error && weather && weatherInfo && (
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <div>
-                  <Thermometer size={18} />{" "}
-                  <span>{weather.temperature}°C</span>{" "}
+                  <Thermometer size={18} />
+                  <span>{weather.temperature} degC</span>
                 </div>
                 <div>
                   <Wind size={18} />
-                  <span>{weather.wind} km/h</span>{" "}
+                  <span>{weather.wind} km/h</span>
                 </div>
                 <div
                   style={{ display: "flex", alignItems: "center", gap: "10px" }}
                 >
-                  {WeatherIcon && <WeatherIcon size={20} />}{" "}
+                  {WeatherIcon && <WeatherIcon size={20} />}
                   <span>{weatherInfo.label}</span>
                 </div>
               </div>
             )}
             {!loading && !error && !weather && !weatherInfo && (
-              <p>Aucune donnée météo disponible</p>
+              <p>Aucune donnee meteo disponible</p>
             )}
           </div>
         )}
-        {/**TITRE */}
+
         <h3>{event.title}</h3>
-        {/**DATE */}
         <p>
-          <strong>Date :</strong>{" "}
-          {new Date(event.date).toLocaleDateString("fr-FR", {
-            day: "2-digit",
-            month: "long",
-            year: "numeric",
-          })}
+          <strong>Debut / fin :</strong> {formatEventDateRange(event)}
         </p>
-        {/**ADRESSE */}
-        {event.address && (
-          <p>
-            <strong>Lieu :</strong> {event.address}
-          </p>
-        )}
-        {/**DESCRIPTION */}
+        <p>
+          <strong>Lieu :</strong> {event.address}, {event.city}{" "}
+          {event.postal_code}
+        </p>
         <p>{event.description}</p>
-        {/**SOURCE */}
-        {event.source && (
+        {sourceLabel && sourceHref ? (
           <a
-            href={`https://${event.source}`}
+            href={sourceHref}
             target="_blank"
             rel="noopener noreferrer"
           >
             Voir la source
           </a>
-        )}
-        {/**Lien vers Google Maps pour calculer un itinéraire vers l'événement */}
+        ) : sourceLabel ? (
+          <p>
+            <strong>Source :</strong> {sourceLabel}
+          </p>
+        ) : null}
         <a
           href={`https://www.google.com/maps/dir/?api=1&destination=${event.latitude},${event.longitude}`}
           target="_blank"
           rel="noopener noreferrer"
         >
-          <Button> Itinéraire</Button>
+          <Button>Itineraire</Button>
         </a>
       </div>
     </Popup>

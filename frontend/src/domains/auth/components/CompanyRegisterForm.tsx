@@ -8,31 +8,36 @@ import {
   companyRegisterSchema,
   type CompanyRegisterFormData,
 } from "../validations/register.schema";
-import type { AuthenticatedUser, User } from "../../user/types/user";
+import type { Account, User } from "../../user/types/user";
+import {
+  ACCOUNT_TYPE_IDS,
+  ROLE_IDS,
+  toAuthenticatedCompany,
+} from "../../user/types/user";
 import type { Company } from "../../companies/types/company";
+import type { CompanyMember } from "../../companies/types/company-member";
 import { CATEGORIES } from "../../companies/types/company-categories";
 import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
-
 import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 
-const toSlug = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
+const createLocalId = () => Date.now();
+const normalizeComparable = (value: string) => value.trim().toLowerCase();
 
 export default function CompanyRegisterForm() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
+  const companies = useDataStore((s) => s.companies);
+  const addAccount = useDataStore((s) => s.addAccount);
   const addUser = useDataStore((s) => s.addUser);
   const addCompany = useDataStore((s) => s.addCompany);
+  const addCompanyMember = useDataStore((s) => s.addCompanyMember);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -55,61 +60,108 @@ export default function CompanyRegisterForm() {
     try {
       await new Promise((resolve) => setTimeout(resolve, 800));
 
-      const existingUser = users.find((user) => user.email === data.email);
-      if (existingUser) {
-        setServerError("Cet email est deja utilise");
-        setLoading(false);
+      const loginEmail = data.login_email.trim();
+      const memberName = data.member_name.trim();
+      const memberJobRole = data.member_job_role.trim();
+      const companyName = data.name.trim();
+      const contactEmail = data.contact_email.trim();
+      const siret = data.siret.trim();
+      const existingAccount = accounts.find(
+        (account) =>
+          normalizeComparable(account.login_email) ===
+          normalizeComparable(loginEmail),
+      );
+      if (existingAccount) {
+        setServerError("Cet email de connexion est deja utilise");
         return;
       }
 
-      const now = new Date().toISOString();
-      const company: Company = {
-        id: Date.now(),
-        name: data.name,
-        email: data.email,
+      const existingMemberName = users.find(
+        (user) =>
+          normalizeComparable(user.username) === normalizeComparable(memberName) &&
+          !user.deleted_at,
+      );
+      if (existingMemberName) {
+        setServerError("Ce nom de membre est deja utilise");
+        return;
+      }
+
+      const existingContactEmail = companies.find(
+        (company) =>
+          normalizeComparable(company.contact_email) ===
+          normalizeComparable(contactEmail),
+      );
+      if (existingContactEmail) {
+        setServerError("Cet email de contact est deja utilise");
+        return;
+      }
+
+      const existingSiret = companies.find(
+        (company) => normalizeComparable(company.siret ?? "") === normalizeComparable(siret),
+      );
+      if (existingSiret) {
+        setServerError("Ce SIRET est deja utilise");
+        return;
+      }
+
+      const accountId = createLocalId();
+      const userId = accountId + 1;
+      const companyId = accountId + 2;
+      const companyMemberId = accountId + 3;
+      const createdAt = new Date().toISOString();
+      const account: Account = {
+        id: accountId,
+        account_type_id: ACCOUNT_TYPE_IDS.company,
+        account_type: "company",
+        login_email: loginEmail,
         password_hash: data.password,
-        description: data.description,
-        website: data.website,
-        address: data.address,
-        logo: data.logo,
-        phone_number: Number(data.phone_number),
-        siret: data.siret,
+        is_active: true,
+        created_at: createdAt,
+        updated_at: createdAt,
+      };
+      const memberUser: User = {
+        id: userId,
+        account_id: accountId,
+        username: memberName,
+        role_id: ROLE_IDS.company,
+        role: "company",
+        created_at: createdAt,
+        updated_at: createdAt,
+      };
+      const company: Company = {
+        id: companyId,
+        account_id: accountId,
+        name: companyName,
+        contact_email: contactEmail,
+        role_id: ROLE_IDS.company,
+        description: data.description.trim(),
+        website: data.website.trim(),
+        address: data.address.trim(),
+        city: data.city.trim(),
+        postal_code: data.postal_code.trim(),
+        logo: data.logo.trim(),
+        contact_phone_number: data.contact_phone_number.trim(),
+        siret,
         is_verified: false,
         is_active: false,
-        created_at: now,
-        updated_at: now,
-        categories: data.categories.map((category, index) => ({
-          id: index + 1,
-          name: category,
-          slug: toSlug(category),
-        })),
+        created_at: createdAt,
+        updated_at: createdAt,
+        category_slugs: data.categories,
+      };
+      const companyMember: CompanyMember = {
+        id: companyMemberId,
+        user_id: userId,
+        company_id: companyId,
+        job_role: memberJobRole,
+        created_at: createdAt,
+        updated_at: createdAt,
       };
 
-      const companyUser: User = {
-        id: company.id,
-        username: company.name,
-        email: company.email,
-        password: data.password,
-        role: "company",
-        is_active: company.is_active,
-        preferences: {
-          jour: false,
-          culture: false,
-          musique: false,
-          art: false,
-          tourisme: false,
-          associatif: false,
-          famille: false,
-          sport: false,
-        },
-      };
-
-      addUser(companyUser);
+      addAccount(account);
+      addUser(memberUser);
       addCompany(company);
-
-      const { password, ...rest } = companyUser;
-      const safeUser: AuthenticatedUser = rest;
-      login(safeUser);
+      addCompanyMember(companyMember);
+      login(toAuthenticatedCompany({ account, user: memberUser, company }));
 
       toast.success("Compte entreprise cree. En attente de validation");
       navigate(ROUTES.COMPANY.DASHBOARD);
@@ -140,15 +192,69 @@ export default function CompanyRegisterForm() {
           />
         </FormField>
 
-        <FormField label="Email" htmlFor="email" error={errors.email?.message}>
+        <fieldset className="auth-form-section">
+          <legend>Membre principal</legend>
+
+          <FormField
+            label="Nom du membre"
+            htmlFor="member_name"
+            error={errors.member_name?.message}
+          >
+            <Input
+              id="member_name"
+              type="text"
+              autoComplete="name"
+              placeholder="Nom du responsable"
+              hasError={!!errors.member_name}
+              {...register("member_name")}
+            />
+          </FormField>
+
+          <FormField
+            label="Fonction"
+            htmlFor="member_job_role"
+            error={errors.member_job_role?.message}
+          >
+            <Input
+              id="member_job_role"
+              type="text"
+              autoComplete="organization-title"
+              placeholder="Responsable evenementiel"
+              hasError={!!errors.member_job_role}
+              {...register("member_job_role")}
+            />
+          </FormField>
+        </fieldset>
+
+        <FormField
+          label="Email de connexion"
+          htmlFor="email"
+          error={errors.login_email?.message}
+        >
           <Input
             id="email"
             type="email"
             autoComplete="email"
             placeholder="contact@entreprise.fr"
-            hasError={!!errors.email}
+            hasError={!!errors.login_email}
             aria-describedby="email-error"
-            {...register("email")}
+            {...register("login_email")}
+          />
+        </FormField>
+
+        <FormField
+          label="Email de contact"
+          htmlFor="contact_email"
+          error={errors.contact_email?.message}
+        >
+          <Input
+            id="contact_email"
+            type="email"
+            autoComplete="email"
+            placeholder="contact@entreprise.fr"
+            hasError={!!errors.contact_email}
+            aria-describedby="contact_email-error"
+            {...register("contact_email")}
           />
         </FormField>
 
@@ -238,18 +344,45 @@ export default function CompanyRegisterForm() {
           />
         </FormField>
 
+        <FormField label="Ville" htmlFor="city" error={errors.city?.message}>
+          <Input
+            id="city"
+            type="text"
+            autoComplete="address-level2"
+            placeholder="Marseille"
+            hasError={!!errors.city}
+            {...register("city")}
+          />
+        </FormField>
+
         <FormField
-          label="Telephone"
-          htmlFor="phone_number"
-          error={errors.phone_number?.message}
+          label="Code postal"
+          htmlFor="postal_code"
+          error={errors.postal_code?.message}
         >
           <Input
-            id="phone_number"
+            id="postal_code"
+            type="text"
+            inputMode="numeric"
+            autoComplete="postal-code"
+            placeholder="13001"
+            hasError={!!errors.postal_code}
+            {...register("postal_code")}
+          />
+        </FormField>
+
+        <FormField
+          label="Telephone"
+          htmlFor="contact_phone_number"
+          error={errors.contact_phone_number?.message}
+        >
+          <Input
+            id="contact_phone_number"
             type="tel"
             autoComplete="tel"
             placeholder="0601020304"
-            hasError={!!errors.phone_number}
-            {...register("phone_number")}
+            hasError={!!errors.contact_phone_number}
+            {...register("contact_phone_number")}
           />
         </FormField>
 

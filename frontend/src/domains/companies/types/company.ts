@@ -1,31 +1,31 @@
-import type { CompanyCategoryOption } from "./company-categories";
+import type { CompanyCategoryName, CompanyCategoryOption } from "./company-categories";
 
-/**
- * Structure des donnees liees aux entreprises.
- * Les categories sont stockees sous forme d'objets pour garder leur id et slug.
- */
-
-/** Categorie rattachee a une entreprise. */
-export type Category = CompanyCategoryOption;
-
-/** Type principal representant une entreprise. */
 export type Company = {
-  id: number; /** Identifiant unique de l'entreprise. */
-  name: string; /** Nom de l'entreprise. */
-  email: string; /** Adresse email utilisee pour la connexion. */
-  password_hash: string; /** Mot de passe hashe cote backend. */
-  description: string; /** Description de l'entreprise. */
-  website: string; /** Site web de l'entreprise. */
-  address: string; /** Adresse de l'entreprise. */
-  logo: string; /** URL ou chemin du logo. */
-  phone_number: number; /** Numero de telephone. */
-  siret: string; /** Numero SIRET de l'entreprise. */
-  is_verified: boolean; /** Indique si l'entreprise a ete verifiee. */
-  is_active: boolean; /** Indique si le compte est actif. */
-  created_at: string; /** Date de creation. */
-  updated_at: string; /** Date de derniere modification. */
-  categories: Category[]; /** Categories associees a l'entreprise. */
+  id: number;
+  account_id: number;
+  name: string;
+  contact_email: string;
+  role_id?: number | null;
+  description?: string | null;
+  website?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  address: string;
+  city: string;
+  postal_code: string;
+  logo?: string | null;
+  contact_phone_number?: string | null;
+  siret?: string | null;
+  is_verified: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string | null;
+  category_slugs: CompanyCategoryName[];
 };
 
-/** Entreprise stockee cote frontend apres authentification. */
-export type AuthenticatedCompany = Omit<Company, "password_hash">;
+export type CompanyWithCategories = Company & {
+  categories: CompanyCategoryOption[];
+};
+
+export type AuthenticatedCompany = Company;

@@ -1,108 +1,121 @@
-/**
- * Formulaire de modification du profil utilisateur.
- * Utilise:
- * - React Hook Form + Zod
- * - composants UI réutilisables
- * - Zustand pour mettre à jour le store
- */
-
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
-import { createPortal } from "react-dom";
+import { toast } from "react-toastify";
 
 import useAuthStore from "../../auth/store/authStore";
-
+import useDataStore from "../../../shared/store/dataStore";
 import {
   profileSchema,
   type ProfileFormData,
 } from "../validations/profile.schema";
 
-import { usersMock } from "../../auth/mocks/users.mock";
-
-// UI
 import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
-
-// FEEDBACK
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 
-import { toast } from "react-toastify";
+const normalizeComparable = (value: string) => value.trim().toLowerCase();
 
 export default function UserProfileForm() {
   const user = useAuthStore((s) => s.currentUser);
-  const updateUser = useAuthStore((s) => s.updateUser);
-  const navigate = useNavigate();
+  const updateAuthUser = useAuthStore((s) => s.updateUser);
   const logout = useAuthStore((s) => s.logout);
+  const accounts = useDataStore((s) => s.accounts);
+  const users = useDataStore((s) => s.users);
+  const updateAccount = useDataStore((s) => s.updateAccount);
+  const updateUser = useDataStore((s) => s.updateUser);
+  const deleteUser = useDataStore((s) => s.deleteUser);
+  const navigate = useNavigate();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
-  /**Configuration React Hook Form + Zod */
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
-
     mode: "onTouched",
-
-    /**Valeurs par défaut du formulaire */
     defaultValues: {
       username: user?.username ?? "",
-      email: user?.email ?? "",
+      login_email: user?.login_email ?? "",
     },
   });
-   
-  /**Soumission du formulaire */
+
   const onSubmit = async (data: ProfileFormData) => {
     setLoading(true);
     setServerError(null);
 
     try {
-      /**Simulation appel API */
       await new Promise((resolve) => setTimeout(resolve, 800));
 
-      /**Mise à jour du mock utilisateur */
-      const existingUser = usersMock.find((u) => u.id === user?.id);
-
-      if (existingUser) {
-        existingUser.username = data.username;
-        existingUser.email = data.email;
+      if (!user) {
+        setServerError("Utilisateur non trouve");
+        return;
       }
 
-      /**Mise à jour du store Zustand */
-      updateUser({
-        username: data.username,
-        email: data.email,
+      if (!user.user_id) {
+        setServerError("Profil utilisateur introuvable");
+        return;
+      }
+
+      const loginEmail = data.login_email.trim();
+      const username = data.username.trim();
+      const existingAccount = accounts.find(
+        (account) =>
+          account.id !== user.account_id &&
+          normalizeComparable(account.login_email) ===
+            normalizeComparable(loginEmail),
+      );
+
+      if (existingAccount) {
+        setServerError("Cet email est deja utilise");
+        return;
+      }
+
+      const existingUsername = users.find(
+        (item) =>
+          item.id !== user.user_id &&
+          !item.deleted_at &&
+          normalizeComparable(item.username) === normalizeComparable(username),
+      );
+
+      if (existingUsername) {
+        setServerError("Ce nom d'utilisateur est deja utilise");
+        return;
+      }
+
+      updateAccount(user.account_id, {
+        login_email: loginEmail,
+      });
+      updateUser(user.user_id, {
+        username,
+      });
+      updateAuthUser({
+        username,
+        login_email: loginEmail,
       });
 
-      toast.success("Profil mis à jour");
+      toast.success("Profil mis a jour");
     } catch {
-      setServerError("Erreur lors de la mise à jour du profil");
+      setServerError("Erreur lors de la mise a jour du profil");
     } finally {
       setLoading(false);
     }
   };
 
-  /**Suppression de compte */
   const handleDeleteAccount = () => {
     if (!user) return;
 
-    const userIndex = usersMock.findIndex((u) => u.id === user.id);
-
-    if (userIndex !== -1) {
-      usersMock.splice(userIndex, 1);
+    if (user.user_id) {
+      deleteUser(user.user_id);
     }
-
     logout();
-    toast.success("Compte supprimé");
-
+    toast.success("Compte supprime");
     navigate("/login");
   };
 
@@ -110,9 +123,7 @@ export default function UserProfileForm() {
     <div>
       <h1>Mon profil</h1>
 
-      {/*FORMULAIRE PRINCIPAL */}
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
-        {/*CHAMP: NOM UTILISATEUR */}
         <FormField
           label="Nom d'utilisateur"
           htmlFor="username"
@@ -127,23 +138,24 @@ export default function UserProfileForm() {
           />
         </FormField>
 
-        {/*CHAMP: EMAIL */}
-        <FormField label="Email" htmlFor="email" error={errors.email?.message}>
+        <FormField
+          label="Email de connexion"
+          htmlFor="login_email"
+          error={errors.login_email?.message}
+        >
           <Input
-            id="email"
+            id="login_email"
             type="email"
             placeholder="Votre email"
             autoComplete="email"
-            hasError={!!errors.email}
-            aria-describedby="email-error"
-            {...register("email")}
+            hasError={!!errors.login_email}
+            aria-describedby="login_email-error"
+            {...register("login_email")}
           />
         </FormField>
 
-        {/*ERREUR SERVEUR */}
         {serverError && <ErrorMessage message={serverError} />}
 
-        {/*BOUTON SUBMIT */}
         <Button type="submit" loading={loading}>
           Enregistrer les modifications
         </Button>
@@ -151,52 +163,71 @@ export default function UserProfileForm() {
           type="button"
           onClick={() => navigate("/profile/change-password")}
         >
-           Modifier le mot  passe
+          Modifier le mot de passe
         </Button>
-
         <Button type="button" onClick={() => setShowDeleteModal(true)}>
           Supprimer mon compte
         </Button>
       </form>
 
-      {showDeleteModal && createPortal(
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999
-        }}>
-          <div style={{ 
-            backgroundColor: 'white', 
-            padding: '24px', 
-            borderRadius: '8px', 
-            maxWidth: '448px', 
-            width: '100%', 
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-            color: '#1a1a1a'
-          }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '8px' }}>
-              ⚠️ Suppression du compte
-            </h2>
-            <p style={{ marginBottom: '16px', color: '#4a5568' }}>
-              Cette action est <strong>définitive</strong>.  
-              Toutes vos données seront supprimées.
-            </p>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <Button type="button" onClick={() => setShowDeleteModal(false)}>
-                Annuler
-              </Button>
-              <Button type="button" onClick={handleDeleteAccount}>
-                Oui, supprimer
-              </Button>
+      {showDeleteModal &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "24px",
+                borderRadius: "8px",
+                maxWidth: "448px",
+                width: "100%",
+                boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                color: "#1a1a1a",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: "1.25rem",
+                  fontWeight: "bold",
+                  marginBottom: "8px",
+                }}
+              >
+                Suppression du compte
+              </h2>
+              <p style={{ marginBottom: "16px", color: "#4a5568" }}>
+                Cette action est <strong>definitive</strong>. Toutes vos donnees
+                seront supprimees.
+              </p>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <Button type="button" onClick={() => setShowDeleteModal(false)}>
+                  Annuler
+                </Button>
+                <Button type="button" onClick={handleDeleteAccount}>
+                  Oui, supprimer
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
