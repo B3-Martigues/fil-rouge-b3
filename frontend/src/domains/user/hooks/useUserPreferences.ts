@@ -1,8 +1,5 @@
 import { useState } from "react";
-import type {
-  EventCategory,
-  EventCategoryName,
-} from "../../events/types/event-categories";
+import type { EventCategoryName } from "../../events/types/event-categories";
 
 /**Hook pour gérer les préférences utilisateur localement,
  * utilisaé dans onboarding et profil

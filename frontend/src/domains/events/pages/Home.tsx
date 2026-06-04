@@ -1,9 +1,12 @@
 import { useMemo, useState } from "react";
 
+import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
 import {
   EVENT_CATEGORIES,
+  getEventCategorySlug,
   type EventCategory,
+  type EventCategoryName,
 } from "../types/event-categories";
 import EventMap from "../components/EventMap";
 import {
@@ -34,6 +37,14 @@ const getEventCategories = (event: {
   category_slugs: EventCategory[];
 }) => event.category_slugs;
 
+const getPreferenceMatchCount = (
+  event: { category_slugs: EventCategory[] },
+  preferredCategorySet: Set<EventCategoryName>,
+) =>
+  getEventCategories(event).filter((eventCategory) =>
+    preferredCategorySet.has(eventCategory),
+  ).length;
+
 const statusSections: {
   status: ReturnType<typeof getEventStatus>;
   title: string;
@@ -57,8 +68,12 @@ const statusSections: {
 ];
 
 export default function Home() {
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const currentUserRole = currentUser?.role;
+  const currentUserId = currentUser?.user_id;
   const events = useDataStore((s) => s.events);
   const companies = useDataStore((s) => s.companies);
+  const userEventPreferences = useDataStore((s) => s.userEventPreferences);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<EventCategory | "all">("all");
   const [city, setCity] = useState("all");
@@ -93,6 +108,24 @@ export default function Home() {
       ),
     [activeCompanyIds, events],
   );
+  const preferredCategories = useMemo(
+    () =>
+      currentUserRole === "user" && currentUserId
+        ? userEventPreferences
+            .filter((preference) => preference.user_id === currentUserId)
+            .map((preference) =>
+              getEventCategorySlug(preference.event_category_id),
+            )
+            .filter((category): category is EventCategoryName => !!category)
+        : [],
+    [currentUserId, currentUserRole, userEventPreferences],
+  );
+  const preferredCategorySet = useMemo(
+    () => new Set(preferredCategories),
+    [preferredCategories],
+  );
+  const shouldUsePreferredEvents =
+    currentUserRole === "user" && preferredCategorySet.size > 0;
 
   const visibleEvents = useMemo(() => {
     const normalizedSearch = normalizeText(search);
@@ -103,6 +136,12 @@ export default function Home() {
         if (!activeCompanyIds.has(event.company_id)) return false;
 
         const eventCategories = getEventCategories(event);
+        const preferenceMatchCount = getPreferenceMatchCount(
+          event,
+          preferredCategorySet,
+        );
+        const matchesPreferences =
+          !shouldUsePreferredEvents || preferenceMatchCount > 0;
         const matchesCategory =
           category === "all" || eventCategories.includes(category);
         const matchesCity = city === "all" || event.city === city;
@@ -119,12 +158,33 @@ export default function Home() {
         );
 
         return (
+          matchesPreferences &&
           matchesCategory &&
           matchesCity &&
           searchableContent.includes(normalizedSearch)
         );
       })
       .sort((firstEvent, secondEvent) => {
+        if (shouldUsePreferredEvents) {
+          const firstMatchCount = getPreferenceMatchCount(
+            firstEvent,
+            preferredCategorySet,
+          );
+          const secondMatchCount = getPreferenceMatchCount(
+            secondEvent,
+            preferredCategorySet,
+          );
+
+          if (firstMatchCount !== secondMatchCount) {
+            return secondMatchCount - firstMatchCount;
+          }
+
+          return (
+            new Date(firstEvent.start_date).getTime() -
+            new Date(secondEvent.start_date).getTime()
+          );
+        }
+
         if (sort === "date-desc") {
           return (
             new Date(secondEvent.start_date).getTime() -
@@ -149,7 +209,16 @@ export default function Home() {
           new Date(secondEvent.start_date).getTime()
         );
       });
-  }, [activeCompanyIds, category, city, events, search, sort]);
+  }, [
+    activeCompanyIds,
+    category,
+    city,
+    events,
+    preferredCategorySet,
+    search,
+    shouldUsePreferredEvents,
+    sort,
+  ]);
 
   const groupedEvents = useMemo(
     () =>
@@ -317,20 +386,22 @@ export default function Home() {
             </select>
           </label>
 
-          <label>
-            Trier par
-            <select
-              className="input"
-              value={sort}
-              onChange={(event) => setSort(event.target.value as SortValue)}
-            >
-              <option value="date-asc">Debut croissant</option>
-              <option value="date-desc">Debut decroissant</option>
-              <option value="title-asc">Titre A-Z</option>
-              <option value="title-desc">Titre Z-A</option>
-              <option value="city-asc">Ville A-Z</option>
-            </select>
-          </label>
+          {!shouldUsePreferredEvents && (
+            <label>
+              Trier par
+              <select
+                className="input"
+                value={sort}
+                onChange={(event) => setSort(event.target.value as SortValue)}
+              >
+                <option value="date-asc">Debut croissant</option>
+                <option value="date-desc">Debut decroissant</option>
+                <option value="title-asc">Titre A-Z</option>
+                <option value="title-desc">Titre Z-A</option>
+                <option value="city-asc">Ville A-Z</option>
+              </select>
+            </label>
+          )}
 
           {hasFilters && (
             <button
@@ -351,30 +422,54 @@ export default function Home() {
           {visibleEvents.length} evenement{visibleEvents.length > 1 ? "s" : ""}
         </p>
 
-        {statusSections.map((section) => {
-          const sectionEvents = groupedEvents[section.status];
+        {shouldUsePreferredEvents ? (
+          <section
+            className="events-status-section"
+            aria-labelledby="events-recommended-title"
+          >
+            <div className="events-status-section__header">
+              <h3 id="events-recommended-title">Evenements recommandes</h3>
+              <span>{visibleEvents.length}</span>
+            </div>
 
-          return (
-            <section
-              className="events-status-section"
-              aria-labelledby={`events-${section.status}-title`}
-              key={section.status}
-            >
-              <div className="events-status-section__header">
-                <h3 id={`events-${section.status}-title`}>{section.title}</h3>
-                <span>{sectionEvents.length}</span>
+            {visibleEvents.length === 0 ? (
+              <p className="admin-empty">
+                Aucun evenement ne correspond a vos preferences.
+              </p>
+            ) : (
+              <div className="events-list__grid">
+                {visibleEvents.map(renderEventCard)}
               </div>
+            )}
+          </section>
+        ) : (
+          statusSections.map((section) => {
+            const sectionEvents = groupedEvents[section.status];
 
-              {sectionEvents.length === 0 ? (
-                <p className="admin-empty">{section.empty}</p>
-              ) : (
-                <div className="events-list__grid">
-                  {sectionEvents.map(renderEventCard)}
+            return (
+              <section
+                className="events-status-section"
+                aria-labelledby={`events-${section.status}-title`}
+                key={section.status}
+              >
+                <div className="events-status-section__header">
+                  <h3 id={`events-${section.status}-title`}>
+                    {section.title}
+                  </h3>
+                  <span>{sectionEvents.length}</span>
                 </div>
-              )}
-            </section>
-          );
-        })}
+
+                {sectionEvents.length === 0 ? (
+                  <p className="admin-empty">{section.empty}</p>
+                ) : (
+                  <div className="events-list__grid">
+                    {sectionEvents.map(renderEventCard)}
+                  </div>
+                )}
+              </section>
+            );
+          })
+        )}
       </section>
     </div>
   );

@@ -40,7 +40,10 @@ import type {
   UserEventPreference,
 } from "../../domains/user/types/user";
 import { ROLE_IDS } from "../../domains/user/types/user";
-import type { EventCategoryName } from "../../domains/events/types/event-categories";
+import {
+  getEventCategoryId,
+  type EventCategoryName,
+} from "../../domains/events/types/event-categories";
 
 type PasswordResetResult = {
   ok: boolean;
@@ -887,13 +890,13 @@ const useDataStore = create<DataState>()(
           const filtered = state.userEventPreferences.filter(
             (p) => p.user_id !== userId,
           );
+          const uniqueCategories = Array.from(new Set(categories));
 
-          const newPrefs: UserEventPreference[] = categories.map(
+          const newPrefs: UserEventPreference[] = uniqueCategories.map(
             (cat, index) => ({
               id: Date.now() + index,
               user_id: userId,
-              event_category_id: index,
-              category_slug: cat,
+              event_category_id: getEventCategoryId(cat),
             }),
           );
           return {

@@ -1,31 +1,49 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+import type { EventCategoryName } from "../../events/types/event-categories";
+import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
+import Button from "../../../shared/components/ui/Button";
+import { ROUTES } from "../../../shared/constants/routes";
+import useDataStore from "../../../shared/store/dataStore";
+import useAuthStore from "../../auth/store/authStore";
 import PreferencesGrid from "../components/PreferencesGrid";
 import { useUserPreferences } from "../hooks/useUserPreferences";
-import { ROUTES } from "../../../shared/constants/routes";
-import useAuthStore from "../../auth/store/authStore";
-import useDataStore from "../../../shared/store/dataStore";
 
-/**Page d'onboarding pour choisir les préférences utilisateur */
 export default function Onboarding() {
   const navigate = useNavigate();
-  const { preferences, toggle } = useUserPreferences([]);
   const user = useAuthStore((s) => s.currentUser);
   const setUserEventPreferences = useDataStore(
     (s) => s.setUserEventPreferences,
   );
+  const { preferences, toggle } = useUserPreferences([]);
+  const [error, setError] = useState<string | null>(null);
 
-  /**Sauvegarde les préférences et redirige vers l'accueil */
+  const handleToggle = (category: EventCategoryName) => {
+    setError(null);
+    toggle(category);
+  };
+
   const handleSave = () => {
-    if (!user) return;
+    if (!user?.user_id) return;
 
-    setUserEventPreferences(user.id, preferences);
+    if (preferences.length === 0) {
+      setError("Selectionnez au moins une preference pour continuer.");
+      return;
+    }
+
+    setUserEventPreferences(user.user_id, preferences);
     navigate(ROUTES.PUBLIC.HOME);
   };
+
   return (
     <div>
-      <h1>Choisis tes centres d'intérêt</h1>
-      <PreferencesGrid selected={preferences} toggle={toggle} />
-      <button onClick={handleSave}>Continuer</button>
+      <h1>Choisis tes centres d'interet</h1>
+      <PreferencesGrid selected={preferences} toggle={handleToggle} />
+      {error && <ErrorMessage message={error} />}
+      <Button type="button" onClick={handleSave}>
+        Continuer
+      </Button>
     </div>
   );
 }

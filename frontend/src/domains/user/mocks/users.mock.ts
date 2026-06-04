@@ -77,11 +77,11 @@ export const usersMock: User[] = [
 ];
 
 export const userEventPreferencesMock: UserEventPreference[] = [
-  { id: 1, user_id: 1, event_category_id: 11, category_slug: "culture" },
-  { id: 2, user_id: 1, event_category_id: 25, category_slug: "musique" },
-  { id: 3, user_id: 1, event_category_id: 16, category_slug: "festival" },
-  { id: 4, user_id: 1, event_category_id: 20, category_slug: "gastronomie" },
-  { id: 5, user_id: 3, event_category_id: 37, category_slug: "sport" },
-  { id: 6, user_id: 3, event_category_id: 26, category_slug: "nature" },
-  { id: 7, user_id: 3, event_category_id: 38, category_slug: "technologie" },
+  { id: 1, user_id: 1, event_category_id: 11 },
+  { id: 2, user_id: 1, event_category_id: 25 },
+  { id: 3, user_id: 1, event_category_id: 16 },
+  { id: 4, user_id: 1, event_category_id: 20 },
+  { id: 5, user_id: 3, event_category_id: 37 },
+  { id: 6, user_id: 3, event_category_id: 26 },
+  { id: 7, user_id: 3, event_category_id: 38 },
 ];

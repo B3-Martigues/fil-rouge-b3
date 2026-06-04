@@ -19,6 +19,55 @@ CREATE TABLE event_categories (
     slug VARCHAR(50) NOT NULL UNIQUE
 );
 
+INSERT INTO event_categories (id, name, slug) VALUES
+    (1, 'animaux', 'animaux'),
+    (2, 'art', 'art'),
+    (3, 'associatif', 'associatif'),
+    (4, 'atelier', 'atelier'),
+    (5, 'automobile', 'automobile'),
+    (6, 'bien-etre', 'bien-etre'),
+    (7, 'business', 'business'),
+    (8, 'cinema', 'cinema'),
+    (9, 'concert', 'concert'),
+    (10, 'conference', 'conference'),
+    (11, 'culture', 'culture'),
+    (12, 'emploi', 'emploi'),
+    (13, 'enfants', 'enfants'),
+    (14, 'esport', 'esport'),
+    (15, 'famille', 'famille'),
+    (16, 'festival', 'festival'),
+    (17, 'food', 'food'),
+    (18, 'formation', 'formation'),
+    (19, 'gaming', 'gaming'),
+    (20, 'gastronomie', 'gastronomie'),
+    (21, 'humour', 'humour'),
+    (22, 'jeux', 'jeux'),
+    (23, 'marche', 'marche'),
+    (24, 'mode', 'mode'),
+    (25, 'musique', 'musique'),
+    (26, 'nature', 'nature'),
+    (27, 'networking', 'networking'),
+    (28, 'nightlife', 'nightlife'),
+    (29, 'patrimoine', 'patrimoine'),
+    (30, 'plein-air', 'plein-air'),
+    (31, 'randonnee', 'randonnee'),
+    (32, 'sante', 'sante'),
+    (33, 'shopping', 'shopping'),
+    (34, 'solidarite', 'solidarite'),
+    (35, 'soiree', 'soiree'),
+    (36, 'spectacle', 'spectacle'),
+    (37, 'sport', 'sport'),
+    (38, 'technologie', 'technologie'),
+    (39, 'theatre', 'theatre'),
+    (40, 'tourisme', 'tourisme'),
+    (41, 'etudiant', 'etudiant'),
+    (42, 'exposition', 'exposition');
+
+SELECT setval(
+    pg_get_serial_sequence('event_categories', 'id'),
+    (SELECT MAX(id) FROM event_categories)
+);
+
 -- Company Categories
 CREATE TABLE company_categories (
     id SERIAL PRIMARY KEY,

@@ -1,5 +1,3 @@
-import type { EventCategoryName } from "../../events/types/event-categories";
-
 export const ROLES = ["user", "admin", "company"] as const;
 
 export type Role = (typeof ROLES)[number];
@@ -60,7 +58,6 @@ export type UserEventPreference = {
   id: number;
   user_id: number;
   event_category_id: number;
-  category_slug: EventCategoryName;
 };
 
 export type AuthenticatedUser = {

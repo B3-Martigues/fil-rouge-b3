@@ -1,49 +1,57 @@
-/**Page permettant à l'utilisateur de modifier ses préférences depuis son profil */
-
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import useAuthStore from "../../auth/store/authStore";
-import useDataStore from "../../../shared/store/dataStore";
 
+import {
+  getEventCategorySlug,
+  type EventCategoryName,
+} from "../../events/types/event-categories";
+import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
+import Button from "../../../shared/components/ui/Button";
+import { ROUTES } from "../../../shared/constants/routes";
+import useDataStore from "../../../shared/store/dataStore";
+import useAuthStore from "../../auth/store/authStore";
 import PreferencesGrid from "../components/PreferencesGrid";
 import { useUserPreferences } from "../hooks/useUserPreferences";
-import { ROUTES } from "../../../shared/constants/routes";
-import Button from "../../../shared/components/ui/Button";
 
 export default function ProfilePreferences() {
   const navigate = useNavigate();
-
-  /**Utilisateur connecté */
   const user = useAuthStore((s) => s.currentUser);
-
-  /**Mise à jour des stores */
+  const userId = user?.user_id;
   const preferencesStore = useDataStore((s) => s.userEventPreferences);
   const setUserEventPreferences = useDataStore(
     (s) => s.setUserEventPreferences,
   );
-
-  if (!user) return null;
-
   const initial = preferencesStore
-    .filter((p) => p.user_id === user.id)
-    .map((p) => p.category_slug);
-
+    .filter((preference) => preference.user_id === userId)
+    .map((preference) => getEventCategorySlug(preference.event_category_id))
+    .filter((category): category is EventCategoryName => !!category);
   const { preferences, toggle } = useUserPreferences(initial);
+  const [error, setError] = useState<string | null>(null);
 
-  /**Sauvegarde des préférences */
-  function handleSave() {
-    if (!user) return;
+  if (!user || !userId) return null;
 
-    setUserEventPreferences(user.id, preferences);
+  const handleToggle = (category: EventCategoryName) => {
+    setError(null);
+    toggle(category);
+  };
 
-    toast.success("Préférences mises à jour");
+  const handleSave = () => {
+    if (preferences.length === 0) {
+      setError("Selectionnez au moins une preference.");
+      return;
+    }
+
+    setUserEventPreferences(userId, preferences);
+    toast.success("Preferences mises a jour");
     navigate(ROUTES.USER.PROFILE);
-  }
+  };
 
   return (
     <div>
-      <h1>Mes préférences</h1>
-      <PreferencesGrid selected={preferences} toggle={toggle} />
+      <h1>Mes preferences</h1>
+      <PreferencesGrid selected={preferences} toggle={handleToggle} />
+      {error && <ErrorMessage message={error} />}
       <div
         style={{
           marginTop: "20px",
@@ -52,8 +60,12 @@ export default function ProfilePreferences() {
           gap: "20px",
         }}
       >
-        <Button onClick={handleSave}>Enregistrer</Button>
-        <Button onClick={() => navigate(ROUTES.USER.PROFILE)}>Annuler</Button>
+        <Button type="button" onClick={handleSave}>
+          Enregistrer
+        </Button>
+        <Button type="button" onClick={() => navigate(ROUTES.USER.PROFILE)}>
+          Annuler
+        </Button>
       </div>
     </div>
   );

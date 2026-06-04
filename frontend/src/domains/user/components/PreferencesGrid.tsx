@@ -7,11 +7,14 @@ type Props = {
   toggle: (category: EventCategory) => void;
 };
 
-/**Grille de sélection des préférences utilisateur */
+const SORTED_EVENT_CATEGORIES = [...EVENT_CATEGORIES].sort((first, second) =>
+  first.localeCompare(second, "fr-FR"),
+);
+
 export default function PreferencesGrid({ selected, toggle }: Props) {
   return (
     <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-      {EVENT_CATEGORIES.map((category) => (
+      {SORTED_EVENT_CATEGORIES.map((category) => (
         <PreferenceCard
           key={category}
           category={category}

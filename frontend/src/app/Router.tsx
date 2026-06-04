@@ -5,6 +5,7 @@
 
 import { Routes, Route, Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
+import { getEventCategoryById } from "../domains/events/types/event-categories";
 import useAuthStore from "../domains/auth/store/authStore";
 import type { Role } from "../domains/user/types/user";
 import { ROUTES } from "../shared/constants/routes";
@@ -94,12 +95,38 @@ const RoleRoute = ({ children, role }: Props & { role: Role }) => {
   );
 };
 
+const RequireUserPreferences = ({ children }: Props) => {
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const preferences = useDataStore((s) => s.userEventPreferences);
+  const userId = currentUser?.role === "user" ? currentUser.user_id : undefined;
+  const hasPreferences =
+    !!userId &&
+    preferences.some(
+      (preference) =>
+        preference.user_id === userId &&
+        !!getEventCategoryById(preference.event_category_id),
+    );
+
+  if (currentUser?.role === "user" && !hasPreferences) {
+    return <Navigate to={ROUTES.USER.ONBOARDING} replace />;
+  }
+
+  return children;
+};
+
 const Router = () => {
   return (
     <Routes>
       {/* PUBLIC */}
       <Route element={<PublicLayout />}>
-        <Route path={ROUTES.PUBLIC.HOME} element={<Home />} />
+        <Route
+          path={ROUTES.PUBLIC.HOME}
+          element={
+            <RequireUserPreferences>
+              <Home />
+            </RequireUserPreferences>
+          }
+        />
         <Route path={ROUTES.PUBLIC.REGISTER} element={<Register />} />
         <Route path={ROUTES.PUBLIC.REGISTER_USER} element={<UserRegister />} />
         <Route
@@ -127,12 +154,37 @@ const Router = () => {
           </PrivateRoute>
         }
       >
-        <Route path={ROUTES.USER.PROFILE} element={<Profile />} />
-        <Route path={ROUTES.USER.FAVORITES} element={<Favorites />} />
-        <Route path={ROUTES.USER.HISTORY} element={<History />} />
+        <Route
+          path={ROUTES.USER.PROFILE}
+          element={
+            <RequireUserPreferences>
+              <Profile />
+            </RequireUserPreferences>
+          }
+        />
+        <Route
+          path={ROUTES.USER.FAVORITES}
+          element={
+            <RequireUserPreferences>
+              <Favorites />
+            </RequireUserPreferences>
+          }
+        />
+        <Route
+          path={ROUTES.USER.HISTORY}
+          element={
+            <RequireUserPreferences>
+              <History />
+            </RequireUserPreferences>
+          }
+        />
         <Route
           path={ROUTES.USER.CHANGE_PASSWORD}
-          element={<ChangePassword />}
+          element={
+            <RequireUserPreferences>
+              <ChangePassword />
+            </RequireUserPreferences>
+          }
         />
         <Route path={ROUTES.USER.ONBOARDING} element={<Onboarding />} />
         <Route
