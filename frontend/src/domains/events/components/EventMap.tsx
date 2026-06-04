@@ -1,27 +1,78 @@
-import { MapContainer, TileLayer } from "react-leaflet";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
 
 import EventMarker from "./EventMarker";
 import UserLocationMarker from "./UserLocationMarker";
 import useUserLocation from "../hooks/useUserLocation";
 import MapFitBounds from "./MapFitBounds";
-import {
-  getEventStatus,
-  hasEventCoordinates,
-  isEventInPeriod,
-} from "../utils/event";
+import { hasEventCoordinates } from "../utils/event";
 import useDataStore from "../../../shared/store/dataStore";
 import type { Event } from "../types/event";
 
 type EventMapProps = {
-  periodStart: Date;
-  periodEnd: Date;
+  events: Event[];
+  selectedEventId?: number | null;
+  selectedEventRequestId?: number;
 };
 
-export default function EventMap({ periodStart, periodEnd }: EventMapProps) {
+type MappableEvent = Event & { latitude: number; longitude: number };
+
+type SelectedEventFocusProps = {
+  event: MappableEvent | null;
+  requestId: number;
+  onFocusStart: () => void;
+  onFocusDone: (eventId: number) => void;
+};
+
+const SELECTED_EVENT_ZOOM = 16;
+
+function SelectedEventFocus({
+  event,
+  requestId,
+  onFocusStart,
+  onFocusDone,
+}: SelectedEventFocusProps) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!event) return;
+
+    let hasOpenedPopup = false;
+    const openPopup = () => {
+      if (hasOpenedPopup) return;
+
+      hasOpenedPopup = true;
+      onFocusDone(event.id);
+    };
+
+    onFocusStart();
+    map.closePopup();
+    map.flyTo(
+      [event.latitude, event.longitude],
+      Math.max(map.getZoom(), SELECTED_EVENT_ZOOM),
+      { animate: true, duration: 0.7 },
+    );
+    map.once("moveend", openPopup);
+
+    const fallbackId = window.setTimeout(openPopup, 900);
+
+    return () => {
+      map.off("moveend", openPopup);
+      window.clearTimeout(fallbackId);
+    };
+  }, [event, map, onFocusDone, onFocusStart, requestId]);
+
+  return null;
+}
+
+export default function EventMap({
+  events,
+  selectedEventId = null,
+  selectedEventRequestId = 0,
+}: EventMapProps) {
   const { position } = useUserLocation();
-  const events = useDataStore((s) => s.events);
   const companies = useDataStore((s) => s.companies);
+  const [openPopupEventId, setOpenPopupEventId] = useState<number | null>(null);
   const activeCompaniesById = useMemo(
     () =>
       new Map(
@@ -34,14 +85,6 @@ export default function EventMap({ periodStart, periodEnd }: EventMapProps) {
   const mappableEvents = useMemo(
     () =>
       events
-        .filter(
-          (event) =>
-            event.is_active &&
-            !event.deleted_at &&
-            activeCompaniesById.has(event.company_id) &&
-            getEventStatus(event) !== "past" &&
-            isEventInPeriod(event, periodStart, periodEnd),
-        )
         .map((event) => {
           if (hasEventCoordinates(event)) return event;
 
@@ -61,10 +104,16 @@ export default function EventMap({ periodStart, periodEnd }: EventMapProps) {
           };
         })
         .filter(
-          (event): event is Event & { latitude: number; longitude: number } =>
-            event != null,
+          (event): event is MappableEvent => event != null,
         ),
-    [activeCompaniesById, events, periodEnd, periodStart],
+    [activeCompaniesById, events],
+  );
+  const selectedEvent = useMemo(
+    () =>
+      selectedEventId == null
+        ? null
+        : mappableEvents.find((event) => event.id === selectedEventId) ?? null,
+    [mappableEvents, selectedEventId],
   );
   const mapPoints = useMemo(
     () => [
@@ -76,6 +125,14 @@ export default function EventMap({ periodStart, periodEnd }: EventMapProps) {
     ],
     [mappableEvents, position],
   );
+  const handleFocusStart = useCallback(() => {
+    setOpenPopupEventId(null);
+  }, []);
+  const handleFocusDone = useCallback((eventId: number) => {
+    setOpenPopupEventId(eventId);
+  }, []);
+
+  const activeOpenPopupEventId = selectedEvent ? openPopupEventId : null;
 
   return (
     <MapContainer
@@ -89,8 +146,18 @@ export default function EventMap({ periodStart, periodEnd }: EventMapProps) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <MapFitBounds points={mapPoints} />
+      <SelectedEventFocus
+        event={selectedEvent}
+        requestId={selectedEventRequestId}
+        onFocusStart={handleFocusStart}
+        onFocusDone={handleFocusDone}
+      />
       {mappableEvents.map((event) => (
-        <EventMarker key={event.id} event={event} />
+        <EventMarker
+          key={event.id}
+          event={event}
+          shouldOpenPopup={activeOpenPopupEventId === event.id}
+        />
       ))}
       {position && (
         <UserLocationMarker

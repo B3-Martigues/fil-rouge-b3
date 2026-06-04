@@ -397,7 +397,7 @@ textarea.input {
 
 .events-map-controls {
   display: grid;
-  grid-template-columns: minmax(160px, 220px) minmax(180px, 260px);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   align-items: end;
   padding: 14px;
@@ -414,33 +414,14 @@ textarea.input {
   font-weight: 700;
 }
 
+.events-map-controls .btn {
+  min-height: 41px;
+  white-space: nowrap;
+}
+
 .events-list {
   display: grid;
   gap: 16px;
-}
-
-.events-toolbar {
-  display: grid;
-  grid-template-columns: minmax(220px, 2fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(160px, 1fr) auto;
-  gap: 12px;
-  align-items: end;
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--social-bg);
-}
-
-.events-toolbar label {
-  display: grid;
-  gap: 6px;
-  color: var(--text-h);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.events-toolbar .btn {
-  min-height: 41px;
-  white-space: nowrap;
 }
 
 .events-list__count {
@@ -492,6 +473,31 @@ textarea.input {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg);
+}
+
+.event-card--interactive {
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.event-card--interactive:hover,
+.event-card--interactive:focus-visible,
+.event-card--selected {
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow);
+}
+
+.event-card--interactive:hover,
+.event-card--interactive:focus-visible {
+  transform: translateY(-1px);
+}
+
+.event-card--interactive:focus-visible {
+  outline: 3px solid var(--accent-border);
+  outline-offset: 3px;
 }
 
 .event-card__image {
@@ -1105,10 +1111,6 @@ textarea.input {
 
   .events-home {
     padding: 16px;
-  }
-
-  .events-toolbar {
-    grid-template-columns: 1fr;
   }
 
   .events-map-controls {
