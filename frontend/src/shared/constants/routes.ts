@@ -25,6 +25,13 @@ export const ROUTES = {
     EVENTS: "/admin/events",
     USERS: "/admin/users",
   },
+  MODERATOR: {
+    DASHBOARD: "/moderator",
+    EVENTS: "/moderator/events",
+    COMPANIES: "/moderator/companies",
+    ACCOUNTS: "/moderator/accounts",
+    REPORTS: "/moderator/reports",
+  },
   COMPANY: {
     DASHBOARD: "/company",
     EVENTS: "/company/events",

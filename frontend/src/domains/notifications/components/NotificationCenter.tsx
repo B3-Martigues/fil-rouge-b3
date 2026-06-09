@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bell, CheckCheck, ExternalLink, Mail } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import useAuthStore from "../../auth/store/authStore";
 import { getNotificationTypeConfig } from "../mocks/notification-types.mock";
+import type { Notification } from "../types/notification";
 import useDataStore from "../../../shared/store/dataStore";
 
 export default function NotificationCenter() {
+  const panelId = "notification-center-panel";
+  const titleId = "notification-center-title";
   const currentUser = useAuthStore((s) => s.currentUser);
   const notifications = useDataStore((s) => s.notifications);
   const notificationEmailDeliveries = useDataStore(
@@ -18,6 +22,7 @@ export default function NotificationCenter() {
   const syncTodaysFavoriteEventNotifications = useDataStore(
     (s) => s.syncTodaysFavoriteEventNotifications,
   );
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const userId = currentUser?.user_id;
 
@@ -50,6 +55,10 @@ export default function NotificationCenter() {
   const unreadCount = inAppNotifications.filter(
     (notification) => !notification.is_read,
   ).length;
+  const triggerLabel =
+    unreadCount > 0
+      ? `Notifications, ${unreadCount} non lue${unreadCount > 1 ? "s" : ""}`
+      : "Notifications";
   const emailNotifications = useMemo(
     () =>
       notifications
@@ -71,25 +80,59 @@ export default function NotificationCenter() {
     [notifications, userId],
   );
 
+  const getInternalActionPath = (actionUrl?: string | null) => {
+    if (!actionUrl) return null;
+
+    try {
+      const url = new URL(actionUrl, window.location.origin);
+
+      if (url.origin !== window.location.origin) return null;
+
+      return `${url.pathname}${url.search}${url.hash}`;
+    } catch {
+      return null;
+    }
+  };
+
+  const openNotification = (notification: Notification) => {
+    markNotificationAsRead(notification.id);
+
+    const actionPath = getInternalActionPath(notification.action_url);
+
+    if (!actionPath) return;
+
+    setIsOpen(false);
+    navigate(actionPath);
+  };
+
   return (
     <div className="notification-center">
       <button
         className="notification-center__trigger"
         type="button"
-        aria-label="Notifications"
+        aria-label={triggerLabel}
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? panelId : undefined}
+        aria-haspopup="dialog"
         onClick={() => setIsOpen((value) => !value)}
       >
         <Bell size={18} aria-hidden="true" />
-        {unreadCount > 0 && <span>{unreadCount}</span>}
+        {unreadCount > 0 && <span aria-hidden="true">{unreadCount}</span>}
       </button>
 
       {isOpen && (
-        <div className="notification-center__panel">
+        <div
+          className="notification-center__panel"
+          id={panelId}
+          role="dialog"
+          aria-labelledby={titleId}
+        >
           <div className="notification-center__header">
-            <strong>Notifications</strong>
+            <strong id={titleId}>Notifications</strong>
             {inAppNotifications.length > 0 && userId && (
               <button
                 type="button"
+                aria-label="Marquer toutes les notifications comme lues"
                 title="Marquer comme lu"
                 onClick={() => markUserNotificationsAsRead(userId)}
               >
@@ -101,7 +144,7 @@ export default function NotificationCenter() {
           {inAppNotifications.length === 0 ? (
             <p>Aucune notification.</p>
           ) : (
-            <ul>
+            <ul aria-label="Liste des notifications">
               {inAppNotifications.map((notification) => (
                 <li
                   className={notification.is_read ? "" : "is-unread"}
@@ -109,7 +152,14 @@ export default function NotificationCenter() {
                 >
                   <button
                     type="button"
-                    onClick={() => markNotificationAsRead(notification.id)}
+                    aria-label={`${notification.title}. ${
+                      notification.is_read ? "Lue" : "Non lue"
+                    }. ${
+                      notification.action_url
+                        ? "Ouvrir la notification"
+                        : "Marquer comme lue"
+                    }`}
+                    onClick={() => openNotification(notification)}
                   >
                     <strong>{notification.title}</strong>
                     <span>{notification.message}</span>

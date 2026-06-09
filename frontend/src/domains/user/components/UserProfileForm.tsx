@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
+import { FormModalLink } from "../../../shared/components/forms/FormModalLink";
 import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
 import {
@@ -167,16 +168,13 @@ export default function UserProfileForm() {
             gap: "30px",
           }}
         >
-          <Button
-            type="button"
-            onClick={() => navigate("/profile/change-password")}
-          >
+          <FormModalLink className="btn" to="/profile/change-password">
             Modifier le mot de passe
-          </Button>
+          </FormModalLink>
 
-          <Button type="button" onClick={() => navigate("/preferences")}>
+          <FormModalLink className="btn" to="/preferences">
             Modifier mes préférences
-          </Button>
+          </FormModalLink>
 
           <Button type="button" onClick={() => setShowDeleteModal(true)}>
             Supprimer mon compte
@@ -201,6 +199,9 @@ export default function UserProfileForm() {
             }}
           >
             <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-account-title"
               style={{
                 backgroundColor: "white",
                 padding: "24px",
@@ -212,6 +213,7 @@ export default function UserProfileForm() {
               }}
             >
               <h2
+                id="delete-account-title"
                 style={{
                   fontSize: "1.25rem",
                   fontWeight: "bold",

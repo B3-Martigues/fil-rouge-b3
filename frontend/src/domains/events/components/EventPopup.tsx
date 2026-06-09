@@ -3,6 +3,7 @@ import { Thermometer, Wind } from "lucide-react";
 
 import type { Event } from "../types/event-categories";
 import FavoriteButton from "./FavoriteButton";
+import ReportEventButton from "./ReportEventButton";
 import { useWeather } from "../../../shared/hooks/useWeather";
 import {
   canDisplayWeather,
@@ -45,6 +46,7 @@ export default function EventPopup({ event }: Props) {
           style={{ width: "300px", height: "220px" }}
         />
         <FavoriteButton event={event} />
+        <ReportEventButton event={event} />
 
         {shouldDisplayWeather && (
           <div className="event-weather">

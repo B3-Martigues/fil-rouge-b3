@@ -1,21 +1,29 @@
-export const ROLES = ["user", "admin", "company"] as const;
+export const ROLES = ["user", "admin", "moderator", "company"] as const;
 
 export type Role = (typeof ROLES)[number];
 
-export const ACCOUNT_TYPES = ["user", "company"] as const;
+export const ACCOUNT_TYPES = ["user", "admin", "moderator", "company"] as const;
 
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
 
 export const ACCOUNT_TYPE_IDS: Record<AccountType, number> = {
   user: 1,
-  company: 2,
+  admin: 2,
+  company: 3,
+  moderator: 4,
 };
 
 export const ROLE_IDS: Record<Role, number> = {
   user: 1,
   admin: 2,
   company: 3,
+  moderator: 4,
 };
+
+export const getAccountTypeForRole = (role: Role): AccountType => role;
+
+export const getAccountTypeIdForRole = (role: Role) =>
+  ACCOUNT_TYPE_IDS[getAccountTypeForRole(role)];
 
 export type Account = {
   id: number;
@@ -25,6 +33,8 @@ export type Account = {
   password_hash: string;
   password_changed_at?: string | null;
   is_active: boolean;
+  suspended_until?: string | null;
+  suspension_reason?: string | null;
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;
@@ -49,6 +59,8 @@ export type AccountSummary = {
   role_id: number;
   display_name: string;
   is_active: boolean;
+  suspended_until?: string | null;
+  suspension_reason?: string | null;
   user_id?: number;
   company_id?: number;
   is_verified?: boolean;
@@ -68,10 +80,21 @@ export type AuthenticatedUser = {
   role_id: number;
   username: string;
   is_active: boolean;
+  suspended_until?: string | null;
+  suspension_reason?: string | null;
   user_id?: number;
   company_id?: number;
   is_verified?: boolean;
 };
+
+export function isAccountSuspended(
+  account: Pick<Account, "suspended_until">,
+  at = new Date(),
+) {
+  if (!account.suspended_until) return false;
+
+  return new Date(account.suspended_until).getTime() > at.getTime();
+}
 
 export function toAuthenticatedUser(
   account: Account,
@@ -85,6 +108,8 @@ export function toAuthenticatedUser(
     role_id: user.role_id,
     username: user.username,
     is_active: account.is_active,
+    suspended_until: account.suspended_until ?? null,
+    suspension_reason: account.suspension_reason ?? null,
     user_id: user.id,
   };
 }
@@ -110,6 +135,8 @@ export function toAuthenticatedCompany(params: {
     role_id: params.company.role_id ?? ROLE_IDS.company,
     username: params.company.name,
     is_active: params.account.is_active && params.company.is_active,
+    suspended_until: params.account.suspended_until ?? null,
+    suspension_reason: params.account.suspension_reason ?? null,
     user_id: params.user?.id,
     company_id: params.company.id,
     is_verified: params.company.is_verified,

@@ -1,7 +1,8 @@
-import { Link } from "react-router-dom";
 import { useState } from "react";
 import { toast } from "react-toastify";
 
+import FormModal from "../../../shared/components/forms/FormModal";
+import { FormModalLink } from "../../../shared/components/forms/FormModalLink";
 import useAuthStore from "../../auth/store/authStore";
 import {
   EVENT_CATEGORIES,
@@ -250,6 +251,14 @@ export default function CompanyEvents() {
     const deletedEvent = companyEvents.find((event) => event.id === eventId);
     if (!deletedEvent) return;
 
+    if (
+      !window.confirm(
+        `Supprimer l'evenement "${deletedEvent.title}" ? Cette action retire l'evenement du mock.`,
+      )
+    ) {
+      return;
+    }
+
     deleteEventFromStore(eventId);
     cancelEdit();
     toast.success(`${deletedEvent.title} supprime`);
@@ -269,6 +278,22 @@ export default function CompanyEvents() {
 
   return (
     <div className="company-dashboard">
+      <FormModal
+        ariaLabel="Modifier un evenement"
+        open={!!eventDraft && editingEventId !== null}
+        size="lg"
+        onClose={cancelEdit}
+      >
+        {eventDraft && (
+          <CompanyEventEditor
+            draft={eventDraft}
+            setDraft={setEventDraft}
+            onCancel={cancelEdit}
+            onSave={saveEvent}
+          />
+        )}
+      </FormModal>
+
       <section className="company-dashboard__header">
         <h2>Mes événements</h2>
         <p>Consultez, modifiez ou supprimez les événements de votre entreprise.</p>
@@ -582,10 +607,162 @@ export default function CompanyEvents() {
             ))}
           </div>
         )}
-        <Link className="btn" to={ROUTES.COMPANY.CREATE}>
+        <FormModalLink className="btn" to={ROUTES.COMPANY.CREATE}>
           Ajouter un nouvel evenement
-        </Link>
+        </FormModalLink>
       </section>
+    </div>
+  );
+}
+
+function CompanyEventEditor({
+  draft,
+  setDraft,
+  onCancel,
+  onSave,
+}: {
+  draft: EventDraft;
+  setDraft: (draft: EventDraft | null) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <div className="admin-create-account">
+      <h2>Modifier un evenement</h2>
+      <div className="admin-form-grid">
+        <label>
+          Titre
+          <input
+            value={draft.title}
+            onChange={(event) =>
+              setDraft({ ...draft, title: event.target.value })
+            }
+          />
+        </label>
+
+        <div className="admin-form-grid__wide">
+          <span className="form-field-label">Categories</span>
+          <div className="categories-select">
+            {EVENT_CATEGORIES.map((category) => (
+              <label className="categories-select__option" key={category}>
+                <input
+                  type="checkbox"
+                  checked={draft.category_slugs.includes(category)}
+                  onChange={() => setDraft(toggleDraftCategory(draft, category))}
+                />
+                {category}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <label className="admin-form-grid__wide">
+          Description
+          <textarea
+            rows={4}
+            value={draft.description}
+            onChange={(event) =>
+              setDraft({ ...draft, description: event.target.value })
+            }
+          />
+        </label>
+
+        <label>
+          Date de debut
+          <input
+            type="datetime-local"
+            value={draft.start_date}
+            onChange={(event) =>
+              setDraft({ ...draft, start_date: event.target.value })
+            }
+          />
+        </label>
+
+        <label>
+          Date de fin
+          <input
+            type="datetime-local"
+            value={draft.end_date}
+            onChange={(event) =>
+              setDraft({ ...draft, end_date: event.target.value })
+            }
+          />
+        </label>
+
+        <label>
+          Adresse
+          <input
+            value={draft.address}
+            onChange={(event) =>
+              setDraft({ ...draft, address: event.target.value })
+            }
+          />
+        </label>
+
+        <label>
+          Ville
+          <input
+            value={draft.city}
+            onChange={(event) =>
+              setDraft({ ...draft, city: event.target.value })
+            }
+          />
+        </label>
+
+        <label>
+          Code postal
+          <input
+            inputMode="numeric"
+            value={draft.postal_code}
+            onChange={(event) =>
+              setDraft({ ...draft, postal_code: event.target.value })
+            }
+          />
+        </label>
+
+        <label>
+          Latitude
+          <input
+            type="number"
+            step="any"
+            value={draft.latitude}
+            onChange={(event) =>
+              setDraft({ ...draft, latitude: event.target.value })
+            }
+          />
+        </label>
+
+        <label>
+          Longitude
+          <input
+            type="number"
+            step="any"
+            value={draft.longitude}
+            onChange={(event) =>
+              setDraft({ ...draft, longitude: event.target.value })
+            }
+          />
+        </label>
+
+        <label>
+          Image
+          <input
+            value={draft.image}
+            onChange={(event) =>
+              setDraft({ ...draft, image: event.target.value })
+            }
+          />
+        </label>
+
+        <div className="admin-actions admin-form-grid__wide">
+          <button className="btn" type="button" onClick={onSave}>
+            Enregistrer
+          </button>
+          <button className="btn btn--secondary" type="button" onClick={onCancel}>
+            Annuler
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

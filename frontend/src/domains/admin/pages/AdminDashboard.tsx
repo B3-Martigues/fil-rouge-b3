@@ -1,6 +1,11 @@
 import { useMemo, useState } from "react";
 import { toast } from "react-toastify";
 
+import CompanyRegisterForm from "../../auth/components/CompanyRegisterForm";
+import RegisterForm from "../../auth/components/RegisterForm";
+import FormModal from "../../../shared/components/forms/FormModal";
+import PanelStats from "../../../shared/components/layout/PanelStats";
+import { ROUTES } from "../../../shared/constants/routes";
 import {
   EVENT_CATEGORIES,
   type EventCategory,
@@ -8,9 +13,11 @@ import {
 import type { Event } from "../../events/types/event";
 import type { Company } from "../../companies/types/company";
 import {
-  ACCOUNT_TYPE_IDS,
   type Account,
   type AccountSummary,
+  getAccountTypeForRole,
+  getAccountTypeIdForRole,
+  isAccountSuspended,
   ROLE_IDS,
   ROLES,
   type Role,
@@ -23,10 +30,6 @@ import {
   formatEventDateRange,
   toDateTimeLocalValue,
 } from "../../events/utils/event";
-import {
-  createCompanyApprovedNotification,
-  createEventApprovedNotification,
-} from "../../notifications/services/notificationFactory";
 
 type UserDraft = {
   display_name: string;
@@ -34,21 +37,6 @@ type UserDraft = {
   password_hash: string;
   role: Role;
   is_active: boolean;
-};
-
-type CompanyDraft = {
-  name: string;
-  contact_email: string;
-  description: string;
-  website: string;
-  address: string;
-  city: string;
-  postal_code: string;
-  logo: string;
-  siret: string;
-  latitude: string;
-  longitude: string;
-  contact_phone_number: string;
 };
 
 type EventDraft = Omit<
@@ -70,12 +58,40 @@ type EventDraft = Omit<
 };
 
 type AdminView = "dashboard" | "accounts" | "events";
-type AccountStatusFilter = "all" | "active" | "pending";
+type AccountStatusFilter = "all" | "active" | "pending" | "suspended";
 type AccountSort = "username-asc" | "username-desc" | "role-asc";
 type EventSort = "date-asc" | "date-desc" | "title-asc" | "title-desc" | "city-asc";
 
 type AdminDashboardProps = {
   view?: AdminView;
+};
+
+const viewContent: Record<
+  AdminView,
+  {
+    title: string;
+    description: string;
+  }
+> = {
+  dashboard: {
+    title: "Panel administrateur",
+    description: "Vue d'ensemble de la gestion des comptes et des contenus.",
+  },
+  accounts: {
+    title: "Gestion des comptes",
+    description: "Creation, modification et suppression des comptes applicatifs.",
+  },
+  events: {
+    title: "Gestion des evenements",
+    description: "Creation, modification et suivi des evenements du site.",
+  },
+};
+
+const accountCreateLabels: Record<Role, string> = {
+  user: "utilisateur",
+  moderator: "moderateur",
+  admin: "administrateur",
+  company: "entreprise",
 };
 
 const normalizeText = (value: string) =>
@@ -95,11 +111,6 @@ const isValidEmail = (value: string) => emailPattern.test(value.trim());
 
 const isStrongPassword = (value: string) => passwordPattern.test(value);
 
-const isValidOptionalUrl = (value: string) => {
-  const trimmedValue = value.trim();
-  return trimmedValue === "" || URL.canParse(trimmedValue);
-};
-
 const isValidOptionalCoordinate = (value: string, min: number, max: number) => {
   if (value.trim() === "") return true;
 
@@ -115,61 +126,6 @@ const parseOptionalCoordinate = (value: string) => {
 const createNextId = (items: { id: number }[]) =>
   Math.max(0, ...items.map((item) => item.id)) + 1;
 
-const validateCompanyDraft = (draft: CompanyDraft) => {
-  if (draft.name.trim().length < 2) {
-    return "Le nom de l'entreprise est obligatoire";
-  }
-
-  if (!isValidEmail(draft.contact_email)) {
-    return "L'email de contact est invalide";
-  }
-
-  if (draft.description.trim().length < 10) {
-    return "La description doit contenir au moins 10 caracteres";
-  }
-
-  if (!isValidOptionalUrl(draft.website)) {
-    return "URL du site invalide";
-  }
-
-  if (!isValidOptionalUrl(draft.logo)) {
-    return "URL du logo invalide";
-  }
-
-  if (!isValidOptionalCoordinate(draft.latitude, -90, 90)) {
-    return "La latitude doit etre comprise entre -90 et 90";
-  }
-
-  if (!isValidOptionalCoordinate(draft.longitude, -180, 180)) {
-    return "La longitude doit etre comprise entre -180 et 180";
-  }
-
-  if (draft.address.trim().length < 5) {
-    return "L'adresse est obligatoire";
-  }
-
-  if (draft.city.trim().length < 2) {
-    return "La ville est obligatoire";
-  }
-
-  if (!/^\d{5}$/.test(draft.postal_code.trim())) {
-    return "Le code postal doit contenir 5 chiffres";
-  }
-
-  if (!/^\d{10}$/.test(draft.contact_phone_number.trim())) {
-    return "Le telephone doit contenir 10 chiffres";
-  }
-
-  if (!/^\d{14}$/.test(draft.siret.trim())) {
-    return "Le SIRET doit contenir 14 chiffres";
-  }
-
-  return null;
-};
-
-const formatPhoneNumber = (phoneNumber?: string) =>
-  phoneNumber ? phoneNumber.replace(/(\d{2})(?=\d)/g, "$1 ") : "Non renseigne";
-
 const toUserDraft = (account: AccountSummary): UserDraft => ({
   display_name: account.display_name,
   login_email: account.login_email,
@@ -184,21 +140,6 @@ const emptyUserDraft = (): UserDraft => ({
   password_hash: "",
   role: "user",
   is_active: true,
-});
-
-const toCompanyDraft = (company: Company): CompanyDraft => ({
-  name: company.name,
-  contact_email: company.contact_email,
-  description: company.description ?? "",
-  website: company.website ?? "",
-  latitude: company.latitude?.toString() ?? "",
-  longitude: company.longitude?.toString() ?? "",
-  address: company.address,
-  city: company.city,
-  postal_code: company.postal_code,
-  logo: company.logo ?? "",
-  contact_phone_number: company.contact_phone_number ?? "",
-  siret: company.siret ?? "",
 });
 
 const toEventDraft = (event: Event): EventDraft => ({
@@ -237,6 +178,34 @@ const emptyEventDraft = (companyId?: number): EventDraft => ({
 
 const getEventCategories = (event: Event) => event.category_slugs;
 
+const getAccountAdminStatus = (account: AccountSummary) => {
+  if (isAccountSuspended(account)) {
+    const suspendedUntil = account.suspended_until
+      ? new Date(account.suspended_until).toLocaleDateString("fr-FR")
+      : null;
+
+    return {
+      className: "admin-status admin-status--suspended",
+      label: suspendedUntil ? `Suspendu jusqu'au ${suspendedUntil}` : "Suspendu",
+      value: "suspended" as const,
+    };
+  }
+
+  if (account.is_active) {
+    return {
+      className: "admin-status admin-status--active",
+      label: "Actif",
+      value: "active" as const,
+    };
+  }
+
+  return {
+    className: "admin-status",
+    label: "En attente",
+    value: "pending" as const,
+  };
+};
+
 const toggleEventDraftCategory = (
   draft: EventDraft,
   category: EventCategory,
@@ -256,7 +225,6 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const accountsData = useDataStore((s) => s.accounts);
   const usersData = useDataStore((s) => s.users);
   const companiesData = useDataStore((s) => s.companies);
-  const companyMembersData = useDataStore((s) => s.companyMembers);
   const eventsData = useDataStore((s) => s.events);
   const addAccount = useDataStore((s) => s.addAccount);
   const updateAccount = useDataStore((s) => s.updateAccount);
@@ -265,13 +233,10 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const updateUser = useDataStore((s) => s.updateUser);
   const deleteUserFromStore = useDataStore((s) => s.deleteUser);
   const updateCompany = useDataStore((s) => s.updateCompany);
-  const activateCompanyInStore = useDataStore((s) => s.activateCompany);
   const deleteCompanyFromStore = useDataStore((s) => s.deleteCompany);
   const addEvent = useDataStore((s) => s.addEvent);
   const updateEvent = useDataStore((s) => s.updateEvent);
-  const approveEventInStore = useDataStore((s) => s.approveEvent);
   const deleteEventFromStore = useDataStore((s) => s.deleteEvent);
-  const dispatchNotification = useDataStore((s) => s.dispatchNotification);
   const accountSummaries = useMemo(
     () => buildAccountSummaries(accountsData, usersData, companiesData),
     [accountsData, usersData, companiesData],
@@ -280,8 +245,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [userDraft, setUserDraft] = useState<UserDraft | null>(null);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
-  const [editingCompanyId, setEditingCompanyId] = useState<number | null>(null);
-  const [companyDraft, setCompanyDraft] = useState<CompanyDraft | null>(null);
+  const [accountCreateRole, setAccountCreateRole] = useState<Role>("user");
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const [eventDraft, setEventDraft] = useState<EventDraft | null>(null);
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
@@ -298,11 +262,6 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
 
   const activeCompaniesData = companiesData.filter((company) => !company.deleted_at);
   const activeEventsData = eventsData.filter((event) => !event.deleted_at);
-  const users = accountSummaries.filter((account) => account.role === "user");
-  const admins = accountSummaries.filter((account) => account.role === "admin");
-  const companies = accountSummaries.filter((account) => account.role === "company");
-  const pendingCompanies = activeCompaniesData.filter((company) => !company.is_active);
-  const pendingEvents = activeEventsData.filter((event) => !event.is_active);
   const firstCompanyId = activeCompaniesData[0]?.id;
 
   const hasDuplicateAccountEmail = (email: string, currentAccountId?: number) =>
@@ -320,64 +279,29 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         normalizeComparable(user.username) === normalizeComparable(username),
     );
 
-  const hasDuplicateCompanyContactEmail = (
-    email: string,
-    currentCompanyId?: number,
-  ) =>
-    companiesData.some(
-      (company) =>
-        company.id !== currentCompanyId &&
-        normalizeComparable(company.contact_email) === normalizeComparable(email),
-    );
-
-  const hasDuplicateCompanySiret = (siret: string, currentCompanyId?: number) =>
-    companiesData.some(
-      (company) =>
-        company.id !== currentCompanyId &&
-        normalizeComparable(company.siret ?? "") === normalizeComparable(siret),
-    );
-
   const getCompanyName = (companyId: number) =>
     activeCompaniesData.find((company) => company.id === companyId)?.name ??
     "Non rattache";
-
-  const getCompanyNotificationUser = (company: Company) => {
-    const companyMember = companyMembersData.find(
-      (item) => item.company_id === company.id && !item.deleted_at,
-    );
-
-    return (
-      usersData.find(
-        (user) => user.id === companyMember?.user_id && !user.deleted_at,
-      ) ??
-      usersData.find(
-        (user) => user.account_id === company.account_id && !user.deleted_at,
-      )
-    );
-  };
-
-  const stats = [
-    { label: "Événements", value: activeEventsData.length },
-    { label: "Utilisateurs", value: users.length },
-    { label: "Entreprises", value: companies.length },
-    { label: "Administrateurs", value: admins.length },
-    { label: "Entreprises en attente", value: pendingCompanies.length },
-    { label: "Événements en attente", value: pendingEvents.length },
-  ];
 
   const filteredUsers = useMemo(
     () =>
       accountSummaries
         .filter((account) => {
+          const accountStatus = getAccountAdminStatus(account);
           const matchesSearch = normalizeText(
-            [account.display_name, account.login_email, account.role].join(" "),
+            [
+              account.display_name,
+              account.login_email,
+              account.role,
+              accountStatus.label,
+              account.suspension_reason ?? "",
+            ].join(" "),
           ).includes(normalizeText(accountSearch));
           const matchesRole =
             accountRoleFilter === "all" || account.role === accountRoleFilter;
           const matchesStatus =
             accountStatusFilter === "all" ||
-            (accountStatusFilter === "active" && account.is_active) ||
-            (accountStatusFilter === "pending" && !account.is_active);
+            accountStatus.value === accountStatusFilter;
 
           return matchesSearch && matchesRole && matchesStatus;
         })
@@ -455,81 +379,6 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       );
     });
 
-  const activateCompany = (companyId: number) => {
-    const company = companiesData.find((item) => item.id === companyId);
-    if (!company) {
-      toast.error("Entreprise introuvable");
-      return;
-    }
-
-    activateCompanyInStore(companyId);
-    const notificationUser = getCompanyNotificationUser(company);
-
-    if (!notificationUser) {
-      toast.error("Aucun membre entreprise rattache pour notifier ce compte");
-    } else {
-      void dispatchNotification(
-        createCompanyApprovedNotification({
-          company,
-          user: notificationUser,
-        }),
-      );
-    }
-    toast.success(`${company.name} est maintenant activee`);
-  };
-
-  const saveCompany = () => {
-    if (!editingCompanyId || !companyDraft) return;
-
-    const contactEmail = companyDraft.contact_email.trim();
-    const siret = companyDraft.siret.trim();
-    const validationError = validateCompanyDraft(companyDraft);
-
-    if (validationError) {
-      toast.error(validationError);
-      return;
-    }
-
-    if (hasDuplicateCompanyContactEmail(contactEmail, editingCompanyId)) {
-      toast.error("Cet email de contact est deja utilise");
-      return;
-    }
-
-    if (siret && hasDuplicateCompanySiret(siret, editingCompanyId)) {
-      toast.error("Ce SIRET est deja utilise");
-      return;
-    }
-
-    updateCompany(editingCompanyId, {
-      name: companyDraft.name.trim(),
-      contact_email: contactEmail,
-      description: companyDraft.description.trim(),
-      website: companyDraft.website.trim(),
-      latitude: parseOptionalCoordinate(companyDraft.latitude),
-      longitude: parseOptionalCoordinate(companyDraft.longitude),
-      address: companyDraft.address.trim(),
-      city: companyDraft.city.trim(),
-      postal_code: companyDraft.postal_code.trim(),
-      logo: companyDraft.logo.trim(),
-      contact_phone_number: companyDraft.contact_phone_number.trim(),
-      siret,
-    });
-
-    setEditingCompanyId(null);
-    setCompanyDraft(null);
-    toast.success("Entreprise mise a jour");
-  };
-
-  const deleteCompany = (companyId: number) => {
-    const deletedCompany = companiesData.find((company) => company.id === companyId);
-    if (!deletedCompany) return;
-
-    deleteCompanyFromStore(companyId);
-    setEditingCompanyId(null);
-    setCompanyDraft(null);
-    toast.success(`${deletedCompany.name} supprimee`);
-  };
-
   const startUserEdit = (account: AccountSummary) => {
     setIsCreatingUser(false);
     setEditingUserId(account.account_id);
@@ -538,8 +387,23 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
 
   const startUserCreate = () => {
     setEditingUserId(null);
+    setAccountCreateRole("user");
     setIsCreatingUser(true);
     setUserDraft(emptyUserDraft());
+  };
+
+  const closeUserForm = () => {
+    setEditingUserId(null);
+    setIsCreatingUser(false);
+    setUserDraft(null);
+    setAccountCreateRole("user");
+  };
+
+  const updateAccountCreateRole = (role: Role) => {
+    setAccountCreateRole(role);
+    setUserDraft((currentDraft) =>
+      currentDraft ? { ...currentDraft, role } : currentDraft,
+    );
   };
 
   const saveUser = () => {
@@ -586,8 +450,8 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       const createdAt = new Date().toISOString();
       const account: Account = {
         id: accountId,
-        account_type_id: ACCOUNT_TYPE_IDS.user,
-        account_type: "user",
+        account_type_id: getAccountTypeIdForRole(userDraft.role),
+        account_type: getAccountTypeForRole(userDraft.role),
         login_email: loginEmail,
         password_hash: userDraft.password_hash,
         is_active: userDraft.is_active,
@@ -626,6 +490,11 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       return;
     }
 
+    if (editedAccount.company_id && userDraft.role !== "company") {
+      toast.error("Un compte entreprise doit garder le type company");
+      return;
+    }
+
     if (hasDuplicateAccountEmail(loginEmail, editingUserId)) {
       toast.error("Cet email est deja utilise");
       return;
@@ -641,6 +510,8 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     }
 
     updateAccount(editingUserId, {
+      account_type_id: getAccountTypeIdForRole(userDraft.role),
+      account_type: getAccountTypeForRole(userDraft.role),
       login_email: loginEmail,
       password_hash: userDraft.password_hash,
       is_active: userDraft.is_active,
@@ -671,6 +542,14 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     );
     if (!deletedAccount) return;
 
+    if (
+      !window.confirm(
+        `Supprimer le compte "${deletedAccount.display_name}" ? Cette action retire le compte du mock.`,
+      )
+    ) {
+      return;
+    }
+
     if (deletedAccount.company_id) {
       deleteCompanyFromStore(deletedAccount.company_id);
     } else if (deletedAccount.user_id) {
@@ -683,6 +562,16 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     toast.success(`${deletedAccount.display_name} supprime`);
   };
 
+  const liftAccountSuspension = (account: AccountSummary) => {
+    updateAccount(account.account_id, {
+      is_active: true,
+      suspended_until: null,
+      suspension_reason: null,
+    });
+
+    toast.success(`Suspension levee pour ${account.display_name}`);
+  };
+
   const startEventEdit = (event: Event) => {
     setIsCreatingEvent(false);
     setEditingEventId(event.id);
@@ -693,6 +582,12 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     setEditingEventId(null);
     setIsCreatingEvent(true);
     setEventDraft(emptyEventDraft(firstCompanyId));
+  };
+
+  const closeEventForm = () => {
+    setEditingEventId(null);
+    setIsCreatingEvent(false);
+    setEventDraft(null);
   };
 
   const saveEvent = () => {
@@ -828,57 +723,37 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     const deletedEvent = eventsData.find((event) => event.id === eventId);
     if (!deletedEvent) return;
 
+    if (
+      !window.confirm(
+        `Supprimer l'evenement "${deletedEvent.title}" ? Cette action retire l'evenement du mock.`,
+      )
+    ) {
+      return;
+    }
+
     deleteEventFromStore(eventId);
     setEditingEventId(null);
     toast.success(`${deletedEvent.title} supprime`);
   };
 
-  const approveEvent = (eventId: number) => {
-    const event = eventsData.find((item) => item.id === eventId);
-    if (!event) {
-      toast.error("Evenement introuvable");
-      return;
-    }
-
-    const company = companiesData.find((item) => item.id === event.company_id);
-
-    if (!company || company.deleted_at || !company.is_active) {
-      toast.error("Impossible de publier un evenement rattache a une entreprise inactive");
-      return;
-    }
-
-    approveEventInStore(eventId);
-    const notificationUser = company
-      ? getCompanyNotificationUser(company)
-      : null;
-
-    if (!company || !notificationUser) {
-      toast.error("Aucun membre entreprise rattache pour notifier cet evenement");
-    } else {
-      void dispatchNotification(
-        createEventApprovedNotification({
-          company,
-          event,
-          user: notificationUser,
-        }),
-      );
-    }
-    toast.success(`${event.title} est maintenant visible`);
-  };
-
-  const isDashboardView = view === "dashboard";
   const isAccountsView = view === "accounts";
   const isEventsView = view === "events";
+  const currentViewContent = viewContent[view];
+  const adminStats = [
+    {
+      label: "Comptes",
+      to: ROUTES.ADMIN.DASHBOARD,
+      value: accountSummaries.length,
+      end: true,
+    },
+    { label: "Evenements", to: ROUTES.ADMIN.EVENTS, value: activeEventsData.length },
+  ];
 
   return (
     <div className="admin-panel">
       <section className="admin-panel__header">
         <div className="admin-panel__heading">
-          <h2>
-            {isDashboardView && "Panel administrateur"}
-            {isAccountsView && "Comptes"}
-            {isEventsView && "Événements"}
-          </h2>
+          <h2>{currentViewContent.title}</h2>
           {isAccountsView && (
             <button className="btn" type="button" onClick={startUserCreate}>
               Ajouter
@@ -890,219 +765,14 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
             </button>
           )}
         </div>
-        <p>
-          {isDashboardView && "Statistiques et validations"}
-          {isAccountsView && "Gestion des comptes"}
-          {isEventsView && "Gestion des événements publies"}
-        </p>
+        <p>{currentViewContent.description}</p>
       </section>
 
-      {isDashboardView && (
-        <>
-          <section className="admin-panel__stats" aria-label="Statistiques admin">
-            {stats.map((stat) => (
-              <article className="admin-stat" key={stat.label}>
-                <span className="admin-stat__value">{stat.value}</span>
-                <span className="admin-stat__label">{stat.label}</span>
-              </article>
-            ))}
-          </section>
-
-          <section className="admin-section admin-section--wide">
-            <div className="admin-section__title">
-              <h2>Entreprises en attente</h2>
-              <span className="admin-count">{pendingCompanies.length}</span>
-            </div>
-
-            {pendingCompanies.length === 0 ? (
-              <p className="admin-empty">Aucune entreprise en attente.</p>
-            ) : (
-              <div className="company-review-list">
-                {pendingCompanies.map((company) => (
-                  <article className="company-review" key={company.id}>
-                    <div className="company-review__media">
-                      <img src={company.logo ?? ""} alt={`Logo ${company.name}`} />
-                    </div>
-                    <div className="company-review__content">
-                      {editingCompanyId === company.id && companyDraft ? (
-                        <CompanyEditor
-                          draft={companyDraft}
-                          setDraft={setCompanyDraft}
-                          onSave={saveCompany}
-                          onCancel={() => {
-                            setEditingCompanyId(null);
-                            setCompanyDraft(null);
-                          }}
-                        />
-                      ) : (
-                        <>
-                          <div className="company-review__header">
-                            <div>
-                              <h3>{company.name}</h3>
-                              <p>{company.description}</p>
-                            </div>
-                            <span className="admin-status">En attente</span>
-                          </div>
-                          <dl className="company-review__details">
-                            <div>
-                              <dt>Email contact</dt>
-                              <dd>{company.contact_email}</dd>
-                            </div>
-                            <div>
-                              <dt>Telephone</dt>
-                              <dd>
-                                {formatPhoneNumber(
-                                  company.contact_phone_number ?? undefined,
-                                )}
-                              </dd>
-                            </div>
-                            <div>
-                              <dt>Adresse</dt>
-                              <dd>
-                                {company.address}, {company.city} {company.postal_code}
-                              </dd>
-                            </div>
-                            <div>
-                              <dt>SIRET</dt>
-                              <dd>{company.siret ?? "Non renseigne"}</dd>
-                            </div>
-                          </dl>
-                          <div className="admin-actions">
-                            <button
-                              className="btn"
-                              type="button"
-                              onClick={() => activateCompany(company.id)}
-                            >
-                              Valider
-                            </button>
-                            <button
-                              className="btn btn--secondary"
-                              type="button"
-                              onClick={() => {
-                                setEditingCompanyId(company.id);
-                                setCompanyDraft(toCompanyDraft(company));
-                              }}
-                            >
-                              Modifier
-                            </button>
-                            <button
-                              className="btn btn--danger"
-                              type="button"
-                              onClick={() => deleteCompany(company.id)}
-                            >
-                              Supprimer
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="admin-section admin-section--wide">
-            <div className="admin-section__title">
-              <h2>Événements en attente</h2>
-              <span className="admin-count">{pendingEvents.length}</span>
-            </div>
-
-            {pendingEvents.length === 0 ? (
-              <p className="admin-empty">Aucun evenement en attente.</p>
-            ) : (
-              <div className="company-review-list">
-                {pendingEvents.map((event) => (
-                  <article className="company-review" key={event.id}>
-                    <div className="company-review__media">
-                      <img src={event.image} alt={`Visuel ${event.title}`} />
-                    </div>
-                    <div className="company-review__content">
-                      {editingEventId === event.id && eventDraft ? (
-                        <EventEditor
-                          draft={eventDraft}
-                          companies={activeCompaniesData}
-                          setDraft={setEventDraft}
-                          onSave={saveEvent}
-                          onCancel={() => {
-                            setEditingEventId(null);
-                            setEventDraft(null);
-                          }}
-                        />
-                      ) : (
-                        <>
-                          <div className="company-review__header">
-                            <div>
-                              <h3>{event.title}</h3>
-                              <p>{event.description}</p>
-                            </div>
-                            <span className="admin-status">En attente</span>
-                          </div>
-                          <dl className="company-review__details">
-                            <div>
-                              <dt>Debut / fin</dt>
-                              <dd>{formatEventDateRange(event)}</dd>
-                            </div>
-                            <div>
-                              <dt>Entreprise</dt>
-                              <dd>{getCompanyName(event.company_id)}</dd>
-                            </div>
-                            <div>
-                              <dt>Adresse</dt>
-                              <dd>
-                                {event.address}, {event.city} {event.postal_code}
-                              </dd>
-                            </div>
-                          </dl>
-                          <div className="admin-actions">
-                            <button
-                              className="btn"
-                              type="button"
-                              onClick={() => approveEvent(event.id)}
-                            >
-                              Publier
-                            </button>
-                            <button
-                              className="btn btn--secondary"
-                              type="button"
-                              onClick={() => startEventEdit(event)}
-                            >
-                              Modifier
-                            </button>
-                            <button
-                              className="btn btn--danger"
-                              type="button"
-                              onClick={() => deleteEvent(event.id)}
-                            >
-                              Supprimer
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
-        </>
-      )}
+      <PanelStats ariaLabel="Navigation admin" stats={adminStats} />
 
       {isAccountsView && (
         <section className="admin-panel__grid">
           <article className="admin-section">
-            {isCreatingUser && userDraft && (
-              <UserEditor
-                draft={userDraft}
-                setDraft={setUserDraft}
-                onSave={saveUser}
-                onCancel={() => {
-                  setIsCreatingUser(false);
-                  setUserDraft(null);
-                }}
-              />
-            )}
-
             <div className="admin-toolbar" aria-label="Filtres des comptes">
               <label>
                 Rechercher
@@ -1139,6 +809,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                   <option value="all">Tous les statuts</option>
                   <option value="active">Actifs</option>
                   <option value="pending">En attente</option>
+                  <option value="suspended">Suspendus</option>
                 </select>
               </label>
               <label>
@@ -1164,31 +835,41 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
               <p className="admin-empty">Aucun compte ne correspond aux filtres.</p>
             ) : (
               <div className="admin-table admin-table--accounts" role="table" aria-label="Comptes">
-                {filteredUsers.map((user) => (
-                  <div className="admin-table__row" role="row" key={user.account_id}>
-                    {editingUserId === user.account_id && userDraft ? (
-                      <UserEditor
-                        draft={userDraft}
-                        setDraft={setUserDraft}
-                        onSave={saveUser}
-                        onCancel={() => {
-                          setEditingUserId(null);
-                          setUserDraft(null);
-                        }}
-                      />
-                    ) : (
-                      <>
-                        <span>{user.display_name}</span>
-                        <span>{user.login_email}</span>
-                        <span className="admin-badge">{user.role}</span>
-                        <span
-                          className={`admin-status ${
-                            user.is_active ? "admin-status--active" : ""
-                          }`}
-                        >
-                          {user.is_active ? "Actif" : "En attente"}
+                <div className="admin-table__row admin-table__row--head" role="row">
+                  <span role="columnheader">Nom</span>
+                  <span role="columnheader">Email</span>
+                  <span role="columnheader">Role</span>
+                  <span role="columnheader">Statut</span>
+                  <span role="columnheader">Actions</span>
+                </div>
+                <div role="rowgroup">
+                  {filteredUsers.map((user) => {
+                    const accountStatus = getAccountAdminStatus(user);
+
+                    return (
+                      <div className="admin-table__row" role="row" key={user.account_id}>
+                        <span role="cell">{user.display_name}</span>
+                        <span role="cell">{user.login_email}</span>
+                        <span className="admin-badge" role="cell">
+                          {user.role}
                         </span>
-                        <div className="admin-actions">
+                        <span
+                          className={accountStatus.className}
+                          role="cell"
+                          title={user.suspension_reason ?? undefined}
+                        >
+                          {accountStatus.label}
+                        </span>
+                        <div className="admin-actions" role="cell">
+                          {accountStatus.value === "suspended" && (
+                            <button
+                              className="btn"
+                              type="button"
+                              onClick={() => liftAccountSuspension(user)}
+                            >
+                              Lever suspension
+                            </button>
+                          )}
                           <button
                             className="btn btn--secondary"
                             type="button"
@@ -1204,10 +885,10 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                             Supprimer
                           </button>
                         </div>
-                      </>
-                    )}
-                  </div>
-                ))}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </article>
@@ -1217,20 +898,6 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       {isEventsView && (
         <section className="admin-panel__grid">
           <article className="admin-section">
-            {eventDraft && (isCreatingEvent || editingEventId) && (
-              <EventEditor
-                draft={eventDraft}
-                companies={activeCompaniesData}
-                setDraft={setEventDraft}
-                onSave={saveEvent}
-                onCancel={() => {
-                  setEditingEventId(null);
-                  setIsCreatingEvent(false);
-                  setEventDraft(null);
-                }}
-              />
-            )}
-
             <div className="admin-toolbar" aria-label="Filtres des événements">
               <label>
                 Rechercher
@@ -1293,51 +960,132 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
               <p className="admin-empty">Aucun evenement ne correspond aux filtres.</p>
             ) : (
               <div className="admin-table admin-table--events" role="table" aria-label="Événements">
-                {filteredEvents.map((event) => (
-                  <div className="admin-table__row" role="row" key={event.id}>
-                    <span>{event.title}</span>
-                    <span>{getEventCategories(event).join(", ")}</span>
-                    <span>{event.city}</span>
-                    <span>{formatEventDateRange(event)}</span>
-                    <span
-                      className={`admin-status ${
-                        event.is_active ? "admin-status--active" : ""
-                      }`}
-                    >
-                      {event.is_active ? "Publie" : "En attente"}
-                    </span>
-                    <div className="admin-actions">
-                      <button
-                        className="btn btn--secondary"
-                        type="button"
-                        onClick={() => startEventEdit(event)}
+                <div className="admin-table__row admin-table__row--head" role="row">
+                  <span role="columnheader">Titre</span>
+                  <span role="columnheader">Categories</span>
+                  <span role="columnheader">Ville</span>
+                  <span role="columnheader">Dates</span>
+                  <span role="columnheader">Statut</span>
+                  <span role="columnheader">Actions</span>
+                </div>
+                <div role="rowgroup">
+                  {filteredEvents.map((event) => (
+                    <div className="admin-table__row" role="row" key={event.id}>
+                      <span role="cell">{event.title}</span>
+                      <span role="cell">{getEventCategories(event).join(", ")}</span>
+                      <span role="cell">{event.city}</span>
+                      <span role="cell">{formatEventDateRange(event)}</span>
+                      <span
+                        className={`admin-status ${
+                          event.is_active ? "admin-status--active" : ""
+                        }`}
+                        role="cell"
                       >
-                        Modifier
-                      </button>
-                      {!event.is_active && (
+                        {event.is_active ? "Publie" : "En attente"}
+                      </span>
+                      <div className="admin-actions" role="cell">
                         <button
-                          className="btn"
+                          className="btn btn--secondary"
                           type="button"
-                          onClick={() => approveEvent(event.id)}
+                          onClick={() => startEventEdit(event)}
                         >
-                          Publier
+                          Modifier
                         </button>
-                      )}
-                      <button
-                        className="btn btn--danger"
-                        type="button"
-                        onClick={() => deleteEvent(event.id)}
-                      >
-                        Supprimer
-                      </button>
+                        <button
+                          className="btn btn--danger"
+                          type="button"
+                          onClick={() => deleteEvent(event.id)}
+                        >
+                          Supprimer
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </article>
         </section>
       )}
+
+      <FormModal
+        ariaLabel={isCreatingUser ? "Ajouter un compte" : "Modifier un compte"}
+        open={!!userDraft && (isCreatingUser || editingUserId !== null)}
+        size="lg"
+        onClose={closeUserForm}
+      >
+        {userDraft && isCreatingUser && (
+          <div className="admin-create-account">
+            <h2>Ajouter un compte</h2>
+            <label className="admin-create-account__type">
+              Type de compte
+              <select
+                value={accountCreateRole}
+                onChange={(event) =>
+                  updateAccountCreateRole(event.target.value as Role)
+                }
+              >
+                {ROLES.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {accountCreateRole === "company" ? (
+              <CompanyRegisterForm
+                mode="admin"
+                title="Ajouter une entreprise"
+                submitLabel="Creer l'entreprise"
+                onCancel={closeUserForm}
+                onSuccess={closeUserForm}
+              />
+            ) : (
+              <RegisterForm
+                mode="admin"
+                role={accountCreateRole}
+                title={`Ajouter un compte ${accountCreateLabels[accountCreateRole]}`}
+                submitLabel={`Creer le compte ${accountCreateLabels[accountCreateRole]}`}
+                onCancel={closeUserForm}
+                onSuccess={closeUserForm}
+              />
+            )}
+          </div>
+        )}
+
+        {userDraft && !isCreatingUser && editingUserId !== null && (
+          <div className="admin-create-account">
+            <h2>Modifier un compte</h2>
+            <UserEditor
+              draft={userDraft}
+              setDraft={setUserDraft}
+              onSave={saveUser}
+              onCancel={closeUserForm}
+            />
+          </div>
+        )}
+      </FormModal>
+
+      <FormModal
+        ariaLabel={isCreatingEvent ? "Ajouter un evenement" : "Modifier un evenement"}
+        open={!!eventDraft && (isCreatingEvent || editingEventId !== null)}
+        size="lg"
+        onClose={closeEventForm}
+      >
+        {eventDraft && (
+          <div className="admin-create-account">
+            <h2>{isCreatingEvent ? "Ajouter un evenement" : "Modifier un evenement"}</h2>
+            <EventEditor
+              draft={eventDraft}
+              companies={activeCompaniesData}
+              setDraft={setEventDraft}
+              onSave={saveEvent}
+              onCancel={closeEventForm}
+            />
+          </div>
+        )}
+      </FormModal>
     </div>
   );
 }
@@ -1347,11 +1095,13 @@ type DraftSetter<T> = (draft: T | null) => void;
 function UserEditor({
   draft,
   setDraft,
+  showRoleSelect = true,
   onSave,
   onCancel,
 }: {
   draft: UserDraft;
   setDraft: DraftSetter<UserDraft>;
+  showRoleSelect?: boolean;
   onSave: () => void;
   onCancel: () => void;
 }) {
@@ -1379,18 +1129,20 @@ function UserEditor({
           setDraft({ ...draft, password_hash: event.target.value })
         }
       />
-      <select
-        value={draft.role}
-        onChange={(event) =>
-          setDraft({ ...draft, role: event.target.value as Role })
-        }
-      >
-        {ROLES.map((role) => (
-          <option key={role} value={role}>
-            {role}
-          </option>
-        ))}
-      </select>
+      {showRoleSelect && (
+        <select
+          value={draft.role}
+          onChange={(event) =>
+            setDraft({ ...draft, role: event.target.value as Role })
+          }
+        >
+          {ROLES.map((role) => (
+            <option key={role} value={role}>
+              {role}
+            </option>
+          ))}
+        </select>
+      )}
       <label className="admin-checkbox">
         <input
           type="checkbox"
@@ -1402,129 +1154,6 @@ function UserEditor({
         Actif
       </label>
       <div className="admin-actions">
-        <button className="btn" type="button" onClick={onSave}>
-          Enregistrer
-        </button>
-        <button className="btn btn--secondary" type="button" onClick={onCancel}>
-          Annuler
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function CompanyEditor({
-  draft,
-  setDraft,
-  onSave,
-  onCancel,
-}: {
-  draft: CompanyDraft;
-  setDraft: DraftSetter<CompanyDraft>;
-  onSave: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="admin-form-grid">
-      <label>
-        Nom
-        <input
-          value={draft.name}
-          onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-        />
-      </label>
-      <label>
-        Email contact
-        <input
-          type="email"
-          value={draft.contact_email}
-          onChange={(event) =>
-            setDraft({ ...draft, contact_email: event.target.value })
-          }
-        />
-      </label>
-      <label className="admin-form-grid__wide">
-        Description
-        <textarea
-          rows={3}
-          value={draft.description}
-          onChange={(event) =>
-            setDraft({ ...draft, description: event.target.value })
-          }
-        />
-      </label>
-      <label>
-        Site web
-        <input
-          value={draft.website}
-          onChange={(event) => setDraft({ ...draft, website: event.target.value })}
-        />
-      </label>
-      <label>
-        Logo
-        <input
-          value={draft.logo}
-          onChange={(event) => setDraft({ ...draft, logo: event.target.value })}
-        />
-      </label>
-      <label>
-        Latitude
-        <input
-          value={draft.latitude}
-          onChange={(event) =>
-            setDraft({ ...draft, latitude: event.target.value })
-          }
-        />
-      </label>
-      <label>
-        Longitude
-        <input
-          value={draft.longitude}
-          onChange={(event) =>
-            setDraft({ ...draft, longitude: event.target.value })
-          }
-        />
-      </label>
-      <label className="admin-form-grid__wide">
-        Adresse
-        <input
-          value={draft.address}
-          onChange={(event) => setDraft({ ...draft, address: event.target.value })}
-        />
-      </label>
-      <label>
-        Ville
-        <input
-          value={draft.city}
-          onChange={(event) => setDraft({ ...draft, city: event.target.value })}
-        />
-      </label>
-      <label>
-        Code postal
-        <input
-          value={draft.postal_code}
-          onChange={(event) =>
-            setDraft({ ...draft, postal_code: event.target.value })
-          }
-        />
-      </label>
-      <label>
-        Telephone contact
-        <input
-          value={draft.contact_phone_number}
-          onChange={(event) =>
-            setDraft({ ...draft, contact_phone_number: event.target.value })
-          }
-        />
-      </label>
-      <label>
-        SIRET
-        <input
-          value={draft.siret}
-          onChange={(event) => setDraft({ ...draft, siret: event.target.value })}
-        />
-      </label>
-      <div className="admin-actions admin-form-grid__wide">
         <button className="btn" type="button" onClick={onSave}>
           Enregistrer
         </button>

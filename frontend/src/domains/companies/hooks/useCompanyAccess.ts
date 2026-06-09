@@ -1,21 +1,20 @@
 import useAuthStore from "../../auth/store/authStore";
-
-/**Hook centralisant la logique d'accès pour les comptes entreprise */
+import useDataStore from "../../../shared/store/dataStore";
 
 export function useCompanyAccess() {
-  /**Récuperation utilisateur connecté depuis Zustand */
   const user = useAuthStore((s) => s.currentUser);
-
-  /**Vérifie si le compte connecté est une entreprise */
+  const companies = useDataStore((s) => s.companies);
   const isCompany = user?.role === "company";
-
-  /**Status d'activation du compte entreprise */
-  const isActive = user?.is_active ?? false;
-
-  /**Compte entreprise en attente de validation administrateur */
+  const currentCompany = isCompany
+    ? companies.find(
+        (company) =>
+          company.id === user.company_id &&
+          company.account_id === user.account_id &&
+          !company.deleted_at,
+      )
+    : undefined;
+  const isActive = isCompany && !!currentCompany?.is_active;
   const isPendingApproval = isCompany && !isActive;
-
-  /**Autorisation de gestion des événements */
   const canManageEvents = isCompany && isActive;
 
   return {
@@ -23,5 +22,6 @@ export function useCompanyAccess() {
     isActive,
     isPendingApproval,
     canManageEvents,
+    currentCompany,
   };
 }

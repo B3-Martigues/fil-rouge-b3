@@ -9,6 +9,7 @@ import {
   type EventCategoryName,
 } from "../types/event-categories";
 import EventMap from "../components/EventMap";
+import ReportEventButton from "../components/ReportEventButton";
 import {
   formatDateTime,
   formatEventDateRange,
@@ -34,7 +35,7 @@ type MapEventSelection = {
   requestId: number;
 };
 
-const DEFAULT_PERIOD_MODE: EventPeriodMode = "day";
+const DEFAULT_PERIOD_MODE: EventPeriodMode = "month";
 const DEFAULT_SORT: SortValue = "date-asc";
 
 const normalizeText = (value: string) =>
@@ -162,7 +163,7 @@ export default function Home() {
     [mapPeriodMode, mapPeriodValue],
   );
 
-  const visibleEvents = useMemo(() => {
+  const filteredEvents = useMemo(() => {
     const normalizedSearch = normalizeText(search);
 
     return events
@@ -182,12 +183,6 @@ export default function Home() {
         }
 
         const eventCategories = getEventCategories(event);
-        const preferenceMatchCount = getPreferenceMatchCount(
-          event,
-          preferredCategorySet,
-        );
-        const matchesPreferences =
-          !shouldUsePreferredEvents || preferenceMatchCount > 0;
         const matchesCategory =
           category === "all" || eventCategories.includes(category);
         const matchesCity = city === "all" || event.city === city;
@@ -204,33 +199,12 @@ export default function Home() {
         );
 
         return (
-          matchesPreferences &&
           matchesCategory &&
           matchesCity &&
           searchableContent.includes(normalizedSearch)
         );
       })
       .sort((firstEvent, secondEvent) => {
-        if (shouldUsePreferredEvents) {
-          const firstMatchCount = getPreferenceMatchCount(
-            firstEvent,
-            preferredCategorySet,
-          );
-          const secondMatchCount = getPreferenceMatchCount(
-            secondEvent,
-            preferredCategorySet,
-          );
-
-          if (firstMatchCount !== secondMatchCount) {
-            return secondMatchCount - firstMatchCount;
-          }
-
-          return (
-            new Date(firstEvent.start_date).getTime() -
-            new Date(secondEvent.start_date).getTime()
-          );
-        }
-
         if (sort === "date-desc") {
           return (
             new Date(secondEvent.start_date).getTime() -
@@ -262,17 +236,54 @@ export default function Home() {
     events,
     mapPeriod.end,
     mapPeriod.start,
-    preferredCategorySet,
     search,
-    shouldUsePreferredEvents,
     sort,
   ]);
-  const displayedEvents = useMemo(
+
+  const recommendedEvents = useMemo(
     () =>
-      shouldUsePreferredEvents && personalizedEventsView === "current-upcoming"
-        ? visibleEvents.filter((event) => getEventStatus(event) !== "past")
-        : visibleEvents,
-    [personalizedEventsView, shouldUsePreferredEvents, visibleEvents],
+      filteredEvents
+        .filter(
+          (event) => getPreferenceMatchCount(event, preferredCategorySet) > 0,
+        )
+        .sort((firstEvent, secondEvent) => {
+          const firstMatchCount = getPreferenceMatchCount(
+            firstEvent,
+            preferredCategorySet,
+          );
+          const secondMatchCount = getPreferenceMatchCount(
+            secondEvent,
+            preferredCategorySet,
+          );
+
+          if (firstMatchCount !== secondMatchCount) {
+            return secondMatchCount - firstMatchCount;
+          }
+
+          return (
+            new Date(firstEvent.start_date).getTime() -
+            new Date(secondEvent.start_date).getTime()
+          );
+        }),
+    [filteredEvents, preferredCategorySet],
+  );
+
+  const displayedEvents = useMemo(
+    () => {
+      if (!shouldUsePreferredEvents) return filteredEvents;
+
+      if (personalizedEventsView === "recommended") {
+        return recommendedEvents;
+      }
+
+      return filteredEvents.filter((event) => getEventStatus(event) !== "past");
+    },
+    [
+      filteredEvents,
+      personalizedEventsView,
+      recommendedEvents,
+      shouldUsePreferredEvents,
+    ],
   );
   const activeMapEventSelection = useMemo(
     () =>
@@ -384,6 +395,8 @@ export default function Home() {
             <dd>{event.city}</dd>
           </div>
         </dl>
+
+        <ReportEventButton event={event} />
       </div>
     </article>
   );

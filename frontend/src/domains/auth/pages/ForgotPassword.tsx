@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 
+import { FormModalLink } from "../../../shared/components/forms/FormModalLink";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
 import Input from "../../../shared/components/ui/Input";
@@ -75,7 +75,8 @@ export default function ForgotPassword() {
 
         {devResetLink && (
           <p className="dev-reset-link">
-            Lien Ethereal dev: <Link to={new URL(devResetLink).pathname}>ouvrir</Link>
+            Lien de reinitialisation mock:{" "}
+            <FormModalLink to={new URL(devResetLink).pathname}>ouvrir</FormModalLink>
           </p>
         )}
 
@@ -84,7 +85,7 @@ export default function ForgotPassword() {
         </Button>
       </form>
 
-      <Link to={ROUTES.PUBLIC.LOGIN}>Retour a la connexion</Link>
+      <FormModalLink to={ROUTES.PUBLIC.LOGIN}>Retour a la connexion</FormModalLink>
     </div>
   );
 }

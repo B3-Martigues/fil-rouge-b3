@@ -35,6 +35,36 @@ export const notificationTypesMock: NotificationType[] = [
     name: "Email de bienvenue",
     slug: "welcome_email",
   },
+  {
+    id: 7,
+    name: "Compte entreprise refuse",
+    slug: "company_rejected",
+  },
+  {
+    id: 8,
+    name: "Evenement refuse",
+    slug: "event_rejected",
+  },
+  {
+    id: 9,
+    name: "Evenement masque",
+    slug: "event_hidden",
+  },
+  {
+    id: 10,
+    name: "Evenement supprime",
+    slug: "event_deleted",
+  },
+  {
+    id: 11,
+    name: "Compte suspendu",
+    slug: "account_suspended",
+  },
+  {
+    id: 12,
+    name: "Decision moderation",
+    slug: "moderation_decision",
+  },
 ];
 
 export const notificationTypeConfigs: NotificationTypeConfig[] = [
@@ -61,6 +91,30 @@ export const notificationTypeConfigs: NotificationTypeConfig[] = [
   {
     ...notificationTypesMock[5],
     channels: ["email"],
+  },
+  {
+    ...notificationTypesMock[6],
+    channels: ["in_app"],
+  },
+  {
+    ...notificationTypesMock[7],
+    channels: ["in_app", "email"],
+  },
+  {
+    ...notificationTypesMock[8],
+    channels: ["in_app", "email"],
+  },
+  {
+    ...notificationTypesMock[9],
+    channels: ["in_app", "email"],
+  },
+  {
+    ...notificationTypesMock[10],
+    channels: ["in_app", "email"],
+  },
+  {
+    ...notificationTypesMock[11],
+    channels: ["in_app", "email"],
   },
 ];
 

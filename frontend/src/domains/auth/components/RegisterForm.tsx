@@ -16,8 +16,10 @@ import {
 } from "../validations/register.schema";
 import type { Account, User } from "../../user/types/user";
 import {
-  ACCOUNT_TYPE_IDS,
+  getAccountTypeForRole,
+  getAccountTypeIdForRole,
   ROLE_IDS,
+  type Role,
   toAuthenticatedUser,
 } from "../../user/types/user";
 import { ROUTES } from "../../../shared/constants/routes";
@@ -33,10 +35,28 @@ import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 
 import { createWelcomeNotification } from "../../notifications/services/notificationFactory";
 
-const createLocalId = () => Date.now();
+type RegisterFormProps = {
+  mode?: "public" | "admin";
+  role?: Exclude<Role, "company">;
+  title?: string;
+  submitLabel?: string;
+  onCancel?: () => void;
+  onSuccess?: () => void;
+};
+
+const createNextId = (items: { id: number }[]) =>
+  Math.max(0, ...items.map((item) => item.id)) + 1;
+
 const normalizeComparable = (value: string) => value.trim().toLowerCase();
 
-export default function RegisterForm() {
+export default function RegisterForm({
+  mode = "public",
+  role = "user",
+  title = "Inscription utilisateur",
+  submitLabel,
+  onCancel,
+  onSuccess,
+}: RegisterFormProps) {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
   const accounts = useDataStore((s) => s.accounts);
@@ -57,11 +77,15 @@ export default function RegisterForm() {
   });
 
   const onSubmit = async (data: RegisterFormData) => {
+    const isAdminMode = mode === "admin";
+
     setLoading(true);
     setServerError(null);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      if (!isAdminMode) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
 
       const loginEmail = data.login_email.trim();
       const username = data.username.trim();
@@ -88,13 +112,13 @@ export default function RegisterForm() {
         return;
       }
 
-      const accountId = createLocalId();
-      const userId = accountId + 1;
+      const accountId = createNextId(accounts);
+      const userId = createNextId(users);
       const createdAt = new Date().toISOString();
       const account: Account = {
         id: accountId,
-        account_type_id: ACCOUNT_TYPE_IDS.user,
-        account_type: "user",
+        account_type_id: getAccountTypeIdForRole(role),
+        account_type: getAccountTypeForRole(role),
         login_email: loginEmail,
         password_hash: data.password,
         is_active: true,
@@ -105,8 +129,8 @@ export default function RegisterForm() {
         id: userId,
         account_id: accountId,
         username,
-        role_id: ROLE_IDS.user,
-        role: "user",
+        role_id: ROLE_IDS[role],
+        role,
         created_at: createdAt,
         updated_at: createdAt,
       };
@@ -114,12 +138,23 @@ export default function RegisterForm() {
       addAccount(account);
       addUser(newUser);
       void dispatchNotification(createWelcomeNotification({ user: newUser }));
+
+      if (isAdminMode) {
+        toast.success("Compte cree avec succes");
+        onSuccess?.();
+        return;
+      }
+
       login(toAuthenticatedUser(account, newUser));
 
       toast.success("Compte créé avec succès");
       navigate(ROUTES.USER.ONBOARDING);
     } catch {
-      setServerError("Erreur lors de l'inscription");
+      setServerError(
+        mode === "admin"
+          ? "Erreur lors de la creation du compte"
+          : "Erreur lors de l'inscription",
+      );
     } finally {
       setLoading(false);
     }
@@ -127,7 +162,7 @@ export default function RegisterForm() {
 
   return (
     <div>
-      <h1>Inscription utilisateur</h1>
+      <h1>{title}</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <FormField
@@ -195,9 +230,21 @@ export default function RegisterForm() {
 
         {serverError && <ErrorMessage message={serverError} />}
 
-        <Button type="submit" loading={loading}>
-          Creer un compte utilisateur
-        </Button>
+        <div className="admin-actions">
+          <Button type="submit" loading={loading}>
+            {submitLabel ?? "Creer un compte utilisateur"}
+          </Button>
+          {onCancel && (
+            <Button
+              type="button"
+              className="btn--secondary"
+              disabled={loading}
+              onClick={onCancel}
+            >
+              Annuler
+            </Button>
+          )}
+        </div>
       </form>
     </div>
   );

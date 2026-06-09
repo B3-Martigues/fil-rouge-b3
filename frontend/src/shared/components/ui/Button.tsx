@@ -14,17 +14,22 @@ function Loader() {
 export default function Button({
   loading,
   disabled,
+  className,
   children,
   ...props
 }: Props) {
+  const buttonClassName = ["btn", className, loading ? "btn--loading" : ""]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     /**Désactive le bouton si loading */
     <button
       {...props}
       disabled={loading || disabled}
       /**Accessibilité : indique qu'un chargement est en cours */
-      aria-busy={loading}
-      className={`btn ${loading ? "btn--loading" : ""}`}
+      aria-busy={loading || undefined}
+      className={buttonClassName}
     >
       {loading ? (
         <span className="btn_content">

@@ -5,14 +5,15 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
+import { FormModalLink } from "../../../shared/components/forms/FormModalLink";
 import { loginSchema, type LoginFormData } from "../validations/login.schema";
 import useAuthStore from "../store/authStore";
 import { ROUTES } from "../../../shared/constants/routes";
 import type { Role } from "../../user/types/user";
-import { toAuthenticatedCompany, toAuthenticatedUser } from "../../user/types/user";
+import { authenticateMockAccount } from "../api/auth.api";
 import useDataStore from "../../../shared/store/dataStore";
 
 import Input from "../../../shared/components/ui/Input";
@@ -20,10 +21,9 @@ import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 
-const normalizeComparable = (value: string) => value.trim().toLowerCase();
-
 const getRedirectPathByRole = (role: Role) => {
   if (role === "admin") return ROUTES.ADMIN.DASHBOARD;
+  if (role === "moderator") return ROUTES.MODERATOR.DASHBOARD;
   if (role === "company") return ROUTES.COMPANY.EVENTS;
   return ROUTES.PUBLIC.HOME;
 };
@@ -54,44 +54,19 @@ export default function LoginForm() {
     try {
       await new Promise((resolve) => setTimeout(resolve, 800));
 
-      const loginEmail = data.login_email.trim();
-      const account = accounts.find(
-        (item) =>
-          normalizeComparable(item.login_email) === normalizeComparable(loginEmail) &&
-          item.password_hash === data.password &&
-          !item.deleted_at,
+      const result = authenticateMockAccount(
+        { accounts, users, companies },
+        data,
       );
 
-      if (!account) {
-        setServerError("Email ou mot de passe incorrect");
+      if (!result.ok) {
+        setServerError(result.message);
         return;
       }
 
-      if (!account.is_active) {
-        setServerError("Ce compte est desactive");
-        return;
-      }
+      login(result.user);
 
-      const company = companies.find(
-        (item) => item.account_id === account.id && !item.deleted_at,
-      );
-      const user = users.find(
-        (item) => item.account_id === account.id && !item.deleted_at,
-      );
-      const safeUser = company
-        ? toAuthenticatedCompany({ account, user, company })
-        : user
-          ? toAuthenticatedUser(account, user)
-          : null;
-
-      if (!safeUser) {
-        setServerError("Profil rattache au compte introuvable");
-        return;
-      }
-
-      login(safeUser);
-
-      navigate(getRedirectPathByRole(safeUser.role), { replace: true });
+      navigate(getRedirectPathByRole(result.user.role), { replace: true });
       toast.success("Connexion reussie");
     } finally {
       setLoading(false);
@@ -143,13 +118,13 @@ export default function LoginForm() {
 
         <br />
 
-        <Link to={ROUTES.PUBLIC.REGISTER}>
+        <FormModalLink to={ROUTES.PUBLIC.REGISTER}>
           <strong>Pas encore inscrit ?</strong>
-        </Link>
+        </FormModalLink>
         <br />
-        <Link to={ROUTES.PUBLIC.FORGOT_PASSWORD}>
+        <FormModalLink to={ROUTES.PUBLIC.FORGOT_PASSWORD}>
           <strong>Mot de passe oublie ?</strong>
-        </Link>
+        </FormModalLink>
       </form>
     </div>
   );

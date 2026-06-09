@@ -82,6 +82,10 @@ CREATE TABLE notification_types (
     slug VARCHAR(50) NOT NULL UNIQUE
 );
 
+INSERT INTO notification_types (name, slug) VALUES
+    ('Decision moderation', 'moderation_decision')
+ON CONFLICT (slug) DO NOTHING;
+
 -- Accounts
 CREATE TABLE accounts (
     id SERIAL PRIMARY KEY,

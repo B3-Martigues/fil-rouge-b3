@@ -13,7 +13,11 @@ const SORTED_EVENT_CATEGORIES = [...EVENT_CATEGORIES].sort((first, second) =>
 
 export default function PreferencesGrid({ selected, toggle }: Props) {
   return (
-    <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+    <div
+      className="preferences-grid"
+      role="group"
+      aria-label="Preferences d'evenements"
+    >
       {SORTED_EVENT_CATEGORIES.map((category) => (
         <PreferenceCard
           key={category}

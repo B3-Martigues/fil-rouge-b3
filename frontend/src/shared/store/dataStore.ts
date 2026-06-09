@@ -9,6 +9,16 @@ import type { Company } from "../../domains/companies/types/company";
 import type { CompanyMember } from "../../domains/companies/types/company-member";
 import { eventsMock } from "../../domains/events/mocks/events.mock";
 import type { Event } from "../../domains/events/types/event";
+import {
+  moderationDecisionsMock,
+  moderationReportsMock,
+} from "../../domains/moderator/mocks/moderation.mock";
+import type {
+  ModerationDecision,
+  ModerationReport,
+  ModerationReportPriority,
+  ModerationTargetType,
+} from "../../domains/moderator/types/moderation";
 import { notificationTypesMock } from "../../domains/notifications/mocks/notification-types.mock";
 import { getNotificationTypeConfig } from "../../domains/notifications/mocks/notification-types.mock";
 import {
@@ -55,6 +65,15 @@ type NotificationEmailDelivery = EmailDeliveryResult & {
   notification_id: number;
 };
 
+type AddModerationReportPayload = {
+  target_type: ModerationTargetType;
+  target_id: number;
+  reporter_user_id: number;
+  reason: string;
+  details: string;
+  priority?: ModerationReportPriority;
+};
+
 type DataState = {
   accounts: Account[];
   users: User[];
@@ -67,6 +86,8 @@ type DataState = {
   notificationTypes: NotificationType[];
   notifications: Notification[];
   notificationEmailDeliveries: NotificationEmailDelivery[];
+  moderationReports: ModerationReport[];
+  moderationDecisions: ModerationDecision[];
   passwordResetTokens: PasswordResetToken[];
 
   getAccountSummaries: () => AccountSummary[];
@@ -105,6 +126,25 @@ type DataState = {
   ) => void;
   approveEvent: (eventId: number) => void;
   deleteEvent: (eventId: number) => void;
+  restoreEvent: (eventId: number) => void;
+  deleteEventPermanently: (eventId: number) => void;
+
+  addModerationDecision: (
+    decision: Omit<ModerationDecision, "id" | "created_at"> &
+      Partial<Pick<ModerationDecision, "created_at">>,
+  ) => void;
+  addModerationReport: (
+    report: AddModerationReportPayload,
+  ) => ModerationReport | null;
+  updateModerationReport: (
+    reportId: number,
+    data: Partial<Omit<ModerationReport, "id" | "created_at">>,
+  ) => void;
+  suspendAccount: (
+    accountId: number,
+    reason: string,
+    suspendedUntil: string,
+  ) => void;
 
   toggleFavorite: (userId: number, eventId: number) => void;
   recordHistory: (userId: number, eventId: number) => void;
@@ -269,20 +309,26 @@ export const buildAccountSummaries = (
         role_id: company.role_id ?? ROLE_IDS.company,
         display_name: company.name,
         is_active: account.is_active && company.is_active,
+        suspended_until: account.suspended_until ?? null,
+        suspension_reason: account.suspension_reason ?? null,
         user_id: user?.id,
         company_id: company.id,
         is_verified: company.is_verified,
       };
     }
 
+    const accountRole = user?.role ?? account.account_type;
+
     return {
       account_id: account.id,
       login_email: account.login_email,
       password_hash: account.password_hash,
-      role: user?.role ?? "user",
-      role_id: user?.role_id ?? ROLE_IDS.user,
+      role: accountRole,
+      role_id: user?.role_id ?? ROLE_IDS[accountRole],
       display_name: user?.username ?? account.login_email,
       is_active: account.is_active,
+      suspended_until: account.suspended_until ?? null,
+      suspension_reason: account.suspension_reason ?? null,
       user_id: user?.id,
     };
   });
@@ -301,6 +347,8 @@ const useDataStore = create<DataState>()(
       notificationTypes: notificationTypesMock,
       notifications: [],
       notificationEmailDeliveries: [],
+      moderationReports: moderationReportsMock,
+      moderationDecisions: moderationDecisionsMock,
       passwordResetTokens: [],
 
       getAccountSummaries: () =>
@@ -814,6 +862,104 @@ const useDataStore = create<DataState>()(
           ),
         })),
 
+      restoreEvent: (eventId) =>
+        set((state) => ({
+          events: state.events.map((event) =>
+            event.id === eventId
+              ? {
+                  ...event,
+                  deleted_at: null,
+                  updated_at: now(),
+                }
+              : event,
+          ),
+        })),
+
+      deleteEventPermanently: (eventId) =>
+        set((state) => ({
+          events: state.events.filter((event) => event.id !== eventId),
+          favorites: state.favorites.filter(
+            (favorite) => favorite.event_id !== eventId,
+          ),
+          histories: state.histories.filter(
+            (history) => history.event_id !== eventId,
+          ),
+        })),
+
+      addModerationDecision: (decision) =>
+        set((state) => ({
+          moderationDecisions: [
+            {
+              ...decision,
+              id: createNextId(state.moderationDecisions),
+              created_at: decision.created_at ?? now(),
+            },
+            ...state.moderationDecisions,
+          ],
+        })),
+
+      addModerationReport: (report) => {
+        const duplicateReport = get().moderationReports.find(
+          (item) =>
+            item.target_type === report.target_type &&
+            item.target_id === report.target_id &&
+            item.reporter_user_id === report.reporter_user_id &&
+            (item.status === "open" || item.status === "reviewing"),
+        );
+
+        if (duplicateReport) return null;
+
+        const createdAt = now();
+        const moderationReport: ModerationReport = {
+          id: createNextId(get().moderationReports),
+          target_type: report.target_type,
+          target_id: report.target_id,
+          reporter_user_id: report.reporter_user_id,
+          reason: report.reason,
+          details: report.details,
+          status: "open",
+          priority: report.priority ?? "medium",
+          created_at: createdAt,
+          updated_at: createdAt,
+          resolved_at: null,
+          handled_by_user_id: null,
+          resolution_note: null,
+        };
+
+        set((state) => ({
+          moderationReports: [moderationReport, ...state.moderationReports],
+        }));
+
+        return moderationReport;
+      },
+
+      updateModerationReport: (reportId, data) =>
+        set((state) => ({
+          moderationReports: state.moderationReports.map((report) =>
+            report.id === reportId
+              ? {
+                  ...report,
+                  ...data,
+                  updated_at: now(),
+                }
+              : report,
+          ),
+        })),
+
+      suspendAccount: (accountId, reason, suspendedUntil) =>
+        set((state) => ({
+          accounts: state.accounts.map((account) =>
+            account.id === accountId
+              ? {
+                  ...account,
+                  suspended_until: suspendedUntil,
+                  suspension_reason: reason,
+                  updated_at: now(),
+                }
+              : account,
+          ),
+        })),
+
       toggleFavorite: (userId, eventId) =>
         set((state) => {
           const existingFavorite = state.favorites.find(
@@ -904,7 +1050,7 @@ const useDataStore = create<DataState>()(
           };
         }),
     }),
-    { name: "app-data-storage-v6" },
+    { name: "app-data-storage-v9" },
   ),
 );
 

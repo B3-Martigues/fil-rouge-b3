@@ -12,6 +12,12 @@ const getAppUrl = (path: string) => {
   return new URL(path, window.location.origin).toString();
 };
 
+const withReason = (message: string, reason: string) =>
+  `${message} Raison: ${reason.trim()}`;
+
+const withModeratorMessage = (message: string, moderatorMessage: string) =>
+  `${message} Message du moderateur: ${moderatorMessage.trim()}`;
+
 export function createFavoriteEventTodayNotification(params: {
   user: User;
   event: Event;
@@ -101,6 +107,25 @@ export function createCompanyApprovedNotification(params: {
   };
 }
 
+export function createCompanyRejectedNotification(params: {
+  company: Company;
+  user: User;
+  reason: string;
+}): NotificationDraft {
+  return {
+    user_id: params.user.id,
+    event_id: null,
+    company_id: params.company.id,
+    notification_type_id: getNotificationTypeBySlug("company_rejected").id,
+    title: "Votre compte entreprise est refuse",
+    message: withReason(
+      `${params.company.name} n'a pas ete validee par la moderation.`,
+      params.reason,
+    ),
+    action_url: getAppUrl(ROUTES.COMPANY.PROFILE),
+  };
+}
+
 export function createEventApprovedNotification(params: {
   company: Company;
   event: Event;
@@ -113,6 +138,129 @@ export function createEventApprovedNotification(params: {
     notification_type_id: getNotificationTypeBySlug("event_approved").id,
     title: "Votre evenement est publie",
     message: `${params.event.title} a ete valide et publie. Il est maintenant visible par les utilisateurs.`,
+    action_url: getAppUrl(ROUTES.COMPANY.EVENTS),
+  };
+}
+
+export function createEventRejectedNotification(params: {
+  company: Company;
+  event: Event;
+  user: User;
+  reason: string;
+}): NotificationDraft {
+  return {
+    user_id: params.user.id,
+    event_id: params.event.id,
+    company_id: params.company.id,
+    notification_type_id: getNotificationTypeBySlug("event_rejected").id,
+    title: "Votre evenement est refuse",
+    message: withReason(
+      `${params.event.title} ne peut pas etre publie en l'etat.`,
+      params.reason,
+    ),
+    action_url: getAppUrl(ROUTES.COMPANY.EVENTS),
+  };
+}
+
+export function createEventHiddenNotification(params: {
+  company: Company;
+  event: Event;
+  user: User;
+  reason: string;
+}): NotificationDraft {
+  return {
+    user_id: params.user.id,
+    event_id: params.event.id,
+    company_id: params.company.id,
+    notification_type_id: getNotificationTypeBySlug("event_hidden").id,
+    title: "Votre evenement a ete masque",
+    message: withReason(
+      `${params.event.title} n'est plus visible publiquement.`,
+      params.reason,
+    ),
+    action_url: getAppUrl(ROUTES.COMPANY.EVENTS),
+  };
+}
+
+export function createEventDeletedNotification(params: {
+  company: Company;
+  event: Event;
+  user: User;
+  reason: string;
+}): NotificationDraft {
+  return {
+    user_id: params.user.id,
+    event_id: params.event.id,
+    company_id: params.company.id,
+    notification_type_id: getNotificationTypeBySlug("event_deleted").id,
+    title: "Votre evenement a ete supprime",
+    message: withReason(
+      `${params.event.title} a ete retire par la moderation.`,
+      params.reason,
+    ),
+    action_url: getAppUrl(ROUTES.COMPANY.EVENTS),
+  };
+}
+
+export function createAccountSuspendedNotification(params: {
+  user: User;
+  company?: Company | null;
+  reason: string;
+  suspendedUntil: string;
+}): NotificationDraft {
+  return {
+    user_id: params.user.id,
+    event_id: null,
+    company_id: params.company?.id ?? null,
+    notification_type_id: getNotificationTypeBySlug("account_suspended").id,
+    title: "Votre compte est temporairement suspendu",
+    message: withReason(
+      `Votre compte est suspendu jusqu'au ${new Date(
+        params.suspendedUntil,
+      ).toLocaleDateString("fr-FR")}.`,
+      params.reason,
+    ),
+    action_url: null,
+  };
+}
+
+export function createReportUsefulNotification(params: {
+  user: User;
+  targetLabel: string;
+  moderatorMessage: string;
+  event?: Event | null;
+  company?: Company | null;
+}): NotificationDraft {
+  return {
+    user_id: params.user.id,
+    event_id: params.event?.id ?? null,
+    company_id: params.company?.id ?? params.event?.company_id ?? null,
+    notification_type_id: getNotificationTypeBySlug("moderation_decision").id,
+    title: "Votre signalement a ete utile",
+    message: withModeratorMessage(
+      `Merci ${params.user.username}, votre signalement concernant ${params.targetLabel} a aide la moderation a prendre une decision.`,
+      params.moderatorMessage,
+    ),
+    action_url: getAppUrl(ROUTES.PUBLIC.HOME),
+  };
+}
+
+export function createEventWithdrawnAfterReportNotification(params: {
+  company: Company;
+  event: Event;
+  user: User;
+  moderatorMessage: string;
+}): NotificationDraft {
+  return {
+    user_id: params.user.id,
+    event_id: params.event.id,
+    company_id: params.company.id,
+    notification_type_id: getNotificationTypeBySlug("moderation_decision").id,
+    title: "Decision moderation: evenement retire",
+    message: withModeratorMessage(
+      `${params.event.title} a ete retire de la plateforme suite au traitement d'un signalement.`,
+      params.moderatorMessage,
+    ),
     action_url: getAppUrl(ROUTES.COMPANY.EVENTS),
   };
 }

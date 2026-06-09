@@ -26,7 +26,7 @@ const getConfiguredEmailProvider = (): EmailProviderName => {
     return provider;
   }
 
-  return import.meta.env.DEV ? "ethereal" : "resend";
+  return "ethereal";
 };
 
 const createMessageId = (provider: EmailProviderName, notificationId: string) =>

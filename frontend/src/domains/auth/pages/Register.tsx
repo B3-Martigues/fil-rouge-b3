@@ -1,5 +1,4 @@
-import { Link } from "react-router-dom";
-
+import { FormModalLink } from "../../../shared/components/forms/FormModalLink";
 import { ROUTES } from "../../../shared/constants/routes";
 
 export default function Register() {
@@ -8,13 +7,13 @@ export default function Register() {
       <h1>Inscription</h1>
 
       <div className="register-choice">
-        <Link className="btn" to={ROUTES.PUBLIC.REGISTER_USER}>
+        <FormModalLink className="btn" to={ROUTES.PUBLIC.REGISTER_USER}>
           Inscription utilisateur
-        </Link>
+        </FormModalLink>
 
-        <Link className="btn" to={ROUTES.PUBLIC.REGISTER_COMPANY}>
+        <FormModalLink className="btn" to={ROUTES.PUBLIC.REGISTER_COMPANY}>
           Inscription entreprise
-        </Link>
+        </FormModalLink>
       </div>
     </div>
   );

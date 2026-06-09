@@ -3,7 +3,13 @@ export const NOTIFICATION_TYPE_SLUGS = [
   "password_reset_requested",
   "password_changed",
   "company_approved",
+  "company_rejected",
   "event_approved",
+  "event_rejected",
+  "event_hidden",
+  "event_deleted",
+  "account_suspended",
+  "moderation_decision",
   "welcome_email",
 ] as const;
 
