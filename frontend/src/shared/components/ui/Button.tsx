@@ -1,43 +1,64 @@
-/**Componant Button réutilisable, gére les différents états (disabled / loading)  */
-import type { ButtonHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-/**Props du composant Button hérite de tous les attributs natif d'un <button> HTML et ajoute un état de chargement (loading) */
+type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
+type ButtonSize = "sm" | "md" | "icon";
+
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
+  fullWidth?: boolean;
+  icon?: ReactNode;
+  iconOnly?: boolean;
   loading?: boolean;
+  loadingLabel?: string;
+  size?: ButtonSize;
+  variant?: ButtonVariant;
 };
-/**Composant Loader (spinner simple CSS), utilisé à l'intérieur du bouton pendant le chargement */
-function Loader() {
+
+function ButtonSpinner() {
   return <span className="spinner" aria-hidden="true" />;
 }
 
-/**Bouton réutilisable avec état de chargement */
 export default function Button({
   loading,
+  loadingLabel = "Chargement...",
   disabled,
   className,
   children,
+  fullWidth = false,
+  icon,
+  iconOnly = false,
+  size = "md",
+  variant = "primary",
   ...props
 }: Props) {
-  const buttonClassName = ["btn", className, loading ? "btn--loading" : ""]
+  const buttonClassName = [
+    "btn",
+    `btn--${variant}`,
+    size !== "md" ? `btn--${size}` : "",
+    fullWidth ? "btn--full" : "",
+    iconOnly ? "btn--icon-only" : "",
+    loading ? "btn--loading" : "",
+    className,
+  ]
     .filter(Boolean)
     .join(" ");
 
   return (
-    /**Désactive le bouton si loading */
     <button
       {...props}
       disabled={loading || disabled}
-      /**Accessibilité : indique qu'un chargement est en cours */
       aria-busy={loading || undefined}
       className={buttonClassName}
     >
       {loading ? (
-        <span className="btn_content">
-          <Loader />
-          Chargement...
+        <span className="btn__content">
+          <ButtonSpinner />
+          {loadingLabel}
         </span>
       ) : (
-        children
+        <span className="btn__content">
+          {icon && <span className="btn__icon">{icon}</span>}
+          {!iconOnly && children}
+        </span>
       )}
     </button>
   );

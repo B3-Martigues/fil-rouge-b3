@@ -1,7 +1,14 @@
 import { useMemo, useState } from "react";
 import { toast } from "react-toastify";
 
+import EmptyState from "../../../shared/components/feedback/EmptyState";
 import PanelStats from "../../../shared/components/layout/PanelStats";
+import Toolbar from "../../../shared/components/layout/Toolbar";
+import Button from "../../../shared/components/ui/Button";
+import Input from "../../../shared/components/ui/Input";
+import Select from "../../../shared/components/ui/Select";
+import StatusBadge from "../../../shared/components/ui/StatusBadge";
+import Textarea from "../../../shared/components/ui/Textarea";
 import useAuthStore from "../../auth/store/authStore";
 import type { Company } from "../../companies/types/company";
 import type { CompanyMember } from "../../companies/types/company-member";
@@ -132,24 +139,24 @@ const handledReportOutcomes: Record<
   HandledReportStatus,
   {
     action: ModerationAction;
-    className: string;
     label: string;
     note: string;
+    variant: "success" | "suspended";
   }
 > = {
   resolved: {
     action: "report_resolved",
-    className: "moderator-report__outcome--suspended",
     label: "Suspendu",
     note:
       "Decision: signalement confirme, la cible est marquee comme suspendue apres verification.",
+    variant: "suspended",
   },
   dismissed: {
     action: "report_dismissed",
-    className: "moderator-report__outcome--restored",
     label: "Restaure",
     note:
       "Decision: signalement classe, la cible est restauree ou maintenue accessible.",
+    variant: "success",
   },
 };
 
@@ -1099,10 +1106,10 @@ export default function ModeratorDashboard({
       <PanelStats ariaLabel="Navigation moderation" stats={moderatorStats} />
 
       {isEventsView && (
-        <div className="admin-toolbar" aria-label="Filtres des evenements">
+        <Toolbar ariaLabel="Filtres des evenements" className="admin-toolbar">
           <label>
             Rechercher
-            <input
+            <Input
               value={eventSearch}
               placeholder="Titre, ville, entreprise..."
               onChange={(event) => setEventSearch(event.target.value)}
@@ -1110,7 +1117,7 @@ export default function ModeratorDashboard({
           </label>
           <label>
             Statut
-            <select
+            <Select
               value={eventFilter}
               onChange={(event) =>
                 setEventFilter(event.target.value as ModerationEventFilter)
@@ -1119,11 +1126,11 @@ export default function ModeratorDashboard({
               <option value="all">Tous les statuts</option>
               <option value="pending">A valider</option>
               <option value="published">Publies</option>
-            </select>
+            </Select>
           </label>
           <label>
             Trier par
-            <select
+            <Select
               value={eventSort}
               onChange={(event) =>
                 setEventSort(event.target.value as ModerationEventSort)
@@ -1133,9 +1140,9 @@ export default function ModeratorDashboard({
               <option value="date-desc">Date decroissante</option>
               <option value="title-asc">Titre A-Z</option>
               <option value="city-asc">Ville A-Z</option>
-            </select>
+            </Select>
           </label>
-        </div>
+        </Toolbar>
       )}
 
       {isEventsView && (
@@ -1146,7 +1153,7 @@ export default function ModeratorDashboard({
           </div>
 
           {filteredPendingEvents.length === 0 ? (
-            <p className="admin-empty">Aucun evenement en attente.</p>
+            <EmptyState message="Aucun evenement en attente." />
           ) : (
             <div className="company-review-list">
               {filteredPendingEvents.map((event) => (
@@ -1177,7 +1184,7 @@ export default function ModeratorDashboard({
           </div>
 
           {filteredPublishedEvents.length === 0 ? (
-            <p className="admin-empty">Aucun evenement publie.</p>
+            <EmptyState message="Aucun evenement publie." />
           ) : (
             <div className="company-review-list">
               {filteredPublishedEvents.map((event) => (
@@ -1203,10 +1210,10 @@ export default function ModeratorDashboard({
       )}
 
       {isCompaniesView && (
-        <div className="admin-toolbar" aria-label="Filtres des entreprises">
+        <Toolbar ariaLabel="Filtres des entreprises" className="admin-toolbar">
           <label>
             Rechercher
-            <input
+            <Input
               value={companySearch}
               placeholder="Entreprise, email, SIRET..."
               onChange={(event) => setCompanySearch(event.target.value)}
@@ -1214,7 +1221,7 @@ export default function ModeratorDashboard({
           </label>
           <label>
             Statut
-            <select
+            <Select
               value={companyFilter}
               onChange={(event) =>
                 setCompanyFilter(event.target.value as ModerationCompanyFilter)
@@ -1224,11 +1231,11 @@ export default function ModeratorDashboard({
               <option value="pending">A valider</option>
               <option value="active">Actifs</option>
               <option value="suspended">Suspendus</option>
-            </select>
+            </Select>
           </label>
           <label>
             Trier par
-            <select
+            <Select
               value={companySort}
               onChange={(event) =>
                 setCompanySort(event.target.value as ModerationAccountSort)
@@ -1237,9 +1244,9 @@ export default function ModeratorDashboard({
               <option value="name-asc">Nom A-Z</option>
               <option value="name-desc">Nom Z-A</option>
               <option value="email-asc">Email A-Z</option>
-            </select>
+            </Select>
           </label>
-        </div>
+        </Toolbar>
       )}
 
       {isCompaniesView && (
@@ -1250,7 +1257,7 @@ export default function ModeratorDashboard({
           </div>
 
           {filteredCompanies.length === 0 ? (
-            <p className="admin-empty">Aucun compte entreprise en attente.</p>
+            <EmptyState message="Aucun compte entreprise en attente." />
           ) : (
             <div className="company-review-list">
               {filteredCompanies.map((company) => (
@@ -1294,10 +1301,10 @@ export default function ModeratorDashboard({
       )}
 
       {isAccountsView && (
-        <div className="admin-toolbar" aria-label="Filtres des comptes">
+        <Toolbar ariaLabel="Filtres des comptes" className="admin-toolbar">
           <label>
             Rechercher
-            <input
+            <Input
               value={accountSearch}
               placeholder="Nom, email, motif..."
               onChange={(event) => setAccountSearch(event.target.value)}
@@ -1305,7 +1312,7 @@ export default function ModeratorDashboard({
           </label>
           <label>
             Statut
-            <select
+            <Select
               value={accountFilter}
               onChange={(event) =>
                 setAccountFilter(event.target.value as ModerationAccountFilter)
@@ -1314,11 +1321,11 @@ export default function ModeratorDashboard({
               <option value="all">Tous les statuts</option>
               <option value="active">Actifs</option>
               <option value="suspended">Suspendus</option>
-            </select>
+            </Select>
           </label>
           <label>
             Trier par
-            <select
+            <Select
               value={accountSort}
               onChange={(event) =>
                 setAccountSort(event.target.value as ModerationAccountSort)
@@ -1327,9 +1334,9 @@ export default function ModeratorDashboard({
               <option value="name-asc">Nom A-Z</option>
               <option value="name-desc">Nom Z-A</option>
               <option value="email-asc">Email A-Z</option>
-            </select>
+            </Select>
           </label>
-        </div>
+        </Toolbar>
       )}
 
       {isAccountsView && (
@@ -1354,10 +1361,10 @@ export default function ModeratorDashboard({
       )}
 
       {isReportsView && (
-        <div className="admin-toolbar" aria-label="Filtres des signalements">
+        <Toolbar ariaLabel="Filtres des signalements" className="admin-toolbar">
           <label>
             Rechercher
-            <input
+            <Input
               value={reportSearch}
               placeholder="Motif, cible, utilisateur..."
               onChange={(event) => setReportSearch(event.target.value)}
@@ -1365,7 +1372,7 @@ export default function ModeratorDashboard({
           </label>
           <label>
             Statut
-            <select
+            <Select
               value={reportFilter}
               onChange={(event) =>
                 setReportFilter(event.target.value as ModerationReportFilter)
@@ -1376,11 +1383,11 @@ export default function ModeratorDashboard({
               <option value="reviewing">En cours</option>
               <option value="resolved">Confirmes</option>
               <option value="dismissed">Restaures</option>
-            </select>
+            </Select>
           </label>
           <label>
             Priorite
-            <select
+            <Select
               value={reportPriorityFilter}
               onChange={(event) =>
                 setReportPriorityFilter(
@@ -1392,11 +1399,11 @@ export default function ModeratorDashboard({
               <option value="high">Haute</option>
               <option value="medium">Moyenne</option>
               <option value="low">Basse</option>
-            </select>
+            </Select>
           </label>
           <label>
             Trier par
-            <select
+            <Select
               value={reportSort}
               onChange={(event) =>
                 setReportSort(event.target.value as ModerationReportSort)
@@ -1405,9 +1412,9 @@ export default function ModeratorDashboard({
               <option value="newest">Plus recents</option>
               <option value="oldest">Plus anciens</option>
               <option value="priority">Priorite</option>
-            </select>
+            </Select>
           </label>
-        </div>
+        </Toolbar>
       )}
 
       {isReportsView && (
@@ -1418,7 +1425,7 @@ export default function ModeratorDashboard({
           </div>
 
           {filteredReports.length === 0 ? (
-            <p className="admin-empty">Aucun signalement.</p>
+            <EmptyState message="Aucun signalement." />
           ) : (
             <div className="moderator-report-groups">
               <ReportGroup
@@ -1488,22 +1495,22 @@ export default function ModeratorDashboard({
                   </div>
                   {canFinalizeEvents && decision.target_type === "event" && event && (
                     <div className="admin-actions">
-                      <button
-                        className="btn btn--secondary"
+                      <Button
+                        variant="secondary"
                         type="button"
                         onClick={() => handleRestoreEvent(decision.target_id)}
                       >
                         Restaurer
-                      </button>
-                      <button
-                        className="btn btn--danger"
+                      </Button>
+                      <Button
+                        variant="danger"
                         type="button"
                         onClick={() =>
                           handleDeleteEventPermanently(decision.target_id)
                         }
                       >
                         Supprimer definitivement
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </article>
@@ -1546,7 +1553,7 @@ function EventModerationCard({
             <h3>{event.title}</h3>
             <p>{event.description}</p>
           </div>
-          <span className="admin-status">En attente</span>
+          <StatusBadge variant="pending">En attente</StatusBadge>
         </div>
         <dl className="company-review__details">
           <div>
@@ -1570,12 +1577,12 @@ function EventModerationCard({
           onChange={onReasonChange}
         />
         <div className="admin-actions">
-          <button className="btn" type="button" onClick={onApprove}>
+          <Button type="button" onClick={onApprove}>
             {approveLabel}
-          </button>
-          <button className="btn btn--danger" type="button" onClick={onReject}>
+          </Button>
+          <Button variant="danger" type="button" onClick={onReject}>
             {rejectLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </article>
@@ -1612,7 +1619,7 @@ function PublishedEventModerationCard({
             <h3>{event.title}</h3>
             <p>{event.description}</p>
           </div>
-          <span className="admin-status admin-status--active">Publie</span>
+          <StatusBadge variant="active">Publie</StatusBadge>
         </div>
         <dl className="company-review__details">
           <div>
@@ -1630,17 +1637,17 @@ function PublishedEventModerationCard({
             placeholder="Raison de masquage"
             onChange={onHideReasonChange}
           />
-          <button className="btn btn--secondary" type="button" onClick={onHide}>
+          <Button variant="secondary" type="button" onClick={onHide}>
             Masquer
-          </button>
+          </Button>
           <DecisionReason
             value={deleteReason}
             placeholder="Raison de suppression"
             onChange={onDeleteReasonChange}
           />
-          <button className="btn btn--danger" type="button" onClick={onDelete}>
+          <Button variant="danger" type="button" onClick={onDelete}>
             Supprimer
-          </button>
+          </Button>
         </div>
       </div>
     </article>
@@ -1671,7 +1678,7 @@ function CompanyModerationCard({
             <h3>{company.name}</h3>
             <p>{company.description}</p>
           </div>
-          <span className="admin-status">En attente</span>
+          <StatusBadge variant="pending">En attente</StatusBadge>
         </div>
         <dl className="company-review__details">
           <div>
@@ -1695,12 +1702,12 @@ function CompanyModerationCard({
           onChange={onReasonChange}
         />
         <div className="admin-actions">
-          <button className="btn" type="button" onClick={onApprove}>
+          <Button type="button" onClick={onApprove}>
             Valider
-          </button>
-          <button className="btn btn--danger" type="button" onClick={onReject}>
+          </Button>
+          <Button variant="danger" type="button" onClick={onReject}>
             Refuser
-          </button>
+          </Button>
         </div>
       </div>
     </article>
@@ -1742,7 +1749,7 @@ function ReportGroup({
       </div>
 
       {reports.length === 0 ? (
-        <p className="admin-empty">{emptyText}</p>
+        <EmptyState message={emptyText} />
       ) : (
         <div className="company-review-list">
           {reports.map((report) => (
@@ -1818,13 +1825,13 @@ function ReportCard({
             <p>{report.details}</p>
           </div>
           <div className="moderator-report__meta">
-            <span className="admin-badge">
+            <StatusBadge>
               {reportPriorityLabels[report.priority]}
-            </span>
+            </StatusBadge>
             {outcome ? (
-              <span className={`admin-status ${outcome.className}`}>
+              <StatusBadge variant={outcome.variant}>
                 {outcome.label}
-              </span>
+              </StatusBadge>
             ) : null}
           </div>
         </div>
@@ -1856,7 +1863,7 @@ function ReportCard({
           <>
             <label className="moderator-reason moderator-report__message">
               Message du moderateur
-              <textarea
+              <Textarea
                 rows={3}
                 placeholder="Expliquez la decision qui sera transmise par notification"
                 value={decisionMessage}
@@ -1867,28 +1874,27 @@ function ReportCard({
             </label>
             <div className="admin-actions">
               {report.status === "open" ? (
-                <button
-                  className="btn btn--secondary"
+                <Button
+                  variant="secondary"
                   type="button"
                   onClick={onReview}
                 >
                   Prendre en charge
-                </button>
+                </Button>
               ) : null}
-              <button
-                className="btn"
+              <Button
                 type="button"
                 onClick={() => onResolve(decisionMessage)}
               >
                 Marquer suspendu
-              </button>
-              <button
-                className="btn btn--secondary"
+              </Button>
+              <Button
+                variant="secondary"
                 type="button"
                 onClick={() => onDismiss(decisionMessage)}
               >
                 Marquer restaure
-              </button>
+              </Button>
             </div>
           </>
         ) : null}
@@ -1926,7 +1932,7 @@ function AccountSuspensionSection({
       </div>
 
       {accounts.length === 0 ? (
-        <p className="admin-empty">Aucun compte actif a suspendre.</p>
+        <EmptyState message="Aucun compte actif a suspendre." />
       ) : (
         <div
           className="admin-table admin-table--accounts moderator-account-table"
@@ -1951,12 +1957,12 @@ function AccountSuspensionSection({
                   <span>{account.display_name}</span>
                   <small>{account.login_email}</small>
                 </div>
-                <span className="admin-badge" role="cell">
+                <StatusBadge role="cell">
                   {accountRoleLabels[account.role]}
-                </span>
+                </StatusBadge>
                 <label className="moderator-days" role="cell">
                   Jours
-                  <input
+                  <Input
                     min={1}
                     max={90}
                     type="number"
@@ -1968,7 +1974,7 @@ function AccountSuspensionSection({
                 </label>
                 <label className="moderator-reason moderator-reason--compact" role="cell">
                   Raison
-                  <textarea
+                  <Textarea
                     rows={2}
                     placeholder="Motif de suspension"
                     value={getReason(
@@ -1982,13 +1988,13 @@ function AccountSuspensionSection({
                   />
                 </label>
                 <div role="cell">
-                  <button
-                    className="btn btn--danger"
+                  <Button
+                    variant="danger"
                     type="button"
                     onClick={() => onSuspend(account)}
                   >
                     Suspendre
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}
@@ -2012,7 +2018,7 @@ function CompanyMemberAccountsSection({
       </div>
 
       {rows.length === 0 ? (
-        <p className="admin-empty">Aucun compte employe rattache.</p>
+        <EmptyState message="Aucun compte employe rattache." />
       ) : (
         <div
           className="admin-table admin-table--company-members"
@@ -2054,14 +2060,12 @@ function CompanyMemberAccountsSection({
                     {company?.name ?? `Entreprise #${member.company_id}`}
                   </span>
                   <span role="cell">{member.job_role ?? "Non renseigne"}</span>
-                  <span
-                    className={`admin-status${
-                      isActiveAccount ? " admin-status--active" : ""
-                    }`}
+                  <StatusBadge
+                    variant={isActiveAccount ? "active" : "pending"}
                     role="cell"
                   >
                     {statusLabel}
-                  </span>
+                  </StatusBadge>
                 </div>
               );
             })}
@@ -2131,9 +2135,9 @@ function SuspendedAccountList({
                 <span>{account.display_name}</span>
                 <small>{account.login_email}</small>
               </div>
-              <span className="admin-badge" role="cell">
+              <StatusBadge role="cell">
                 {accountRoleLabels[account.role]}
-              </span>
+              </StatusBadge>
               <span role="cell">Jusqu'au {formatDate(account.suspended_until)}</span>
               <span role="cell">{account.suspension_reason ?? "Motif non renseigne"}</span>
             </div>
@@ -2156,7 +2160,7 @@ function DecisionReason({
   return (
     <label className="moderator-reason">
       Raison
-      <textarea
+      <Textarea
         rows={3}
         placeholder={placeholder}
         value={value}

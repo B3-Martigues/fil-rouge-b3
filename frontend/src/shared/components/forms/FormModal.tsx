@@ -2,6 +2,8 @@ import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
+import Button from "../ui/Button";
+
 type FormModalSize = "sm" | "md" | "lg" | "wide";
 
 type FormModalProps = {
@@ -57,14 +59,18 @@ export default function FormModal({
         className={`form-modal__dialog form-modal__dialog--${size}`}
         role="dialog"
       >
-        <button
+        <Button
           aria-label="Fermer le formulaire"
           className="form-modal__close"
+          icon={<X size={18} aria-hidden="true" />}
+          iconOnly
+          size="icon"
           type="button"
+          variant="secondary"
           onClick={onClose}
         >
-          <X size={18} aria-hidden="true" />
-        </button>
+          Fermer
+        </Button>
         <div className="form-modal__body">{children}</div>
       </section>
     </div>,

@@ -3,6 +3,8 @@ import { Bell, CheckCheck, ExternalLink, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import useAuthStore from "../../auth/store/authStore";
+import EmptyState from "../../../shared/components/feedback/EmptyState";
+import Button from "../../../shared/components/ui/Button";
 import { getNotificationTypeConfig } from "../mocks/notification-types.mock";
 import type { Notification } from "../types/notification";
 import useDataStore from "../../../shared/store/dataStore";
@@ -107,18 +109,24 @@ export default function NotificationCenter() {
 
   return (
     <div className="notification-center">
-      <button
+      <Button
         className="notification-center__trigger"
         type="button"
         aria-label={triggerLabel}
         aria-expanded={isOpen}
         aria-controls={isOpen ? panelId : undefined}
         aria-haspopup="dialog"
+        icon={<Bell size={18} aria-hidden="true" />}
+        size="icon"
+        variant="secondary"
         onClick={() => setIsOpen((value) => !value)}
       >
-        <Bell size={18} aria-hidden="true" />
-        {unreadCount > 0 && <span aria-hidden="true">{unreadCount}</span>}
-      </button>
+        {unreadCount > 0 && (
+          <span className="notification-center__count" aria-hidden="true">
+            {unreadCount}
+          </span>
+        )}
+      </Button>
 
       {isOpen && (
         <div
@@ -130,19 +138,23 @@ export default function NotificationCenter() {
           <div className="notification-center__header">
             <strong id={titleId}>Notifications</strong>
             {inAppNotifications.length > 0 && userId && (
-              <button
+              <Button
                 type="button"
                 aria-label="Marquer toutes les notifications comme lues"
                 title="Marquer comme lu"
+                icon={<CheckCheck size={16} aria-hidden="true" />}
+                iconOnly
+                size="icon"
+                variant="ghost"
                 onClick={() => markUserNotificationsAsRead(userId)}
               >
-                <CheckCheck size={16} aria-hidden="true" />
-              </button>
+                Marquer comme lu
+              </Button>
             )}
           </div>
 
           {inAppNotifications.length === 0 ? (
-            <p>Aucune notification.</p>
+            <EmptyState message="Aucune notification." />
           ) : (
             <ul aria-label="Liste des notifications">
               {inAppNotifications.map((notification) => (
@@ -150,8 +162,11 @@ export default function NotificationCenter() {
                   className={notification.is_read ? "" : "is-unread"}
                   key={notification.id}
                 >
-                  <button
+                  <Button
+                    className="notification-center__item"
                     type="button"
+                    fullWidth
+                    variant="ghost"
                     aria-label={`${notification.title}. ${
                       notification.is_read ? "Lue" : "Non lue"
                     }. ${
@@ -162,7 +177,9 @@ export default function NotificationCenter() {
                     onClick={() => openNotification(notification)}
                   >
                     <strong>{notification.title}</strong>
-                    <span>{notification.message}</span>
+                    <span className="notification-center__message">
+                      {notification.message}
+                    </span>
                     {getNotificationTypeConfig(
                       notification.notification_type_id,
                     )?.channels.includes("email") && (
@@ -171,7 +188,7 @@ export default function NotificationCenter() {
                         email
                       </small>
                     )}
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>

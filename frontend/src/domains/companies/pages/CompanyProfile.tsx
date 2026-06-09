@@ -6,8 +6,11 @@ import { CATEGORIES, type CategoryName } from "../types/company-categories";
 import type { Company } from "../types/company";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import Button from "../../../shared/components/ui/Button";
+import Checkbox from "../../../shared/components/ui/Checkbox";
+import CheckboxGroup from "../../../shared/components/ui/CheckboxGroup";
 import FormField from "../../../shared/components/ui/FormField";
 import Input from "../../../shared/components/ui/Input";
+import Textarea from "../../../shared/components/ui/Textarea";
 import useDataStore from "../../../shared/store/dataStore";
 
 type CompanyProfileForm = {
@@ -270,9 +273,9 @@ export default function CompanyProfile() {
                 htmlFor="company-description"
                 error={errors.description}
               >
-                <textarea
+                <Textarea
                   id="company-description"
-                  className={`input ${errors.description ? "input-error" : ""}`}
+                  hasError={!!errors.description}
                   rows={4}
                   value={form.description}
                   onChange={(event) =>
@@ -411,24 +414,22 @@ export default function CompanyProfile() {
               />
             </FormField>
 
-            <fieldset className="company-event-form__wide">
-              <legend>Categories</legend>
-              <div className="categories-select">
+            <div className="company-event-form__wide">
+              <CheckboxGroup
+                error={errors.categories}
+                label="Categories"
+                labelId="company-categories"
+              >
                 {CATEGORIES.map((category) => (
-                  <label className="categories-select__option" key={category}>
-                    <input
-                      type="checkbox"
-                      checked={form.categories.includes(category)}
-                      onChange={() => toggleCategory(category)}
-                    />
-                    {category}
-                  </label>
+                  <Checkbox
+                    checked={form.categories.includes(category)}
+                    key={category}
+                    label={category}
+                    onChange={() => toggleCategory(category)}
+                  />
                 ))}
-              </div>
-              {errors.categories && (
-                <ErrorMessage message={errors.categories} />
-              )}
-            </fieldset>
+              </CheckboxGroup>
+            </div>
           </div>
 
           {serverError && <ErrorMessage message={serverError} />}

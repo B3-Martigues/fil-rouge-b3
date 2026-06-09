@@ -2,15 +2,14 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
+import CategorySelect from "../../events/components/CategorySelect";
 import useAuthStore from "../../auth/store/authStore";
-import {
-  EVENT_CATEGORIES,
-  type EventCategory,
-} from "../../events/types/event-categories";
+import type { EventCategory } from "../../events/types/event-categories";
 import type { Event } from "../../events/types/event";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
 import Input from "../../../shared/components/ui/Input";
+import Textarea from "../../../shared/components/ui/Textarea";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import useDataStore from "../../../shared/store/dataStore";
 import { useCompanyAccess } from "../hooks/useCompanyAccess";
@@ -227,22 +226,12 @@ export default function CompanyDashboard() {
             </FormField>
 
             <div id="event-categories" className="company-event-form__wide">
-              <span className="form-field-label">Categories</span>
-              <div className="categories-select">
-                {EVENT_CATEGORIES.map((category) => (
-                  <label className="categories-select__option" key={category}>
-                    <input
-                      type="checkbox"
-                      checked={form.categories.includes(category)}
-                      onChange={() => toggleCategory(category)}
-                    />
-                    {category}
-                  </label>
-                ))}
-              </div>
-              {errors.categories && (
-                <ErrorMessage message={errors.categories} />
-              )}
+              <CategorySelect
+                error={errors.categories}
+                labelId="event-categories-label"
+                selected={form.categories}
+                onToggle={toggleCategory}
+              />
             </div>
 
             <div className="company-event-form__wide">
@@ -251,9 +240,9 @@ export default function CompanyDashboard() {
                 htmlFor="event-description"
                 error={errors.description}
               >
-                <textarea
+                <Textarea
                   id="event-description"
-                  className={`input ${errors.description ? "input-error" : ""}`}
+                  hasError={!!errors.description}
                   rows={4}
                   value={form.description}
                   aria-describedby={

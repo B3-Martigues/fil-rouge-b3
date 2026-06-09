@@ -3,6 +3,11 @@ import { Flag } from "lucide-react";
 import { toast } from "react-toastify";
 
 import useAuthStore from "../../auth/store/authStore";
+import ActionRow from "../../../shared/components/layout/ActionRow";
+import Button from "../../../shared/components/ui/Button";
+import FormField from "../../../shared/components/ui/FormField";
+import Select from "../../../shared/components/ui/Select";
+import Textarea from "../../../shared/components/ui/Textarea";
 import useDataStore from "../../../shared/store/dataStore";
 import type { Event } from "../types/event";
 
@@ -84,22 +89,24 @@ export default function ReportEventButton({ event }: Props) {
       onClick={stopCardActivation}
       onKeyDown={stopCardKeyboardActivation}
     >
-      <button
+      <Button
         className="event-report__trigger"
         type="button"
+        size="sm"
+        variant="secondary"
+        icon={<Flag size={16} aria-hidden="true" />}
         disabled={!!existingReport}
         aria-expanded={isOpen}
         onClick={() => setIsOpen((value) => !value)}
       >
-        <Flag size={16} aria-hidden="true" />
         {existingReport ? "Signale" : "Signaler"}
-      </button>
+      </Button>
 
       {isOpen && !existingReport && (
         <div className="event-report__form">
-          <label>
-            Motif
-            <select
+          <FormField label="Motif" htmlFor={`report-reason-${event.id}`}>
+            <Select
+              id={`report-reason-${event.id}`}
               value={reason}
               onChange={(eventChange) =>
                 setReason(eventChange.target.value as ReportReason)
@@ -110,29 +117,29 @@ export default function ReportEventButton({ event }: Props) {
                   {reportReason}
                 </option>
               ))}
-            </select>
-          </label>
-          <label>
-            Details
-            <textarea
+            </Select>
+          </FormField>
+          <FormField label="Details" htmlFor={`report-details-${event.id}`}>
+            <Textarea
+              id={`report-details-${event.id}`}
               rows={3}
               value={details}
               placeholder="Precisez le probleme"
               onChange={(eventChange) => setDetails(eventChange.target.value)}
             />
-          </label>
-          <div className="event-report__actions">
-            <button className="btn" type="button" onClick={submitReport}>
+          </FormField>
+          <ActionRow className="event-report__actions">
+            <Button type="button" onClick={submitReport}>
               Envoyer
-            </button>
-            <button
-              className="btn btn--secondary"
+            </Button>
+            <Button
+              variant="secondary"
               type="button"
               onClick={() => setIsOpen(false)}
             >
               Annuler
-            </button>
-          </div>
+            </Button>
+          </ActionRow>
         </div>
       )}
     </div>

@@ -1,0 +1,91 @@
+@use "../../../shared/styles/tokens" as *;
+@use "../../../shared/styles/mixins" as *;
+
+.admin-panel {
+  padding: 24px;
+  text-align: left;
+
+  &__header {
+    margin-bottom: 24px;
+
+    h1 {
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      margin-bottom: 0;
+    }
+  }
+
+  &__heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  &__grid {
+    display: grid;
+    gap: 24px;
+  }
+
+  @include respond-below($bp-sm) {
+    padding: 16px;
+
+    &__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+.admin-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+
+  @include respond-below($bp-md) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-overview-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.admin-metric-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  padding: 10px 12px;
+
+  @include surface(var(--social-bg));
+
+  span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  strong {
+    color: var(--text-h);
+    font-size: 24px;
+    line-height: 1;
+  }
+}
+
+.admin-action {
+  flex: 0 0 auto;
+}
+
+.admin-event-form {
+  margin-bottom: 12px;
+}

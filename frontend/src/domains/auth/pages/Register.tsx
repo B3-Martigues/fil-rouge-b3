@@ -6,7 +6,7 @@ export default function Register() {
     <div className="auth-page">
       <h1>Inscription</h1>
 
-      <div className="register-choice">
+      <div className="auth-register-choice">
         <FormModalLink className="btn" to={ROUTES.PUBLIC.REGISTER_USER}>
           Inscription utilisateur
         </FormModalLink>

@@ -5,7 +5,7 @@ type Props = {
 
 export default function ErrorMessage({ message }: Props) {
   return (
-    <p role="alert" style={{ color: "red" }}>
+    <p className="feedback-message feedback-message--error" role="alert">
       {message}
     </p>
   );

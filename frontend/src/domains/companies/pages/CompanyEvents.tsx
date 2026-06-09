@@ -1,13 +1,21 @@
 import { useState } from "react";
 import { toast } from "react-toastify";
 
+import CategorySelect from "../../events/components/CategorySelect";
+import EmptyState from "../../../shared/components/feedback/EmptyState";
+import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
 import FormModal from "../../../shared/components/forms/FormModal";
 import { FormModalLink } from "../../../shared/components/forms/FormModalLink";
+import ActionRow from "../../../shared/components/layout/ActionRow";
+import Toolbar from "../../../shared/components/layout/Toolbar";
+import Button from "../../../shared/components/ui/Button";
+import FormField from "../../../shared/components/ui/FormField";
+import Input from "../../../shared/components/ui/Input";
+import Select from "../../../shared/components/ui/Select";
+import StatusBadge from "../../../shared/components/ui/StatusBadge";
+import Textarea from "../../../shared/components/ui/Textarea";
 import useAuthStore from "../../auth/store/authStore";
-import {
-  EVENT_CATEGORIES,
-  type EventCategory,
-} from "../../events/types/event-categories";
+import type { EventCategory } from "../../events/types/event-categories";
 import type { Event } from "../../events/types/event";
 import useDataStore from "../../../shared/store/dataStore";
 import { ROUTES } from "../../../shared/constants/routes";
@@ -96,6 +104,9 @@ export default function CompanyEvents() {
   const [eventSearch, setEventSearch] = useState("");
   const [eventCityFilter, setEventCityFilter] = useState("all");
   const [eventSort, setEventSort] = useState<EventSort>("created-desc");
+  const [pendingDeleteEventId, setPendingDeleteEventId] = useState<number | null>(
+    null,
+  );
 
   const companyEvents = events.filter(
     (event) =>
@@ -251,18 +262,15 @@ export default function CompanyEvents() {
     const deletedEvent = companyEvents.find((event) => event.id === eventId);
     if (!deletedEvent) return;
 
-    if (
-      !window.confirm(
-        `Supprimer l'evenement "${deletedEvent.title}" ? Cette action retire l'evenement du mock.`,
-      )
-    ) {
-      return;
-    }
-
     deleteEventFromStore(eventId);
+    setPendingDeleteEventId(null);
     cancelEdit();
     toast.success(`${deletedEvent.title} supprime`);
   };
+
+  const pendingDeleteEvent = companyEvents.find(
+    (event) => event.id === pendingDeleteEventId,
+  );
 
   if (isPendingApproval) {
     return (
@@ -278,6 +286,23 @@ export default function CompanyEvents() {
 
   return (
     <div className="company-dashboard">
+      <ConfirmDialog
+        confirmLabel="Supprimer"
+        message={
+          pendingDeleteEvent
+            ? `Supprimer l'evenement "${pendingDeleteEvent.title}" ? Cette action retire l'evenement du mock.`
+            : "Supprimer cet evenement ?"
+        }
+        open={pendingDeleteEventId !== null}
+        title="Supprimer l'evenement"
+        onCancel={() => setPendingDeleteEventId(null)}
+        onConfirm={() => {
+          if (pendingDeleteEventId !== null) {
+            deleteEvent(pendingDeleteEventId);
+          }
+        }}
+      />
+
       <FormModal
         ariaLabel="Modifier un evenement"
         open={!!eventDraft && editingEventId !== null}
@@ -302,10 +327,13 @@ export default function CompanyEvents() {
       <section className="company-events" aria-labelledby="company-events-title">
         <h2 id="company-events-title">Liste des événements</h2>
 
-        <div className="admin-toolbar" aria-label="Filtres des événements entreprise">
+        <Toolbar
+          ariaLabel="Filtres des evenements entreprise"
+          className="admin-toolbar"
+        >
           <label>
             Rechercher
-            <input
+            <Input
               value={eventSearch}
               placeholder="Titre, ville, code postal..."
               onChange={(event) => setEventSearch(event.target.value)}
@@ -313,7 +341,7 @@ export default function CompanyEvents() {
           </label>
           <label>
             Ville
-            <select
+            <Select
               value={eventCityFilter}
               onChange={(event) => setEventCityFilter(event.target.value)}
             >
@@ -323,11 +351,11 @@ export default function CompanyEvents() {
                   {city}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             Trier par
-            <select
+            <Select
               value={eventSort}
               onChange={(event) => setEventSort(event.target.value as EventSort)}
             >
@@ -336,14 +364,14 @@ export default function CompanyEvents() {
               <option value="date-desc">Debut decroissant</option>
               <option value="title-asc">Titre A-Z</option>
               <option value="city-asc">Ville A-Z</option>
-            </select>
+            </Select>
           </label>
-        </div>
+        </Toolbar>
 
         {companyEvents.length === 0 ? (
-          <p className="admin-empty">Aucun evenement cree pour le moment.</p>
+          <EmptyState message="Aucun evenement cree pour le moment." />
         ) : filteredCompanyEvents.length === 0 ? (
-          <p className="admin-empty">Aucun evenement ne correspond aux filtres.</p>
+          <EmptyState message="Aucun evenement ne correspond aux filtres." />
         ) : (
           <div className="company-review-list">
             {filteredCompanyEvents.map((event) => (
@@ -353,193 +381,17 @@ export default function CompanyEvents() {
                 </div>
 
                 <div className="company-review__content">
-                  {editingEventId === event.id && eventDraft ? (
-                    <div className="admin-form-grid">
-                      <label>
-                        Titre
-                        <input
-                          value={eventDraft.title}
-                          onChange={(inputEvent) =>
-                            setEventDraft({
-                              ...eventDraft,
-                              title: inputEvent.target.value,
-                            })
-                          }
-                        />
-                      </label>
-
-                      <div className="admin-form-grid__wide">
-                        <span className="form-field-label">Categories</span>
-                        <div className="categories-select">
-                          {EVENT_CATEGORIES.map((category) => (
-                            <label className="categories-select__option" key={category}>
-                              <input
-                                type="checkbox"
-                                checked={eventDraft.category_slugs.includes(category)}
-                                onChange={() =>
-                                  setEventDraft(
-                                    toggleDraftCategory(eventDraft, category),
-                                  )
-                                }
-                              />
-                              {category}
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-
-                      <label className="admin-form-grid__wide">
-                        Description
-                        <textarea
-                          rows={4}
-                          value={eventDraft.description}
-                          onChange={(inputEvent) =>
-                            setEventDraft({
-                              ...eventDraft,
-                              description: inputEvent.target.value,
-                            })
-                          }
-                        />
-                      </label>
-
-                      <label>
-                        Date de debut
-                        <input
-                          type="datetime-local"
-                          value={eventDraft.start_date}
-                          onChange={(inputEvent) =>
-                            setEventDraft({
-                              ...eventDraft,
-                              start_date: inputEvent.target.value,
-                            })
-                          }
-                        />
-                      </label>
-
-                      <label>
-                        Date de fin
-                        <input
-                          type="datetime-local"
-                          value={eventDraft.end_date}
-                          onChange={(inputEvent) =>
-                            setEventDraft({
-                              ...eventDraft,
-                              end_date: inputEvent.target.value,
-                            })
-                          }
-                        />
-                      </label>
-
-                      <label>
-                        Adresse
-                        <input
-                          value={eventDraft.address}
-                          onChange={(inputEvent) =>
-                            setEventDraft({
-                              ...eventDraft,
-                              address: inputEvent.target.value,
-                            })
-                          }
-                        />
-                      </label>
-
-                      <label>
-                        Ville
-                        <input
-                          value={eventDraft.city}
-                          onChange={(inputEvent) =>
-                            setEventDraft({
-                              ...eventDraft,
-                              city: inputEvent.target.value,
-                            })
-                          }
-                        />
-                      </label>
-
-                      <label>
-                        Code postal
-                        <input
-                          inputMode="numeric"
-                          value={eventDraft.postal_code}
-                          onChange={(inputEvent) =>
-                            setEventDraft({
-                              ...eventDraft,
-                              postal_code: inputEvent.target.value,
-                            })
-                          }
-                        />
-                      </label>
-
-                      <label>
-                        Latitude
-                        <input
-                          type="number"
-                          step="any"
-                          value={eventDraft.latitude}
-                          onChange={(inputEvent) =>
-                            setEventDraft({
-                              ...eventDraft,
-                              latitude: inputEvent.target.value,
-                            })
-                          }
-                        />
-                      </label>
-
-                      <label>
-                        Longitude
-                        <input
-                          type="number"
-                          step="any"
-                          value={eventDraft.longitude}
-                          onChange={(inputEvent) =>
-                            setEventDraft({
-                              ...eventDraft,
-                              longitude: inputEvent.target.value,
-                            })
-                          }
-                        />
-                      </label>
-
-                      <label>
-                        Image
-                        <input
-                          value={eventDraft.image}
-                          onChange={(inputEvent) =>
-                            setEventDraft({
-                              ...eventDraft,
-                              image: inputEvent.target.value,
-                            })
-                          }
-                        />
-                      </label>
-
-                      <div className="admin-actions admin-form-grid__wide">
-                        <button className="btn" type="button" onClick={saveEvent}>
-                          Enregistrer
-                        </button>
-                        <button
-                          className="btn btn--secondary"
-                          type="button"
-                          onClick={cancelEdit}
-                        >
-                          Annuler
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
+                  <>
                       <div className="company-review__header">
                         <div>
                           <h3>{event.title}</h3>
                           <p>{event.description}</p>
                         </div>
-                        <span
-                          className={`admin-status ${
-                            event.is_active ? "admin-status--active" : ""
-                          }`}
+                        <StatusBadge
+                          variant={event.is_active ? "active" : "pending"}
                         >
                           {event.is_active ? "Publie" : "En attente"}
-                        </span>
+                        </StatusBadge>
                       </div>
                       <dl className="company-review__details">
                         <div>
@@ -577,31 +429,31 @@ export default function CompanyEvents() {
                       <div className="company-review__footer">
                         <div className="company-review__categories">
                           {getEventCategories(event).map((category) => (
-                            <span className="admin-badge" key={category}>
+                            <StatusBadge key={category}>
                               {category}
-                            </span>
+                            </StatusBadge>
                           ))}
                         </div>
 
                         <div className="admin-actions">
-                          <button
-                            className="btn btn--secondary"
+                          <Button
+                            variant="secondary"
                             type="button"
                             onClick={() => startEdit(event)}
                           >
                             Modifier
-                          </button>
-                          <button
-                            className="btn btn--danger"
+                          </Button>
+                          <Button
+                            variant="danger"
                             type="button"
-                            onClick={() => deleteEvent(event.id)}
+                            onClick={() => setPendingDeleteEventId(event.id)}
                           >
                             Supprimer
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     </>
-                  )}
+
                 </div>
               </article>
             ))}
@@ -630,99 +482,95 @@ function CompanyEventEditor({
     <div className="admin-create-account">
       <h2>Modifier un evenement</h2>
       <div className="admin-form-grid">
-        <label>
-          Titre
-          <input
+        <FormField label="Titre" htmlFor="company-event-title">
+          <Input
+            id="company-event-title"
             value={draft.title}
             onChange={(event) =>
               setDraft({ ...draft, title: event.target.value })
             }
           />
-        </label>
+        </FormField>
 
         <div className="admin-form-grid__wide">
-          <span className="form-field-label">Categories</span>
-          <div className="categories-select">
-            {EVENT_CATEGORIES.map((category) => (
-              <label className="categories-select__option" key={category}>
-                <input
-                  type="checkbox"
-                  checked={draft.category_slugs.includes(category)}
-                  onChange={() => setDraft(toggleDraftCategory(draft, category))}
-                />
-                {category}
-              </label>
-            ))}
-          </div>
+          <CategorySelect
+            labelId="company-event-categories"
+            selected={draft.category_slugs}
+            onToggle={(category) => setDraft(toggleDraftCategory(draft, category))}
+          />
         </div>
 
-        <label className="admin-form-grid__wide">
-          Description
-          <textarea
+        <FormField
+          label="Description"
+          htmlFor="company-event-description"
+          className="admin-form-grid__wide"
+        >
+          <Textarea
+            id="company-event-description"
             rows={4}
             value={draft.description}
             onChange={(event) =>
               setDraft({ ...draft, description: event.target.value })
             }
           />
-        </label>
+        </FormField>
 
-        <label>
-          Date de debut
-          <input
+        <FormField label="Date de debut" htmlFor="company-event-start-date">
+          <Input
+            id="company-event-start-date"
             type="datetime-local"
             value={draft.start_date}
             onChange={(event) =>
               setDraft({ ...draft, start_date: event.target.value })
             }
           />
-        </label>
+        </FormField>
 
-        <label>
-          Date de fin
-          <input
+        <FormField label="Date de fin" htmlFor="company-event-end-date">
+          <Input
+            id="company-event-end-date"
             type="datetime-local"
             value={draft.end_date}
             onChange={(event) =>
               setDraft({ ...draft, end_date: event.target.value })
             }
           />
-        </label>
+        </FormField>
 
-        <label>
-          Adresse
-          <input
+        <FormField label="Adresse" htmlFor="company-event-address">
+          <Input
+            id="company-event-address"
             value={draft.address}
             onChange={(event) =>
               setDraft({ ...draft, address: event.target.value })
             }
           />
-        </label>
+        </FormField>
 
-        <label>
-          Ville
-          <input
+        <FormField label="Ville" htmlFor="company-event-city">
+          <Input
+            id="company-event-city"
             value={draft.city}
             onChange={(event) =>
               setDraft({ ...draft, city: event.target.value })
             }
           />
-        </label>
+        </FormField>
 
-        <label>
-          Code postal
-          <input
+        <FormField label="Code postal" htmlFor="company-event-postal-code">
+          <Input
+            id="company-event-postal-code"
             inputMode="numeric"
             value={draft.postal_code}
             onChange={(event) =>
               setDraft({ ...draft, postal_code: event.target.value })
             }
           />
-        </label>
+        </FormField>
 
-        <label>
-          Latitude
-          <input
+        <FormField label="Latitude" htmlFor="company-event-latitude">
+          <Input
+            id="company-event-latitude"
             type="number"
             step="any"
             value={draft.latitude}
@@ -730,11 +578,11 @@ function CompanyEventEditor({
               setDraft({ ...draft, latitude: event.target.value })
             }
           />
-        </label>
+        </FormField>
 
-        <label>
-          Longitude
-          <input
+        <FormField label="Longitude" htmlFor="company-event-longitude">
+          <Input
+            id="company-event-longitude"
             type="number"
             step="any"
             value={draft.longitude}
@@ -742,26 +590,26 @@ function CompanyEventEditor({
               setDraft({ ...draft, longitude: event.target.value })
             }
           />
-        </label>
+        </FormField>
 
-        <label>
-          Image
-          <input
+        <FormField label="Image" htmlFor="company-event-image">
+          <Input
+            id="company-event-image"
             value={draft.image}
             onChange={(event) =>
               setDraft({ ...draft, image: event.target.value })
             }
           />
-        </label>
+        </FormField>
 
-        <div className="admin-actions admin-form-grid__wide">
-          <button className="btn" type="button" onClick={onSave}>
+        <ActionRow className="admin-actions admin-form-grid__wide">
+          <Button type="button" onClick={onSave}>
             Enregistrer
-          </button>
-          <button className="btn btn--secondary" type="button" onClick={onCancel}>
+          </Button>
+          <Button variant="secondary" type="button" onClick={onCancel}>
             Annuler
-          </button>
-        </div>
+          </Button>
+        </ActionRow>
       </div>
     </div>
   );

@@ -1,21 +1,26 @@
-/**Composant FormField - wrapper pour label + input + message d'erreur
- * Améliore l'accessibilité et la cohérence UI*/
-
 import type { ReactNode } from "react";
 
 type Props = {
-  label: string; // Texte affiché dans le label
+  children: ReactNode;
+  className?: string;
+  error?: string;
   htmlFor: string;
-  error?: string; // Message d'erreur éventuel
-  children: ReactNode; // Contenu du champ (input, select, textarea...)
+  label: string;
 };
 
-export default function FormField({ label, htmlFor, error, children }: Props) {
+export default function FormField({
+  children,
+  className,
+  error,
+  htmlFor,
+  label,
+}: Props) {
+  const fieldClassName = ["form-field", className].filter(Boolean).join(" ");
+
   return (
-    <div className="form-field">
+    <div className={fieldClassName}>
       <label htmlFor={htmlFor}>{label}</label>
       {children}
-      {/*Affichage conditionnel du message d'erreur*/}
       {error && (
         <p id={`${htmlFor}-error`} role="alert" className="error">
           {error}

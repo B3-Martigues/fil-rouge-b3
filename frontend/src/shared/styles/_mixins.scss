@@ -1,0 +1,55 @@
+@use "tokens" as *;
+
+@mixin respond-below($breakpoint) {
+  @media (max-width: $breakpoint) {
+    @content;
+  }
+}
+
+@mixin focus-ring {
+  &:focus-visible {
+    outline: 3px solid var(--accent-border);
+    outline-offset: 3px;
+  }
+}
+
+@mixin control-field($padding: 8px 10px, $font-size: 14px) {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: $padding;
+  border: 1px solid var(--border);
+  border-radius: $radius-sm;
+  color: var(--text-h);
+  background: var(--bg);
+  font: inherit;
+  font-size: $font-size;
+}
+
+@mixin field-label($font-size: 14px) {
+  color: var(--text-h);
+  font-size: $font-size;
+  font-weight: 700;
+}
+
+@mixin surface($background: var(--bg), $radius: $radius-md) {
+  border: 1px solid var(--border);
+  border-radius: $radius;
+  background: $background;
+}
+
+@mixin pill($background: var(--accent-bg), $color: var(--text-h)) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-pill;
+  color: $color;
+  background: $background;
+}
+
+@mixin action-row($gap: 8px) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $gap;
+  align-items: center;
+}

@@ -6,7 +6,7 @@ type Props = {
 
 export default function SuccessMessage({ message }: Props) {
   return (
-    <p role="status" style={{ color: "green" }}>
+    <p className="feedback-message feedback-message--success" role="status">
       {message}
     </p>
   );

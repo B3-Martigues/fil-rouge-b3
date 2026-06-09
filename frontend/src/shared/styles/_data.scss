@@ -1,0 +1,247 @@
+@use "tokens" as *;
+@use "mixins" as *;
+
+.admin-section {
+  min-width: 0;
+
+  h2 {
+    margin-bottom: 12px;
+  }
+
+  &--wide {
+    margin-bottom: 24px;
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+
+    h2 {
+      margin-bottom: 0;
+    }
+  }
+}
+
+.admin-count {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0 8px;
+  font-weight: 700;
+
+  @include pill;
+}
+
+.admin-empty {
+  padding: 16px;
+
+  @include surface(var(--social-bg));
+}
+
+.admin-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 12px;
+  padding: 14px;
+
+  @include surface(var(--social-bg));
+
+  label {
+    display: grid;
+    gap: 6px;
+
+    @include field-label;
+  }
+
+  @include respond-below($bp-sm) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-results-count {
+  margin-bottom: 10px;
+  color: var(--text-p);
+  font-size: 14px;
+}
+
+.admin-table {
+  display: grid;
+  gap: 8px;
+
+  [role="rowgroup"] {
+    display: grid;
+    gap: 8px;
+  }
+
+  [role="cell"],
+  [role="columnheader"] {
+    min-width: 0;
+  }
+
+  &__row {
+    display: grid;
+    grid-template-columns: minmax(120px, 1fr) minmax(160px, 1.3fr) auto auto auto;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow-wrap: anywhere;
+
+    &--head {
+      min-height: 0;
+      color: var(--text-h);
+      background: var(--social-bg);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+  }
+
+  &__cell--full {
+    grid-column: 1 / -1;
+  }
+
+  &--accounts &__row,
+  &--events &__row {
+    align-items: start;
+  }
+
+  &--events &__row {
+    grid-template-columns:
+      minmax(130px, 1fr) minmax(140px, 1fr) minmax(90px, 0.6fr)
+      minmax(160px, 1.2fr) auto auto;
+  }
+}
+
+.admin-section + .admin-section {
+  .admin-table__row {
+    grid-template-columns: minmax(160px, 1fr) minmax(90px, 0.5fr) auto auto;
+  }
+}
+
+.admin-badge,
+.admin-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  min-height: 26px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.admin-badge {
+  color: var(--text-h);
+  background: var(--accent-bg);
+}
+
+.admin-status {
+  border-color: var(--color-warning-border);
+  color: var(--color-warning);
+  background: var(--color-warning-bg);
+
+  &--active {
+    border-color: var(--color-success-border);
+    color: var(--color-success);
+    background: var(--color-success-bg);
+  }
+
+  &--suspended {
+    border-color: var(--color-danger-border);
+    color: var(--color-danger);
+    background: var(--color-danger-bg);
+  }
+}
+
+.admin-actions {
+  @include action-row;
+}
+
+.admin-form-grid,
+.admin-inline-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-create-account {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 18px;
+
+  &__type {
+    display: grid;
+    gap: 6px;
+    max-width: 320px;
+
+    @include field-label(13px);
+
+    select {
+      @include control-field(10px 12px, 1em);
+    }
+  }
+}
+
+.admin-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 12px;
+
+  @include surface;
+
+  &__wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.admin-inline-editor {
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+}
+
+.admin-form-grid,
+.admin-inline-editor {
+  label {
+    display: grid;
+    gap: 4px;
+
+    @include field-label(13px);
+  }
+
+  input,
+  select,
+  textarea {
+    @include control-field;
+  }
+}
+
+.admin-checkbox {
+  display: flex !important;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
+
+  input {
+    width: auto;
+  }
+}
+
+@include respond-below($bp-sm) {
+  .admin-table__row,
+  .admin-section + .admin-section .admin-table__row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-form-grid,
+  .admin-inline-editor,
+  .admin-toolbar {
+    grid-template-columns: 1fr;
+  }
+}

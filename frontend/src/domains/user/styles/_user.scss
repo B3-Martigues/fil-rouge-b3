@@ -1,0 +1,69 @@
+@use "../../../shared/styles/tokens" as *;
+@use "../../../shared/styles/mixins" as *;
+
+.user-profile,
+.profile-preferences,
+.user-favorites {
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+  text-align: left;
+
+  @include respond-below($bp-sm) {
+    padding: 16px;
+  }
+}
+
+.user-profile-form {
+  display: grid;
+  gap: 14px;
+  max-width: 520px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.user-profile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  justify-content: center;
+}
+
+.profile-preferences__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.user-favorites__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+.preferences-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.preference-card {
+  min-height: 42px;
+  padding: 10px 12px;
+  color: var(--text-h);
+  background: var(--social-bg);
+  font: inherit;
+  cursor: pointer;
+
+  @include surface(var(--social-bg));
+  @include focus-ring;
+
+  &--selected {
+    border-color: var(--color-success-border);
+    color: var(--color-success);
+    background: var(--color-success-bg);
+  }
+}

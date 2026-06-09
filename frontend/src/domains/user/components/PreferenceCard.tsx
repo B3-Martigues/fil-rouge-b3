@@ -1,3 +1,4 @@
+import Button from "../../../shared/components/ui/Button";
 import type { EventCategory } from "../../events/types/event-categories";
 
 type Props = {
@@ -9,13 +10,14 @@ type Props = {
 /**Carte cliquable représentant une catégorie de préférence */
 export default function PreferenceCard({ category, selected, onClick }: Props) {
   return (
-    <button
+    <Button
       type="button"
       className={`preference-card${selected ? " preference-card--selected" : ""}`}
       aria-pressed={selected}
+      variant="secondary"
       onClick={onClick}
     >
       {category}
-    </button>
+    </Button>
   );
 }

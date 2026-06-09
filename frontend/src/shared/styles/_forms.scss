@@ -1,0 +1,254 @@
+@use "tokens" as *;
+@use "mixins" as *;
+
+.form-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 32px 16px;
+  background: var(--color-overlay);
+
+  &__dialog {
+    position: relative;
+    width: min(100%, 620px);
+    max-height: calc(100svh - 64px);
+    overflow-y: auto;
+    box-shadow: var(--shadow);
+    text-align: center;
+
+    @include surface;
+
+    &--sm {
+      width: min(100%, 460px);
+    }
+
+    &--lg {
+      width: min(100%, 760px);
+    }
+
+    &--wide {
+      width: min(100%, 980px);
+    }
+  }
+
+  &__body {
+    padding: 24px;
+
+    > .auth-page,
+    > section {
+      max-width: none;
+      padding: 0;
+    }
+  }
+
+  &__close {
+    position: sticky;
+    top: 12px;
+    z-index: 1;
+    float: right;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    margin: 12px 12px 0 0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-h);
+    background: var(--bg);
+    cursor: pointer;
+  }
+
+  @include respond-below($bp-sm) {
+    padding: 12px;
+
+    &__dialog {
+      max-height: calc(100svh - 24px);
+    }
+
+    &__body {
+      padding: 16px;
+    }
+  }
+}
+
+.form-stepper {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 8px;
+    color: var(--text-h);
+    background: var(--social-bg);
+    font-size: 14px;
+    font-weight: 700;
+
+    @include surface(var(--social-bg), $radius-sm);
+
+    span {
+      width: 22px;
+      height: 22px;
+      font-size: 12px;
+
+      @include pill;
+    }
+
+    &.is-active {
+      border-color: var(--accent-border);
+      background: var(--accent-bg);
+    }
+  }
+
+  @include respond-below($bp-sm) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.form-field {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+
+  label {
+    @include field-label;
+  }
+}
+
+.form-field-label {
+  display: block;
+  margin-bottom: 6px;
+
+  @include field-label;
+}
+
+.input {
+  @include control-field(10px 12px, 15px);
+}
+
+.textarea,
+textarea.input {
+  resize: vertical;
+}
+
+.select {
+  appearance: auto;
+}
+
+.input--error {
+  border-color: var(--color-error-border);
+}
+
+.error {
+  color: var(--color-error);
+  font-size: 14px;
+}
+
+.feedback-message {
+  color: var(--text-p);
+  font-size: 14px;
+
+  &--error {
+    color: var(--color-error);
+  }
+
+  &--success {
+    color: var(--color-success);
+  }
+
+  &--empty {
+    padding: 16px;
+    background: var(--social-bg);
+
+    @include surface(var(--social-bg));
+  }
+}
+
+.categories-select {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  text-align: left;
+
+  &__option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    cursor: pointer;
+  }
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  color: var(--text-h);
+  font-size: 14px;
+  cursor: pointer;
+
+  input {
+    flex: 0 0 auto;
+    width: auto;
+  }
+}
+
+.checkbox-group {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+
+  &__options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+  }
+
+  &--error &__options {
+    border-color: var(--color-error-border);
+  }
+}
+
+.confirm-dialog {
+  display: grid;
+  gap: 14px;
+  text-align: left;
+
+  h2 {
+    margin-bottom: 0;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+}

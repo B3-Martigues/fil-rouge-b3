@@ -1,0 +1,104 @@
+@use "mixins" as *;
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 16px;
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  color: var(--color-inverse);
+  background: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  @include focus-ring;
+
+  &--primary {
+    border-color: var(--accent-border);
+    color: var(--color-inverse);
+    background: var(--accent);
+  }
+
+  &--secondary {
+    border-color: var(--border);
+    color: var(--text-h);
+    background: var(--social-bg);
+  }
+
+  &--danger {
+    border-color: var(--color-danger-border);
+    color: var(--color-danger);
+    background: var(--color-danger-bg);
+  }
+
+  &--ghost {
+    border-color: transparent;
+    color: var(--accent);
+    background: transparent;
+  }
+
+  &--sm {
+    min-height: 34px;
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+
+  &--icon,
+  &--icon-only {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    min-height: 38px;
+    padding: 0;
+  }
+
+  &--full {
+    width: 100%;
+  }
+
+  &--loading {
+    pointer-events: none;
+  }
+
+  &__content {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+  }
+}
+
+.spinner {
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spinner-rotate 700ms linear infinite;
+}
+
+@keyframes spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}

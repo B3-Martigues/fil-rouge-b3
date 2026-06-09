@@ -237,7 +237,7 @@ export default function RegisterForm({
           {onCancel && (
             <Button
               type="button"
-              className="btn--secondary"
+              variant="secondary"
               disabled={loading}
               onClick={onCancel}
             >

@@ -137,9 +137,9 @@ export default function EventMap({
   return (
     <MapContainer
       center={[43.2965, 5.3698]}
+      className="event-map"
       zoom={13}
       scrollWheelZoom={true}
-      style={{ height: "500px", width: "100%" }}
     >
       <TileLayer
         attribution="&copy; OpenStreetMap contributors"

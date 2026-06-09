@@ -3,8 +3,19 @@ import { toast } from "react-toastify";
 
 import CompanyRegisterForm from "../../auth/components/CompanyRegisterForm";
 import RegisterForm from "../../auth/components/RegisterForm";
+import CategorySelect from "../../events/components/CategorySelect";
+import EmptyState from "../../../shared/components/feedback/EmptyState";
 import FormModal from "../../../shared/components/forms/FormModal";
+import ActionRow from "../../../shared/components/layout/ActionRow";
 import PanelStats from "../../../shared/components/layout/PanelStats";
+import Toolbar from "../../../shared/components/layout/Toolbar";
+import Button from "../../../shared/components/ui/Button";
+import Checkbox from "../../../shared/components/ui/Checkbox";
+import FormField from "../../../shared/components/ui/FormField";
+import Input from "../../../shared/components/ui/Input";
+import Select from "../../../shared/components/ui/Select";
+import StatusBadge from "../../../shared/components/ui/StatusBadge";
+import Textarea from "../../../shared/components/ui/Textarea";
 import { ROUTES } from "../../../shared/constants/routes";
 import {
   EVENT_CATEGORIES,
@@ -185,24 +196,24 @@ const getAccountAdminStatus = (account: AccountSummary) => {
       : null;
 
     return {
-      className: "admin-status admin-status--suspended",
       label: suspendedUntil ? `Suspendu jusqu'au ${suspendedUntil}` : "Suspendu",
       value: "suspended" as const,
+      variant: "suspended" as const,
     };
   }
 
   if (account.is_active) {
     return {
-      className: "admin-status admin-status--active",
       label: "Actif",
       value: "active" as const,
+      variant: "active" as const,
     };
   }
 
   return {
-    className: "admin-status",
     label: "En attente",
     value: "pending" as const,
+    variant: "pending" as const,
   };
 };
 
@@ -755,14 +766,14 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         <div className="admin-panel__heading">
           <h2>{currentViewContent.title}</h2>
           {isAccountsView && (
-            <button className="btn" type="button" onClick={startUserCreate}>
+            <Button type="button" onClick={startUserCreate}>
               Ajouter
-            </button>
+            </Button>
           )}
           {isEventsView && (
-            <button className="btn" type="button" onClick={startEventCreate}>
+            <Button type="button" onClick={startEventCreate}>
               Ajouter
-            </button>
+            </Button>
           )}
         </div>
         <p>{currentViewContent.description}</p>
@@ -773,10 +784,10 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       {isAccountsView && (
         <section className="admin-panel__grid">
           <article className="admin-section">
-            <div className="admin-toolbar" aria-label="Filtres des comptes">
+            <Toolbar ariaLabel="Filtres des comptes" className="admin-toolbar">
               <label>
                 Rechercher
-                <input
+                <Input
                   value={accountSearch}
                   placeholder="Nom, email, role..."
                   onChange={(event) => setAccountSearch(event.target.value)}
@@ -784,7 +795,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
               </label>
               <label>
                 Role
-                <select
+                <Select
                   value={accountRoleFilter}
                   onChange={(event) =>
                     setAccountRoleFilter(event.target.value as Role | "all")
@@ -796,11 +807,11 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                       {role}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <label>
                 Statut
-                <select
+                <Select
                   value={accountStatusFilter}
                   onChange={(event) =>
                     setAccountStatusFilter(event.target.value as AccountStatusFilter)
@@ -810,11 +821,11 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                   <option value="active">Actifs</option>
                   <option value="pending">En attente</option>
                   <option value="suspended">Suspendus</option>
-                </select>
+                </Select>
               </label>
               <label>
                 Trier par
-                <select
+                <Select
                   value={accountSort}
                   onChange={(event) =>
                     setAccountSort(event.target.value as AccountSort)
@@ -823,16 +834,16 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                   <option value="username-asc">Nom A-Z</option>
                   <option value="username-desc">Nom Z-A</option>
                   <option value="role-asc">Role</option>
-                </select>
+                </Select>
               </label>
-            </div>
+            </Toolbar>
 
             <p className="admin-results-count">
               {filteredUsers.length} compte{filteredUsers.length > 1 ? "s" : ""}
             </p>
 
             {filteredUsers.length === 0 ? (
-              <p className="admin-empty">Aucun compte ne correspond aux filtres.</p>
+              <EmptyState message="Aucun compte ne correspond aux filtres." />
             ) : (
               <div className="admin-table admin-table--accounts" role="table" aria-label="Comptes">
                 <div className="admin-table__row admin-table__row--head" role="row">
@@ -850,40 +861,39 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                       <div className="admin-table__row" role="row" key={user.account_id}>
                         <span role="cell">{user.display_name}</span>
                         <span role="cell">{user.login_email}</span>
-                        <span className="admin-badge" role="cell">
+                        <StatusBadge role="cell">
                           {user.role}
-                        </span>
-                        <span
-                          className={accountStatus.className}
+                        </StatusBadge>
+                        <StatusBadge
+                          variant={accountStatus.variant}
                           role="cell"
                           title={user.suspension_reason ?? undefined}
                         >
                           {accountStatus.label}
-                        </span>
+                        </StatusBadge>
                         <div className="admin-actions" role="cell">
                           {accountStatus.value === "suspended" && (
-                            <button
-                              className="btn"
+                            <Button
                               type="button"
                               onClick={() => liftAccountSuspension(user)}
                             >
                               Lever suspension
-                            </button>
+                            </Button>
                           )}
-                          <button
-                            className="btn btn--secondary"
+                          <Button
+                            variant="secondary"
                             type="button"
                             onClick={() => startUserEdit(user)}
                           >
                             Modifier
-                          </button>
-                          <button
-                            className="btn btn--danger"
+                          </Button>
+                          <Button
+                            variant="danger"
                             type="button"
                             onClick={() => deleteUser(user.account_id)}
                           >
                             Supprimer
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     );
@@ -898,10 +908,10 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       {isEventsView && (
         <section className="admin-panel__grid">
           <article className="admin-section">
-            <div className="admin-toolbar" aria-label="Filtres des événements">
+            <Toolbar ariaLabel="Filtres des evenements" className="admin-toolbar">
               <label>
                 Rechercher
-                <input
+                <Input
                   value={eventSearch}
                   placeholder="Titre, ville, code postal..."
                   onChange={(event) => setEventSearch(event.target.value)}
@@ -909,7 +919,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
               </label>
               <label>
                 Categorie
-                <select
+                <Select
                   value={eventCategoryFilter}
                   onChange={(event) =>
                     setEventCategoryFilter(event.target.value as EventCategory | "all")
@@ -921,11 +931,11 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                       {category}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <label>
                 Ville
-                <select
+                <Select
                   value={eventCityFilter}
                   onChange={(event) => setEventCityFilter(event.target.value)}
                 >
@@ -935,11 +945,11 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                       {city}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <label>
                 Trier par
-                <select
+                <Select
                   value={eventSort}
                   onChange={(event) => setEventSort(event.target.value as EventSort)}
                 >
@@ -948,16 +958,16 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                   <option value="title-asc">Titre A-Z</option>
                   <option value="title-desc">Titre Z-A</option>
                   <option value="city-asc">Ville A-Z</option>
-                </select>
+                </Select>
               </label>
-            </div>
+            </Toolbar>
 
             <p className="admin-results-count">
               {filteredEvents.length} evenement{filteredEvents.length > 1 ? "s" : ""}
             </p>
 
             {filteredEvents.length === 0 ? (
-              <p className="admin-empty">Aucun evenement ne correspond aux filtres.</p>
+              <EmptyState message="Aucun evenement ne correspond aux filtres." />
             ) : (
               <div className="admin-table admin-table--events" role="table" aria-label="Événements">
                 <div className="admin-table__row admin-table__row--head" role="row">
@@ -975,29 +985,27 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                       <span role="cell">{getEventCategories(event).join(", ")}</span>
                       <span role="cell">{event.city}</span>
                       <span role="cell">{formatEventDateRange(event)}</span>
-                      <span
-                        className={`admin-status ${
-                          event.is_active ? "admin-status--active" : ""
-                        }`}
+                      <StatusBadge
                         role="cell"
+                        variant={event.is_active ? "active" : "pending"}
                       >
                         {event.is_active ? "Publie" : "En attente"}
-                      </span>
+                      </StatusBadge>
                       <div className="admin-actions" role="cell">
-                        <button
-                          className="btn btn--secondary"
+                        <Button
+                          variant="secondary"
                           type="button"
                           onClick={() => startEventEdit(event)}
                         >
                           Modifier
-                        </button>
-                        <button
-                          className="btn btn--danger"
+                        </Button>
+                        <Button
+                          variant="danger"
                           type="button"
                           onClick={() => deleteEvent(event.id)}
                         >
                           Supprimer
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -1017,9 +1025,9 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         {userDraft && isCreatingUser && (
           <div className="admin-create-account">
             <h2>Ajouter un compte</h2>
-            <label className="admin-create-account__type">
-              Type de compte
-              <select
+            <FormField label="Type de compte" htmlFor="admin-account-type">
+              <Select
+                id="admin-account-type"
                 value={accountCreateRole}
                 onChange={(event) =>
                   updateAccountCreateRole(event.target.value as Role)
@@ -1030,8 +1038,8 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                     {role}
                   </option>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </FormField>
 
             {accountCreateRole === "company" ? (
               <CompanyRegisterForm
@@ -1107,60 +1115,67 @@ function UserEditor({
 }) {
   return (
     <div className="admin-inline-editor">
-      <input
-        placeholder="Nom"
-        value={draft.display_name}
-        onChange={(event) =>
-          setDraft({ ...draft, display_name: event.target.value })
-        }
-      />
-      <input
-        type="email"
-        placeholder="Email de connexion"
-        value={draft.login_email}
-        onChange={(event) =>
-          setDraft({ ...draft, login_email: event.target.value })
-        }
-      />
-      <input
-        placeholder="Mot de passe / hash"
-        value={draft.password_hash}
-        onChange={(event) =>
-          setDraft({ ...draft, password_hash: event.target.value })
-        }
-      />
-      {showRoleSelect && (
-        <select
-          value={draft.role}
+      <FormField label="Nom" htmlFor="admin-user-name">
+        <Input
+          id="admin-user-name"
+          value={draft.display_name}
           onChange={(event) =>
-            setDraft({ ...draft, role: event.target.value as Role })
-          }
-        >
-          {ROLES.map((role) => (
-            <option key={role} value={role}>
-              {role}
-            </option>
-          ))}
-        </select>
-      )}
-      <label className="admin-checkbox">
-        <input
-          type="checkbox"
-          checked={draft.is_active}
-          onChange={(event) =>
-            setDraft({ ...draft, is_active: event.target.checked })
+            setDraft({ ...draft, display_name: event.target.value })
           }
         />
-        Actif
-      </label>
-      <div className="admin-actions">
-        <button className="btn" type="button" onClick={onSave}>
+      </FormField>
+      <FormField label="Email de connexion" htmlFor="admin-user-email">
+        <Input
+          id="admin-user-email"
+          type="email"
+          value={draft.login_email}
+          onChange={(event) =>
+            setDraft({ ...draft, login_email: event.target.value })
+          }
+        />
+      </FormField>
+      <FormField label="Mot de passe / hash" htmlFor="admin-user-password">
+        <Input
+          id="admin-user-password"
+          value={draft.password_hash}
+          onChange={(event) =>
+            setDraft({ ...draft, password_hash: event.target.value })
+          }
+        />
+      </FormField>
+      {showRoleSelect && (
+        <FormField label="Role" htmlFor="admin-user-role">
+          <Select
+            id="admin-user-role"
+            value={draft.role}
+            onChange={(event) =>
+              setDraft({ ...draft, role: event.target.value as Role })
+            }
+          >
+            {ROLES.map((role) => (
+              <option key={role} value={role}>
+                {role}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+      )}
+      <Checkbox
+        checked={draft.is_active}
+        className="admin-checkbox"
+        label="Actif"
+        onChange={(event) =>
+          setDraft({ ...draft, is_active: event.target.checked })
+        }
+      />
+      <ActionRow className="admin-actions">
+        <Button type="button" onClick={onSave}>
           Enregistrer
-        </button>
-        <button className="btn btn--secondary" type="button" onClick={onCancel}>
+        </Button>
+        <Button variant="secondary" type="button" onClick={onCancel}>
           Annuler
-        </button>
-      </div>
+        </Button>
+      </ActionRow>
     </div>
   );
 }
@@ -1180,16 +1195,16 @@ function EventEditor({
 }) {
   return (
     <div className="admin-form-grid admin-event-form">
-      <label>
-        Titre
-        <input
+      <FormField label="Titre" htmlFor="admin-event-title">
+        <Input
+          id="admin-event-title"
           value={draft.title}
           onChange={(event) => setDraft({ ...draft, title: event.target.value })}
         />
-      </label>
-      <label>
-        Entreprise
-        <select
+      </FormField>
+      <FormField label="Entreprise" htmlFor="admin-event-company">
+        <Select
+          id="admin-event-company"
           value={draft.company_id}
           onChange={(event) =>
             setDraft({ ...draft, company_id: event.target.value })
@@ -1201,127 +1216,127 @@ function EventEditor({
               {company.name}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </FormField>
       <div className="admin-form-grid__wide">
-        <span className="form-field-label">Categories</span>
-        <div className="categories-select">
-          {EVENT_CATEGORIES.map((category) => (
-            <label className="categories-select__option" key={category}>
-              <input
-                type="checkbox"
-                checked={draft.category_slugs.includes(category)}
-                onChange={() => setDraft(toggleEventDraftCategory(draft, category))}
-              />
-              {category}
-            </label>
-          ))}
-        </div>
+        <CategorySelect
+          labelId="admin-event-categories"
+          selected={draft.category_slugs}
+          onToggle={(category) =>
+            setDraft(toggleEventDraftCategory(draft, category))
+          }
+        />
       </div>
-      <label className="admin-form-grid__wide">
-        Description
-        <textarea
+      <FormField
+        label="Description"
+        htmlFor="admin-event-description"
+        className="admin-form-grid__wide"
+      >
+        <Textarea
+          id="admin-event-description"
           rows={3}
           value={draft.description}
           onChange={(event) =>
             setDraft({ ...draft, description: event.target.value })
           }
         />
-      </label>
-      <label>
-        Date de debut
-        <input
+      </FormField>
+      <FormField label="Date de debut" htmlFor="admin-event-start-date">
+        <Input
+          id="admin-event-start-date"
           type="datetime-local"
           value={draft.start_date}
           onChange={(event) =>
             setDraft({ ...draft, start_date: event.target.value })
           }
         />
-      </label>
-      <label>
-        Date de fin
-        <input
+      </FormField>
+      <FormField label="Date de fin" htmlFor="admin-event-end-date">
+        <Input
+          id="admin-event-end-date"
           type="datetime-local"
           value={draft.end_date}
           onChange={(event) =>
             setDraft({ ...draft, end_date: event.target.value })
           }
         />
-      </label>
-      <label className="admin-form-grid__wide">
-        Adresse
-        <input
+      </FormField>
+      <FormField
+        label="Adresse"
+        htmlFor="admin-event-address"
+        className="admin-form-grid__wide"
+      >
+        <Input
+          id="admin-event-address"
           value={draft.address}
           onChange={(event) => setDraft({ ...draft, address: event.target.value })}
         />
-      </label>
-      <label>
-        Ville
-        <input
+      </FormField>
+      <FormField label="Ville" htmlFor="admin-event-city">
+        <Input
+          id="admin-event-city"
           value={draft.city}
           onChange={(event) => setDraft({ ...draft, city: event.target.value })}
         />
-      </label>
-      <label>
-        Code postal
-        <input
+      </FormField>
+      <FormField label="Code postal" htmlFor="admin-event-postal-code">
+        <Input
+          id="admin-event-postal-code"
           inputMode="numeric"
           value={draft.postal_code}
           onChange={(event) =>
             setDraft({ ...draft, postal_code: event.target.value })
           }
         />
-      </label>
-      <label>
-        Latitude
-        <input
+      </FormField>
+      <FormField label="Latitude" htmlFor="admin-event-latitude">
+        <Input
+          id="admin-event-latitude"
           value={draft.latitude}
           onChange={(event) =>
             setDraft({ ...draft, latitude: event.target.value })
           }
         />
-      </label>
-      <label>
-        Longitude
-        <input
+      </FormField>
+      <FormField label="Longitude" htmlFor="admin-event-longitude">
+        <Input
+          id="admin-event-longitude"
           value={draft.longitude}
           onChange={(event) =>
             setDraft({ ...draft, longitude: event.target.value })
           }
         />
-      </label>
-      <label>
-        Image
-        <input
+      </FormField>
+      <FormField label="Image" htmlFor="admin-event-image">
+        <Input
+          id="admin-event-image"
           value={draft.image}
           onChange={(event) => setDraft({ ...draft, image: event.target.value })}
         />
-      </label>
-      <label>
-        Source
-        <input
+      </FormField>
+      <FormField label="Source" htmlFor="admin-event-source">
+        <Input
+          id="admin-event-source"
           value={draft.source ?? ""}
           onChange={(event) => setDraft({ ...draft, source: event.target.value })}
         />
-      </label>
-      <label className="admin-checkbox">
-        <input
-          type="checkbox"
-          checked={draft.is_active}
-          onChange={(event) =>
-            setDraft({ ...draft, is_active: event.target.checked })
-          }
-        />
-        Publie
-      </label>
-      <div className="admin-actions admin-form-grid__wide">
-        <button className="btn" type="button" onClick={onSave}>
+      </FormField>
+      <Checkbox
+        checked={draft.is_active}
+        className="admin-checkbox"
+        label="Publie"
+        onChange={(event) =>
+          setDraft({ ...draft, is_active: event.target.checked })
+        }
+      />
+      <ActionRow className="admin-actions admin-form-grid__wide">
+        <Button type="button" onClick={onSave}>
           Enregistrer
-        </button>
-        <button className="btn btn--secondary" type="button" onClick={onCancel}>
+        </Button>
+        <Button variant="secondary" type="button" onClick={onCancel}>
           Annuler
-        </button>
-      </div>
+        </Button>
+      </ActionRow>
     </div>
   );
 }

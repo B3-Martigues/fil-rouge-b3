@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
+import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
 import { FormModalLink } from "../../../shared/components/forms/FormModalLink";
 import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
@@ -121,10 +121,10 @@ export default function UserProfileForm() {
   };
 
   return (
-    <div>
+    <div className="user-profile">
       <h1>Mon profil</h1>
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      <form className="user-profile-form" onSubmit={handleSubmit(onSubmit)} noValidate>
         <FormField
           label="Nom d'utilisateur"
           htmlFor="username"
@@ -160,14 +160,7 @@ export default function UserProfileForm() {
         <Button type="submit" loading={loading}>
           Enregistrer les modifications
         </Button>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            flexDirection: "column",
-            gap: "30px",
-          }}
-        >
+        <div className="user-profile-actions">
           <FormModalLink className="btn" to="/profile/change-password">
             Modifier le mot de passe
           </FormModalLink>
@@ -176,74 +169,24 @@ export default function UserProfileForm() {
             Modifier mes préférences
           </FormModalLink>
 
-          <Button type="button" onClick={() => setShowDeleteModal(true)}>
+          <Button
+            variant="danger"
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+          >
             Supprimer mon compte
           </Button>
         </div>
       </form>
 
-      {showDeleteModal &&
-        createPortal(
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.5)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 9999,
-            }}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="delete-account-title"
-              style={{
-                backgroundColor: "white",
-                padding: "24px",
-                borderRadius: "8px",
-                maxWidth: "448px",
-                width: "100%",
-                boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-                color: "#1a1a1a",
-              }}
-            >
-              <h2
-                id="delete-account-title"
-                style={{
-                  fontSize: "1.25rem",
-                  fontWeight: "bold",
-                  marginBottom: "8px",
-                }}
-              >
-                Suppression du compte
-              </h2>
-              <p style={{ marginBottom: "16px", color: "#4a5568" }}>
-                Cette action est <strong>definitive</strong>. Toutes vos donnees
-                seront supprimees.
-              </p>
-              <div
-                style={{
-                  display: "flex",
-                  gap: "8px",
-                  justifyContent: "flex-end",
-                }}
-              >
-                <Button type="button" onClick={() => setShowDeleteModal(false)}>
-                  Annuler
-                </Button>
-                <Button type="button" onClick={handleDeleteAccount}>
-                  Oui, supprimer
-                </Button>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
+      <ConfirmDialog
+        confirmLabel="Oui, supprimer"
+        message="Cette action est definitive. Toutes vos donnees seront supprimees."
+        open={showDeleteModal}
+        title="Suppression du compte"
+        onCancel={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteAccount}
+      />
     </div>
   );
 }

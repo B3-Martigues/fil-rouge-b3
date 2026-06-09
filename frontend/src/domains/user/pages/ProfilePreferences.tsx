@@ -48,18 +48,11 @@ export default function ProfilePreferences() {
   };
 
   return (
-    <div>
+    <div className="profile-preferences">
       <h1>Mes preferences</h1>
       <PreferencesGrid selected={preferences} toggle={handleToggle} />
       {error && <ErrorMessage message={error} />}
-      <div
-        style={{
-          marginTop: "20px",
-          display: "flex",
-          justifyContent: "center",
-          gap: "20px",
-        }}
-      >
+      <div className="profile-preferences__actions">
         <Button type="button" onClick={handleSave}>
           Enregistrer
         </Button>

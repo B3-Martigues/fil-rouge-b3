@@ -1,5 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 
+import EmptyState from "../../../shared/components/feedback/EmptyState";
+import Button from "../../../shared/components/ui/Button";
+import Input from "../../../shared/components/ui/Input";
+import Select from "../../../shared/components/ui/Select";
 import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
 import {
@@ -413,8 +417,7 @@ export default function Home() {
         >
           <label>
             Rechercher
-            <input
-              className="input"
+            <Input
               type="search"
               value={search}
               placeholder="Titre, ville, code postal..."
@@ -424,8 +427,7 @@ export default function Home() {
 
           <label>
             Periode
-            <select
-              className="input"
+            <Select
               value={mapPeriodMode}
               onChange={(event) =>
                 handleMapPeriodModeChange(event.target.value as EventPeriodMode)
@@ -435,13 +437,12 @@ export default function Home() {
               <option value="week">Semaine</option>
               <option value="month">Mois</option>
               <option value="year">Annee</option>
-            </select>
+            </Select>
           </label>
 
           <label>
             Selection
-            <input
-              className="input"
+            <Input
               type={
                 mapPeriodMode === "day"
                   ? "date"
@@ -460,8 +461,7 @@ export default function Home() {
 
           <label>
             Categorie
-            <select
-              className="input"
+            <Select
               value={category}
               onChange={(event) =>
                 setCategory(event.target.value as EventCategory | "all")
@@ -473,13 +473,12 @@ export default function Home() {
                   {eventCategory}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
 
           <label>
             Ville
-            <select
-              className="input"
+            <Select
               value={city}
               onChange={(event) => setCity(event.target.value)}
             >
@@ -489,14 +488,13 @@ export default function Home() {
                   {eventCity}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
 
           {!shouldUsePreferredEvents && (
             <label>
               Trier par
-              <select
-                className="input"
+              <Select
                 value={sort}
                 onChange={(event) => setSort(event.target.value as SortValue)}
               >
@@ -505,13 +503,13 @@ export default function Home() {
                 <option value="title-asc">Titre A-Z</option>
                 <option value="title-desc">Titre Z-A</option>
                 <option value="city-asc">Ville A-Z</option>
-              </select>
+              </Select>
             </label>
           )}
 
           {hasFilters && (
-            <button
-              className="btn btn--secondary"
+            <Button
+              variant="secondary"
               type="button"
               onClick={() => {
                 setMapPeriodMode(DEFAULT_PERIOD_MODE);
@@ -523,7 +521,7 @@ export default function Home() {
               }}
             >
               Reinitialiser
-            </button>
+            </Button>
           )}
         </div>
 
@@ -549,25 +547,23 @@ export default function Home() {
               aria-labelledby="events-recommended-title"
             >
               <div className="events-status-section__header">
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div className="events-status-section__title-actions">
                   <h3 id="events-recommended-title">Evenements recommandes</h3>
-                  <button
-                    className="btn btn--secondary"
+                  <Button
+                    variant="secondary"
                     type="button"
                     onClick={() =>
                       setPersonalizedEventsView("current-upcoming")
                     }
                   >
                     Voir en cours / a venir
-                  </button>
+                  </Button>
                 </div>
                 <span>{displayedEvents.length}</span>
               </div>
 
               {displayedEvents.length === 0 ? (
-                <p className="admin-empty">
-                  Aucun evenement ne correspond a vos preferences.
-                </p>
+                <EmptyState message="Aucun evenement ne correspond a vos preferences." />
               ) : (
                 <div className="events-list__grid">
                   {displayedEvents.map(renderEventCard)}
@@ -581,19 +577,17 @@ export default function Home() {
                 aria-labelledby="events-current-upcoming-title"
               >
                 <div className="events-status-section__header">
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 12 }}
-                  >
+                  <div className="events-status-section__title-actions">
                     <h3 id="events-current-upcoming-title">
                       Evenements en cours / a venir
                     </h3>
-                    <button
-                      className="btn btn--secondary"
+                    <Button
+                      variant="secondary"
                       type="button"
                       onClick={() => setPersonalizedEventsView("recommended")}
                     >
                       Voir recommandes
-                    </button>
+                    </Button>
                   </div>
                   <span>{currentUpcomingEventsCount}</span>
                 </div>
@@ -616,7 +610,7 @@ export default function Home() {
                     </div>
 
                     {sectionEvents.length === 0 ? (
-                      <p className="admin-empty">{section.empty}</p>
+                      <EmptyState message={section.empty} />
                     ) : (
                       <div className="events-list__grid">
                         {sectionEvents.map(renderEventCard)}
@@ -645,7 +639,7 @@ export default function Home() {
                 </div>
 
                 {sectionEvents.length === 0 ? (
-                  <p className="admin-empty">{section.empty}</p>
+                  <EmptyState message={section.empty} />
                 ) : (
                   <div className="events-list__grid">
                     {sectionEvents.map(renderEventCard)}

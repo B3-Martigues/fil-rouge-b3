@@ -1,0 +1,218 @@
+@use "../../../shared/styles/tokens" as *;
+@use "../../../shared/styles/mixins" as *;
+
+.moderator-queue-grid,
+.moderator-suspended-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.moderator-queue-group,
+.moderator-suspended-group,
+.moderator-report-group {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.moderator-suspended-group {
+  gap: 10px;
+}
+
+.moderator-queue-group__title,
+.moderator-suspended-group__title,
+.moderator-report-group__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  h3 {
+    margin: 0;
+    color: var(--text-h);
+    font-size: 18px;
+    line-height: 1.2;
+  }
+}
+
+.moderator-panel {
+  .admin-table--accounts .admin-table__row {
+    grid-template-columns:
+      minmax(120px, 1fr) minmax(150px, 1.1fr) auto 92px
+      minmax(220px, 1.4fr);
+  }
+
+  .moderator-account-table .admin-table__row {
+    grid-template-columns:
+      minmax(170px, 1.2fr) auto 92px minmax(220px, 1.3fr)
+      auto;
+    align-items: end;
+  }
+
+  .admin-table--suspended .admin-table__row {
+    grid-template-columns: minmax(160px, 1.2fr) auto minmax(120px, 0.7fr) minmax(180px, 1fr);
+    align-items: start;
+  }
+
+  .admin-table--company-members .admin-table__row {
+    grid-template-columns:
+      minmax(150px, 1fr) minmax(180px, 1.1fr) minmax(150px, 1fr)
+      minmax(150px, 0.9fr) auto;
+    align-items: start;
+  }
+}
+
+.moderator-account-identity {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--text-h);
+  font-weight: 700;
+
+  small {
+    color: var(--text-p);
+    font-size: 13px;
+    font-weight: 400;
+    overflow-wrap: anywhere;
+  }
+}
+
+.moderator-account-row .btn {
+  align-self: end;
+}
+
+.moderator-days,
+.moderator-reason {
+  display: grid;
+  gap: 6px;
+
+  @include field-label(13px);
+
+  input,
+  textarea {
+    @include control-field;
+  }
+
+  textarea {
+    resize: vertical;
+  }
+}
+
+.moderator-reason--compact textarea {
+  min-height: 68px;
+}
+
+.moderator-split-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 14px;
+}
+
+.moderator-decision-list {
+  display: grid;
+  gap: 10px;
+}
+
+.moderator-decision {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+
+  @include surface(var(--social-bg));
+
+  p {
+    margin: 4px 0;
+  }
+}
+
+.moderator-report {
+  grid-template-columns: minmax(0, 1fr);
+
+  &-groups {
+    display: grid;
+    gap: 20px;
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  &__outcome {
+    &--suspended {
+      color: var(--color-danger);
+      background: var(--color-danger-bg);
+    }
+
+    &--restored {
+      color: var(--color-success);
+      background: var(--color-success-bg);
+    }
+  }
+
+  &__decision {
+    display: grid;
+    gap: 4px;
+    margin-top: 14px;
+    padding: 12px;
+
+    @include surface;
+
+    strong {
+      color: var(--text-h);
+    }
+
+    p {
+      margin: 0;
+    }
+  }
+
+  &__message {
+    margin-top: 14px;
+  }
+}
+
+@include respond-below($bp-md) {
+  .moderator-queue-grid,
+  .moderator-suspended-groups {
+    grid-template-columns: 1fr;
+  }
+
+  .moderator-panel {
+    .moderator-account-table .admin-table__row,
+    .admin-table--suspended .admin-table__row,
+    .admin-table--company-members .admin-table__row {
+      grid-template-columns: 1fr;
+      align-items: start;
+    }
+  }
+
+  .moderator-account-row .btn {
+    width: 100%;
+  }
+}
+
+@include respond-below($bp-sm) {
+  .moderator-panel {
+    .admin-table--accounts .admin-table__row,
+    .admin-table--suspended .admin-table__row,
+    .admin-table--company-members .admin-table__row {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .moderator-split-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .moderator-decision {
+    flex-direction: column;
+  }
+}

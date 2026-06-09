@@ -1,8 +1,6 @@
 /**Composant principal de l'application, il gère le routage et l'affichage des notifications (toast)  */
 import Router from "./app/Router";
 import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import "leaflet/dist/leaflet.css";
 
 function App() {
   return (

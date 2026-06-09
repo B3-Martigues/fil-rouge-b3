@@ -20,34 +20,33 @@ export default function Favorites() {
   );
 
   if (favoriteEvents.length === 0) {
-    return <p>Aucun evenement en favoris</p>;
+    return (
+      <p className="feedback-message feedback-message--empty">
+        Aucun evenement en favoris
+      </p>
+    );
   }
 
   return (
-    <div>
+    <div className="user-favorites">
       <h1>Page de favoris</h1>
       <h2>Mes événements favoris</h2>
-      <div style={{ display: "flex", justifyContent: "center", gap: "30px" }}>
+      <div className="user-favorites__grid">
         {favoriteEvents.map((event) => (
-          <div
-            key={event.id}
-            style={{
-              border: "1px solid #ddd",
-              padding: "12px",
-              borderRadius: "10px",
-            }}
-          >
+          <article className="event-card" key={event.id}>
             {event.image && (
               <img
+                className="event-card__image"
                 src={event.image}
                 alt={event.title}
-                style={{ width: "100%", height: "150px", objectFit: "cover" }}
               />
             )}
-            <h3>{event.title}</h3>
-            <p>{event.description}</p>
-            <FavoriteButton event={event} />
-          </div>
+            <div className="event-card__content">
+              <h3>{event.title}</h3>
+              <p>{event.description}</p>
+              <FavoriteButton event={event} />
+            </div>
+          </article>
         ))}
       </div>
     </div>

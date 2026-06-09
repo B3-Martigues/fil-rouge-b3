@@ -1,0 +1,54 @@
+@use "../../../shared/styles/tokens" as *;
+@use "../../../shared/styles/mixins" as *;
+
+.auth-page {
+  display: grid;
+  gap: 16px;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 24px;
+
+  form {
+    display: grid;
+    gap: 14px;
+  }
+}
+
+.auth-form-section {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 14px;
+  text-align: left;
+
+  @include surface;
+
+  legend {
+    padding: 0 6px;
+
+    @include field-label;
+  }
+}
+
+.auth-register-choice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px;
+  text-align: left;
+
+  @include surface;
+
+  @include respond-below($bp-sm) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dev-reset-link {
+  padding: 10px 12px;
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  color: var(--text-h);
+  background: var(--accent-bg);
+  font-size: 14px;
+}

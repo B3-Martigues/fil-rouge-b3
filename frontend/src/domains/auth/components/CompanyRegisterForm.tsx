@@ -22,7 +22,10 @@ import useAuthStore from "../store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
 import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
+import Checkbox from "../../../shared/components/ui/Checkbox";
+import CheckboxGroup from "../../../shared/components/ui/CheckboxGroup";
 import FormField from "../../../shared/components/ui/FormField";
+import Textarea from "../../../shared/components/ui/Textarea";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import { createWelcomeNotification } from "../../notifications/services/notificationFactory";
 
@@ -414,9 +417,9 @@ export default function CompanyRegisterForm({
               htmlFor="description"
               error={errors.description?.message}
             >
-              <textarea
+              <Textarea
                 id="description"
-                className={`input ${errors.description ? "input-error" : ""}`}
+                hasError={!!errors.description}
                 placeholder="Description de l'entreprise"
                 rows={4}
                 {...register("description")}
@@ -522,31 +525,20 @@ export default function CompanyRegisterForm({
               />
             </FormField>
 
-            <FormField
-              label="Categories"
-              htmlFor="categories"
+            <CheckboxGroup
               error={errors.categories?.message}
+              label="Categories"
+              labelId="categories"
             >
-              <div
-                id="categories"
-                role="group"
-                aria-invalid={!!errors.categories}
-                className={`categories-select ${
-                  errors.categories ? "input-error" : ""
-                }`}
-              >
                 {CATEGORIES.map((category) => (
-                  <label key={category} className="categories-select__option">
-                    <input
-                      type="checkbox"
-                      value={category}
-                      {...register("categories")}
-                    />
-                    {category}
-                  </label>
+                  <Checkbox
+                    key={category}
+                    label={category}
+                    value={category}
+                    {...register("categories")}
+                  />
                 ))}
-              </div>
-            </FormField>
+            </CheckboxGroup>
           </fieldset>
         )}
 
@@ -555,7 +547,7 @@ export default function CompanyRegisterForm({
         <div className="form-step-actions">
           <Button
             type="button"
-            className="btn--secondary"
+            variant="secondary"
             disabled={loading || isFirstStep}
             onClick={goToPreviousStep}
           >
@@ -575,7 +567,7 @@ export default function CompanyRegisterForm({
           {onCancel && (
             <Button
               type="button"
-              className="btn--secondary"
+              variant="secondary"
               disabled={loading}
               onClick={onCancel}
             >

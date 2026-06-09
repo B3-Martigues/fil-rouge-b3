@@ -1,34 +1,39 @@
 import { Heart } from "lucide-react";
+
+import Button from "../../../shared/components/ui/Button";
+import useAuthStore from "../../auth/store/authStore";
 import useFavorites from "../../user/hooks/useFavorites";
 import type { Event } from "../types/event";
 
-/**Props du composant FavoriteButton */
 type Props = {
   event: Event;
 };
 
-/**Bouton permettant d'ajouter ou retirer un événement des favoris */
 export default function FavoriteButton({ event }: Props) {
-  /**Récupération des fonctions du hook favoris */
+  const canUseFavorites = useAuthStore(
+    (s) =>
+      s.isAuthenticated &&
+      s.currentUser?.role === "user" &&
+      !!s.currentUser.user_id,
+  );
   const { toggleFavorite, isFavorite } = useFavorites();
 
-  /**Vérifie si l'énévement est déjà en favoris */
+  if (!canUseFavorites) return null;
+
   const active = isFavorite(event.id);
 
   return (
-    /**Ajoute ou retire l'événement des favoris */
-    <button
+    <Button
+      aria-label={active ? "Retirer des favoris" : "Ajouter aux favoris"}
+      className={`event-favorite-button${active ? " is-active" : ""}`}
+      icon={<Heart color="currentColor" fill={active ? "currentColor" : "none"} />}
+      iconOnly
+      size="icon"
+      type="button"
+      variant="secondary"
       onClick={() => toggleFavorite(event.id)}
-      aria-label="favorite event"
-      style={{
-        background: "transparent",
-        border: "none",
-        cursor: "pointer",
-        fontSize: "20px",
-      }}
     >
-      {/* Icône coeur dynamique selon l'état favoris */}
-      <Heart fill={active ? "red" : "none"} color={active ? "red" : "black"} />
-    </button>
+      Favori
+    </Button>
   );
 }
