@@ -54,8 +54,8 @@ Port 5175 is in use, trying another one...
 [2m10:35:11[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/moderator/pages/ModeratorDashboard.tsx[22m
 [2m10:35:54[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/moderator/pages/ModeratorDashboard.tsx[22m
 [2m10:36:08[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/moderator/pages/ModeratorDashboard.tsx[22m
-[2m14:25:05[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/companies/pages/CompanyDashboard.tsx, /src/domains/companies/pages/CompanyEvents.tsx[22m
-[2m14:25:16[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/companies/pages/CompanyDashboard.tsx, /src/domains/companies/pages/CompanyEvents.tsx[22m
+[2m14:25:05[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/organizations/pages/CompanyDashboard.tsx, /src/domains/organizations/pages/CompanyEvents.tsx[22m
+[2m14:25:16[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/organizations/pages/CompanyDashboard.tsx, /src/domains/organizations/pages/CompanyEvents.tsx[22m
 [2m14:25:41[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/shared/components/layout/Header.tsx[22m
 [2m14:25:57[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/shared/components/layout/Header.tsx[22m
 [2m14:26:04[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/shared/components/layout/HeaderCompany.tsx[22m
@@ -67,11 +67,11 @@ Port 5175 is in use, trying another one...
 [2m14:34:03[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/shared/components/layout/HeaderPublic.tsx[22m
 [2m14:34:03[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/shared/components/layout/HeaderUser.tsx[22m
 [2m14:34:14[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/admin/pages/AdminDashboard.tsx[22m
-[2m14:34:30[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/companies/pages/CompanyEvents.tsx[22m
+[2m14:34:30[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/organizations/pages/CompanyEvents.tsx[22m
 [2m14:34:53[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/moderator/pages/ModeratorDashboard.tsx[22m
 [2m14:35:03[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/user/components/UserProfileForm.tsx[22m
 [2m14:35:15[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/auth/pages/ForgotPassword.tsx[22m
-[2m14:35:15[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/app/Router.tsx, /src/domains/events/pages/Home.tsx, /src/domains/auth/pages/ForgotPassword.tsx, /src/domains/auth/pages/ResetPassword.tsx, /src/domains/user/components/ChangePassword.tsx, /src/domains/companies/pages/CompanyDashboard.tsx, /src/domains/companies/pages/CompanyProfile.tsx, /src/domains/admin/pages/AdminDashboard.tsx, /src/domains/moderator/pages/ModeratorDashboard.tsx, /src/domains/companies/pages/CompanyEvents.tsx, /src/domains/user/pages/Favorites.tsx and 12 more[22m
+[2m14:35:15[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/app/Router.tsx, /src/domains/events/pages/Home.tsx, /src/domains/auth/pages/ForgotPassword.tsx, /src/domains/auth/pages/ResetPassword.tsx, /src/domains/user/components/ChangePassword.tsx, /src/domains/organizations/pages/CompanyDashboard.tsx, /src/domains/organizations/pages/CompanyProfile.tsx, /src/domains/admin/pages/AdminDashboard.tsx, /src/domains/moderator/pages/ModeratorDashboard.tsx, /src/domains/organizations/pages/CompanyEvents.tsx, /src/domains/user/pages/Favorites.tsx and 12 more[22m
 [2m14:35:15[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
 [2m14:41:34[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/app/Router.tsx[22m
 [2m14:55:04[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/app/Router.tsx[22m
@@ -84,15 +84,15 @@ Port 5175 is in use, trying another one...
 [2m14:57:09[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/user/components/UserProfileForm.tsx[22m
 [2m14:57:18[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/user/components/UserProfileForm.tsx[22m
 [2m14:57:26[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/user/components/UserProfileForm.tsx[22m
-[2m14:57:47[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/companies/pages/CompanyEvents.tsx[22m
+[2m14:57:47[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/organizations/pages/CompanyEvents.tsx[22m
 [2m14:57:59[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/admin/pages/AdminDashboard.tsx[22m
 [2m14:58:10[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/admin/pages/AdminDashboard.tsx[22m
 [2m14:58:24[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/admin/pages/AdminDashboard.tsx[22m
 [2m14:59:08[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/admin/pages/AdminDashboard.tsx[22m
 [2m15:00:14[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/admin/pages/AdminDashboard.tsx[22m
 [2m15:01:03[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/admin/pages/AdminDashboard.tsx[22m
-[2m15:02:02[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/companies/pages/CompanyEvents.tsx[22m
-[2m15:02:29[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/companies/pages/CompanyEvents.tsx[22m
+[2m15:02:02[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/organizations/pages/CompanyEvents.tsx[22m
+[2m15:02:29[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/organizations/pages/CompanyEvents.tsx[22m
 [2m15:03:56[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/domains/auth/components/CompanyRegisterForm.tsx[22m
 [2m15:04:20[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
 [2m15:04:39[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m

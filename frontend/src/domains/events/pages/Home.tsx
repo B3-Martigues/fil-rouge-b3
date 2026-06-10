@@ -14,8 +14,6 @@ import {
 } from "../types/event-categories";
 import EventMap from "../components/EventMap";
 import ReportEventButton from "../components/ReportEventButton";
-import FavoriteButton from "../components/FavoriteButton";
-
 import {
   formatDateTime,
   formatEventDateRange,
@@ -23,7 +21,6 @@ import {
   getEventStatus,
   getPeriodRange,
   hasEventCoordinates,
-  isEventSuspended,
   isEventInPeriod,
   type EventPeriodMode,
 } from "../utils/event";
@@ -113,7 +110,7 @@ export default function Home() {
     getDefaultPeriodValue(DEFAULT_PERIOD_MODE),
   );
   const [mapPeriodValue, setMapPeriodValue] = useState(defaultMapPeriodValue);
-  const activeOrganizationsById = useMemo(
+  const activeCompaniesById = useMemo(
     () =>
       new Map(
         organizations
@@ -128,10 +125,9 @@ export default function Home() {
         new Set(
           events
             .filter((event) => event.is_active)
-            .filter((event) => !isEventSuspended(event))
             .filter((event) => !event.deleted_at)
             .filter((event) => {
-              const organization = activeOrganizationsById.get(event.organization_id);
+              const organization = activeCompaniesById.get(event.company_id);
 
               if (!organization) return false;
 
@@ -146,7 +142,7 @@ export default function Home() {
       ).sort((firstCity, secondCity) =>
         firstCity.localeCompare(secondCity, "fr-FR"),
       ),
-    [activeOrganizationsById, events],
+    [activeCompaniesById, events],
   );
   const preferredCategories = useMemo(
     () =>
@@ -166,8 +162,6 @@ export default function Home() {
   );
   const shouldUsePreferredEvents =
     currentUserRole === "user" && preferredCategorySet.size > 0;
-  const showRecommendedEvents =
-    shouldUsePreferredEvents && personalizedEventsView === "recommended";
   const mapPeriod = useMemo(
     () => getPeriodRange(mapPeriodMode, mapPeriodValue),
     [mapPeriodMode, mapPeriodValue],
@@ -179,8 +173,7 @@ export default function Home() {
     return events
       .filter((event) => {
         if (!event.is_active || event.deleted_at) return false;
-        if (isEventSuspended(event)) return false;
-        const organization = activeOrganizationsById.get(event.organization_id);
+        const organization = activeCompaniesById.get(event.organization_id);
 
         if (!organization) return false;
         if (
@@ -241,7 +234,7 @@ export default function Home() {
         );
       });
   }, [
-    activeOrganizationsById,
+    activeCompaniesById,
     category,
     city,
     events,
@@ -254,7 +247,6 @@ export default function Home() {
   const recommendedEvents = useMemo(
     () =>
       filteredEvents
-        .filter((event) => getEventStatus(event) !== "past")
         .filter(
           (event) => getPreferenceMatchCount(event, preferredCategorySet) > 0,
         )
@@ -282,21 +274,19 @@ export default function Home() {
 
   const displayedEvents = useMemo(
     () => {
-      if (showRecommendedEvents) {
+      if (!shouldUsePreferredEvents) return filteredEvents;
+
+      if (personalizedEventsView === "recommended") {
         return recommendedEvents;
       }
 
-      if (currentUserRole) {
-        return filteredEvents.filter((event) => getEventStatus(event) !== "past");
-      }
-
-      return filteredEvents;
+      return filteredEvents.filter((event) => getEventStatus(event) !== "past");
     },
     [
-      currentUserRole,
       filteredEvents,
+      personalizedEventsView,
       recommendedEvents,
-      showRecommendedEvents,
+      shouldUsePreferredEvents,
     ],
   );
   const activeMapEventSelection = useMemo(
@@ -326,9 +316,6 @@ export default function Home() {
   );
   const currentUpcomingEventsCount =
     groupedEvents.current.length + groupedEvents.upcoming.length;
-  const visibleStatusSections = currentUserRole
-    ? userStatusSections
-    : statusSections;
 
   const hasFilters =
     search.trim() !== "" ||
@@ -404,7 +391,7 @@ export default function Home() {
             <dd>{event.city}</dd>
           </div>
         </dl>
-        <FavoriteButton event={event} />
+
         <ReportEventButton event={event} />
       </div>
     </article>
@@ -496,7 +483,7 @@ export default function Home() {
             </Select>
           </label>
 
-          {!showRecommendedEvents && (
+          {!shouldUsePreferredEvents && (
             <label>
               Trier par
               <Select
@@ -545,38 +532,38 @@ export default function Home() {
           {displayedEvents.length > 1 ? "s" : ""}
         </p>
 
-        {showRecommendedEvents ? (
-          <section
-            className="events-status-section"
-            aria-labelledby="events-recommended-title"
-          >
-            <div className="events-status-section__header">
-              <div className="events-status-section__title-actions">
-                <h3 id="events-recommended-title">Evenements recommandes</h3>
-                <Button
-                  variant="secondary"
-                  type="button"
-                  onClick={() =>
-                    setPersonalizedEventsView("current-upcoming")
-                  }
-                >
-                  Voir en cours / a venir
-                </Button>
+        {shouldUsePreferredEvents ? (
+          personalizedEventsView === "recommended" ? (
+            <section
+              className="events-status-section"
+              aria-labelledby="events-recommended-title"
+            >
+              <div className="events-status-section__header">
+                <div className="events-status-section__title-actions">
+                  <h3 id="events-recommended-title">Evenements recommandes</h3>
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    onClick={() =>
+                      setPersonalizedEventsView("current-upcoming")
+                    }
+                  >
+                    Voir en cours / a venir
+                  </Button>
+                </div>
+                <span>{displayedEvents.length}</span>
               </div>
-              <span>{displayedEvents.length}</span>
-            </div>
 
-            {displayedEvents.length === 0 ? (
-              <EmptyState message="Aucun evenement ne correspond a vos preferences." />
-            ) : (
-              <div className="events-list__grid">
-                {displayedEvents.map(renderEventCard)}
-              </div>
-            )}
-          </section>
-        ) : (
-          <>
-            {shouldUsePreferredEvents && (
+              {displayedEvents.length === 0 ? (
+                <EmptyState message="Aucun evenement ne correspond a vos preferences." />
+              ) : (
+                <div className="events-list__grid">
+                  {displayedEvents.map(renderEventCard)}
+                </div>
+              )}
+            </section>
+          ) : (
+            <>
               <section
                 className="events-status-section"
                 aria-labelledby="events-current-upcoming-title"
@@ -597,35 +584,62 @@ export default function Home() {
                   <span>{currentUpcomingEventsCount}</span>
                 </div>
               </section>
-            )}
 
-            {visibleStatusSections.map((section) => {
-              const sectionEvents = groupedEvents[section.status];
+              {userStatusSections.map((section) => {
+                const sectionEvents = groupedEvents[section.status];
 
-              return (
-                <section
-                  className="events-status-section"
-                  aria-labelledby={`events-${section.status}-title`}
-                  key={section.status}
-                >
-                  <div className="events-status-section__header">
-                    <h3 id={`events-${section.status}-title`}>
-                      {section.title}
-                    </h3>
-                    <span>{sectionEvents.length}</span>
-                  </div>
-
-                  {sectionEvents.length === 0 ? (
-                    <EmptyState message={section.empty} />
-                  ) : (
-                    <div className="events-list__grid">
-                      {sectionEvents.map(renderEventCard)}
+                return (
+                  <section
+                    className="events-status-section"
+                    aria-labelledby={`events-${section.status}-title`}
+                    key={section.status}
+                  >
+                    <div className="events-status-section__header">
+                      <h3 id={`events-${section.status}-title`}>
+                        {section.title}
+                      </h3>
+                      <span>{sectionEvents.length}</span>
                     </div>
-                  )}
-                </section>
-              );
-            })}
-          </>
+
+                    {sectionEvents.length === 0 ? (
+                      <EmptyState message={section.empty} />
+                    ) : (
+                      <div className="events-list__grid">
+                        {sectionEvents.map(renderEventCard)}
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
+            </>
+          )
+        ) : (
+          statusSections.map((section) => {
+            const sectionEvents = groupedEvents[section.status];
+
+            return (
+              <section
+                className="events-status-section"
+                aria-labelledby={`events-${section.status}-title`}
+                key={section.status}
+              >
+                <div className="events-status-section__header">
+                  <h3 id={`events-${section.status}-title`}>
+                    {section.title}
+                  </h3>
+                  <span>{sectionEvents.length}</span>
+                </div>
+
+                {sectionEvents.length === 0 ? (
+                  <EmptyState message={section.empty} />
+                ) : (
+                  <div className="events-list__grid">
+                    {sectionEvents.map(renderEventCard)}
+                  </div>
+                )}
+              </section>
+            );
+          })
         )}
       </section>
     </div>
