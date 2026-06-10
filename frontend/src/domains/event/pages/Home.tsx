@@ -13,8 +13,8 @@ import {
   type EventCategoryName,
 } from "../types/event-categories";
 import EventMap from "../components/EventMap";
-import ReportEventButton from "../components/ReportEventButton";
 import FavoriteButton from "../components/FavoriteButton";
+import ReportEventButton from "../components/ReportEventButton";
 
 import {
   formatDateTime,
