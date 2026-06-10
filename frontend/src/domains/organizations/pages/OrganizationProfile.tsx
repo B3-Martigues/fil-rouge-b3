@@ -2,8 +2,8 @@ import { useState, type FormEvent } from "react";
 import { toast } from "react-toastify";
 
 import useAuthStore from "../../auth/store/authStore";
-import { CATEGORIES, type CategoryName } from "../types/company-categories";
-import type { Company } from "../types/company";
+import { CATEGORIES, type CategoryName } from "../types/organization-categories";
+import type { Organization } from "../types/organization";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import Button from "../../../shared/components/ui/Button";
 import Checkbox from "../../../shared/components/ui/Checkbox";
@@ -13,7 +13,7 @@ import Input from "../../../shared/components/ui/Input";
 import Textarea from "../../../shared/components/ui/Textarea";
 import useDataStore from "../../../shared/store/dataStore";
 
-type CompanyProfileForm = {
+type OrganizationProfileForm = {
   name: string;
   contact_email: string;
   description: string;
@@ -29,22 +29,22 @@ type CompanyProfileForm = {
   categories: CategoryName[];
 };
 
-type CompanyProfileErrors = Partial<Record<keyof CompanyProfileForm, string>>;
+type OrganizationProfileErrors = Partial<Record<keyof OrganizationProfileForm, string>>;
 
-const toForm = (company: Company): CompanyProfileForm => ({
-  name: company.name,
-  contact_email: company.contact_email,
-  description: company.description ?? "",
-  website: company.website ?? "",
-  latitude: company.latitude?.toString() ?? "",
-  longitude: company.longitude?.toString() ?? "",
-  address: company.address,
-  city: company.city,
-  postal_code: company.postal_code,
-  logo: company.logo ?? "",
-  contact_phone_number: company.contact_phone_number ?? "",
-  siret: company.siret ?? "",
-  categories: company.category_slugs.filter((category): category is CategoryName =>
+const toForm = (organization: Organization): OrganizationProfileForm => ({
+  name: organization.name,
+  contact_email: organization.contact_email,
+  description: organization.description ?? "",
+  website: organization.website ?? "",
+  latitude: organization.latitude?.toString() ?? "",
+  longitude: organization.longitude?.toString() ?? "",
+  address: organization.address,
+  city: organization.city,
+  postal_code: organization.postal_code,
+  logo: organization.logo ?? "",
+  contact_phone_number: organization.contact_phone_number ?? "",
+  siret: organization.siret ?? "",
+  categories: organization.category_slugs.filter((category): category is CategoryName =>
     CATEGORIES.includes(category as CategoryName),
   ),
 });
@@ -58,11 +58,11 @@ const isValidOptionalCoordinate = (value: string, min: number, max: number) => {
 
 const normalizeComparable = (value: string) => value.trim().toLowerCase();
 
-const validateForm = (form: CompanyProfileForm): CompanyProfileErrors => {
-  const errors: CompanyProfileErrors = {};
+const validateForm = (form: OrganizationProfileForm): OrganizationProfileErrors => {
+  const errors: OrganizationProfileErrors = {};
 
   if (form.name.trim().length < 2) {
-    errors.name = "Le nom de l'entreprise est requis";
+    errors.name = "Le nom de l'organization est requis";
   }
 
   if (!form.contact_email.includes("@")) {
@@ -116,21 +116,21 @@ const validateForm = (form: CompanyProfileForm): CompanyProfileErrors => {
   return errors;
 };
 
-export default function CompanyProfile() {
+export default function OrganizationProfile() {
   const user = useAuthStore((s) => s.currentUser);
   const login = useAuthStore((s) => s.login);
-  const companies = useDataStore((s) => s.companies);
-  const updateCompany = useDataStore((s) => s.updateCompany);
-  const company = companies.find((item) => item.id === user?.company_id);
-  const [form, setForm] = useState<CompanyProfileForm | null>(
-    company ? toForm(company) : null,
+  const organizations = useDataStore((s) => s.organizations);
+  const updateOrganization = useDataStore((s) => s.updateOrganization);
+  const organization = organizations.find((item) => item.id === user?.organization_id);
+  const [form, setForm] = useState<OrganizationProfileForm | null>(
+    organization ? toForm(organization) : null,
   );
-  const [errors, setErrors] = useState<CompanyProfileErrors>({});
+  const [errors, setErrors] = useState<OrganizationProfileErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
 
-  const updateField = <Key extends keyof CompanyProfileForm>(
+  const updateField = <Key extends keyof OrganizationProfileForm>(
     field: Key,
-    value: CompanyProfileForm[Key],
+    value: OrganizationProfileForm[Key],
   ) => {
     setForm((currentForm) =>
       currentForm ? { ...currentForm, [field]: value } : currentForm,
@@ -153,8 +153,8 @@ export default function CompanyProfile() {
     event.preventDefault();
     setServerError(null);
 
-    if (!company || !form || !user) {
-      setServerError("Impossible de charger le profil entreprise");
+    if (!organization || !form || !user) {
+      setServerError("Impossible de charger le profil organization");
       return;
     }
 
@@ -167,9 +167,9 @@ export default function CompanyProfile() {
 
     const contactEmail = form.contact_email.trim();
     const siret = form.siret.trim();
-    const existingContactEmail = companies.find(
+    const existingContactEmail = organizations.find(
       (item) =>
-        item.id !== company.id &&
+        item.id !== organization.id &&
         normalizeComparable(item.contact_email) === normalizeComparable(contactEmail),
     );
 
@@ -178,9 +178,9 @@ export default function CompanyProfile() {
       return;
     }
 
-    const existingSiret = companies.find(
+    const existingSiret = organizations.find(
       (item) =>
-        item.id !== company.id &&
+        item.id !== organization.id &&
         normalizeComparable(item.siret ?? "") === normalizeComparable(siret),
     );
 
@@ -189,7 +189,7 @@ export default function CompanyProfile() {
       return;
     }
 
-    updateCompany(company.id, {
+    updateOrganization(organization.id, {
       name: form.name.trim(),
       contact_email: contactEmail,
       description: form.description.trim(),
@@ -210,40 +210,40 @@ export default function CompanyProfile() {
       username: form.name.trim(),
     });
 
-    toast.success("Profil entreprise mis a jour");
+    toast.success("Profil organization mis a jour");
   };
 
-  if (!company || !form) {
+  if (!organization || !form) {
     return (
-      <div className="company-dashboard">
-        <h1>Profil entreprise</h1>
-        <ErrorMessage message="Profil entreprise introuvable" />
+      <div className="organization-dashboard">
+        <h1>Profil organization</h1>
+        <ErrorMessage message="Profil organization introuvable" />
       </div>
     );
   }
 
   return (
-    <div className="company-dashboard">
-      <section className="company-dashboard__header">
-        <h2>Profil entreprise</h2>
+    <div className="organization-dashboard">
+      <section className="organization-dashboard__header">
+        <h2>Profil organization</h2>
         <p>Bienvenue {user?.username}</p>
       </section>
 
       <section
-        className="company-event-form"
-        aria-labelledby="company-profile-title"
+        className="organization-event-form"
+        aria-labelledby="organization-profile-title"
       >
-        <h2 id="company-profile-title">Modifier mes informations</h2>
+        <h2 id="organization-profile-title">Modifier mes informations</h2>
 
         <form onSubmit={handleSubmit} noValidate>
-          <div className="company-event-form__grid">
+          <div className="organization-event-form__grid">
             <FormField
-              label="Nom de l'entreprise"
-              htmlFor="company-name"
+              label="Nom de l'organization"
+              htmlFor="organization-name"
               error={errors.name}
             >
               <Input
-                id="company-name"
+                id="organization-name"
                 type="text"
                 value={form.name}
                 hasError={!!errors.name}
@@ -253,11 +253,11 @@ export default function CompanyProfile() {
 
             <FormField
               label="Email de contact"
-              htmlFor="company-contact-email"
+              htmlFor="organization-contact-email"
               error={errors.contact_email}
             >
               <Input
-                id="company-contact-email"
+                id="organization-contact-email"
                 type="email"
                 value={form.contact_email}
                 hasError={!!errors.contact_email}
@@ -267,14 +267,14 @@ export default function CompanyProfile() {
               />
             </FormField>
 
-            <div className="company-event-form__wide">
+            <div className="organization-event-form__wide">
               <FormField
                 label="Description"
-                htmlFor="company-description"
+                htmlFor="organization-description"
                 error={errors.description}
               >
                 <Textarea
-                  id="company-description"
+                  id="organization-description"
                   hasError={!!errors.description}
                   rows={4}
                   value={form.description}
@@ -287,11 +287,11 @@ export default function CompanyProfile() {
 
             <FormField
               label="Site web"
-              htmlFor="company-website"
+              htmlFor="organization-website"
               error={errors.website}
             >
               <Input
-                id="company-website"
+                id="organization-website"
                 type="url"
                 value={form.website}
                 hasError={!!errors.website}
@@ -299,9 +299,9 @@ export default function CompanyProfile() {
               />
             </FormField>
 
-            <FormField label="Logo" htmlFor="company-logo" error={errors.logo}>
+            <FormField label="Logo" htmlFor="organization-logo" error={errors.logo}>
               <Input
-                id="company-logo"
+                id="organization-logo"
                 type="url"
                 value={form.logo}
                 hasError={!!errors.logo}
@@ -311,11 +311,11 @@ export default function CompanyProfile() {
 
             <FormField
               label="Latitude"
-              htmlFor="company-latitude"
+              htmlFor="organization-latitude"
               error={errors.latitude}
             >
               <Input
-                id="company-latitude"
+                id="organization-latitude"
                 type="number"
                 step="any"
                 value={form.latitude}
@@ -326,11 +326,11 @@ export default function CompanyProfile() {
 
             <FormField
               label="Longitude"
-              htmlFor="company-longitude"
+              htmlFor="organization-longitude"
               error={errors.longitude}
             >
               <Input
-                id="company-longitude"
+                id="organization-longitude"
                 type="number"
                 step="any"
                 value={form.longitude}
@@ -339,14 +339,14 @@ export default function CompanyProfile() {
               />
             </FormField>
 
-            <div className="company-event-form__wide">
+            <div className="organization-event-form__wide">
               <FormField
                 label="Adresse"
-                htmlFor="company-address"
+                htmlFor="organization-address"
                 error={errors.address}
               >
                 <Input
-                  id="company-address"
+                  id="organization-address"
                   type="text"
                   value={form.address}
                   hasError={!!errors.address}
@@ -357,9 +357,9 @@ export default function CompanyProfile() {
               </FormField>
             </div>
 
-            <FormField label="Ville" htmlFor="company-city" error={errors.city}>
+            <FormField label="Ville" htmlFor="organization-city" error={errors.city}>
               <Input
-                id="company-city"
+                id="organization-city"
                 type="text"
                 value={form.city}
                 hasError={!!errors.city}
@@ -369,11 +369,11 @@ export default function CompanyProfile() {
 
             <FormField
               label="Code postal"
-              htmlFor="company-postal-code"
+              htmlFor="organization-postal-code"
               error={errors.postal_code}
             >
               <Input
-                id="company-postal-code"
+                id="organization-postal-code"
                 type="text"
                 inputMode="numeric"
                 value={form.postal_code}
@@ -386,11 +386,11 @@ export default function CompanyProfile() {
 
             <FormField
               label="Telephone"
-              htmlFor="company-phone"
+              htmlFor="organization-phone"
               error={errors.contact_phone_number}
             >
               <Input
-                id="company-phone"
+                id="organization-phone"
                 type="tel"
                 value={form.contact_phone_number}
                 hasError={!!errors.contact_phone_number}
@@ -402,11 +402,11 @@ export default function CompanyProfile() {
 
             <FormField
               label="SIRET"
-              htmlFor="company-siret"
+              htmlFor="organization-siret"
               error={errors.siret}
             >
               <Input
-                id="company-siret"
+                id="organization-siret"
                 type="text"
                 value={form.siret}
                 hasError={!!errors.siret}
@@ -414,11 +414,11 @@ export default function CompanyProfile() {
               />
             </FormField>
 
-            <div className="company-event-form__wide">
+            <div className="organization-event-form__wide">
               <CheckboxGroup
                 error={errors.categories}
                 label="Categories"
-                labelId="company-categories"
+                labelId="organization-categories"
               >
                 {CATEGORIES.map((category) => (
                   <Checkbox

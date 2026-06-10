@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { toast } from "react-toastify";
 
-import CompanyRegisterForm from "../../auth/components/CompanyRegisterForm";
+import OrganizationRegisterForm from "../../auth/components/OrganizationRegisterForm";
 import RegisterForm from "../../auth/components/RegisterForm";
 import CategorySelect from "../../events/components/CategorySelect";
 import EmptyState from "../../../shared/components/feedback/EmptyState";
@@ -22,7 +22,7 @@ import {
   type EventCategory,
 } from "../../events/types/event-categories";
 import type { Event } from "../../events/types/event";
-import type { Company } from "../../companies/types/company";
+import type { Organization } from "../../organizations/types/organization";
 import {
   type Account,
   type AccountSummary,
@@ -39,6 +39,7 @@ import useDataStore, {
 } from "../../../shared/store/dataStore";
 import {
   formatEventDateRange,
+  isEventSuspended,
   toDateTimeLocalValue,
 } from "../../events/utils/event";
 
@@ -55,7 +56,7 @@ type EventDraft = Omit<
   | "id"
   | "latitude"
   | "longitude"
-  | "company_id"
+  | "organization_id"
   | "postal_code"
   | "created_at"
   | "updated_at"
@@ -63,7 +64,7 @@ type EventDraft = Omit<
 > & {
   latitude: string;
   longitude: string;
-  company_id: string;
+  organization_id: string;
   postal_code: string;
   category_slugs: EventCategory[];
 };
@@ -102,7 +103,7 @@ const accountCreateLabels: Record<Role, string> = {
   user: "utilisateur",
   moderator: "moderateur",
   admin: "administrateur",
-  company: "entreprise",
+  organization: "organization",
 };
 
 const normalizeText = (value: string) =>
@@ -166,11 +167,11 @@ const toEventDraft = (event: Event): EventDraft => ({
   postal_code: event.postal_code,
   image: event.image,
   source: event.source ?? "",
-  company_id: event.company_id.toString(),
+  organization_id: event.organization_id.toString(),
   is_active: event.is_active,
 });
 
-const emptyEventDraft = (companyId?: number): EventDraft => ({
+const emptyEventDraft = (organizationId?: number): EventDraft => ({
   title: "",
   description: "",
   start_date: "",
@@ -183,7 +184,7 @@ const emptyEventDraft = (companyId?: number): EventDraft => ({
   postal_code: "",
   image: "",
   source: "",
-  company_id: companyId?.toString() ?? "",
+  organization_id: organizationId?.toString() ?? "",
   is_active: true,
 });
 
@@ -217,6 +218,34 @@ const getAccountAdminStatus = (account: AccountSummary) => {
   };
 };
 
+const getEventAdminStatus = (event: Event) => {
+  if (isEventSuspended(event)) {
+    const suspendedUntil = event.suspended_until
+      ? new Date(event.suspended_until).toLocaleDateString("fr-FR")
+      : null;
+
+    return {
+      label: suspendedUntil ? `Suspendu jusqu'au ${suspendedUntil}` : "Suspendu",
+      value: "suspended" as const,
+      variant: "suspended" as const,
+    };
+  }
+
+  if (event.is_active) {
+    return {
+      label: "Publie",
+      value: "active" as const,
+      variant: "active" as const,
+    };
+  }
+
+  return {
+    label: "En attente",
+    value: "pending" as const,
+    variant: "pending" as const,
+  };
+};
+
 const toggleEventDraftCategory = (
   draft: EventDraft,
   category: EventCategory,
@@ -235,7 +264,7 @@ const toggleEventDraftCategory = (
 export default function AdminDashboard({ view = "dashboard" }: AdminDashboardProps) {
   const accountsData = useDataStore((s) => s.accounts);
   const usersData = useDataStore((s) => s.users);
-  const companiesData = useDataStore((s) => s.companies);
+  const organizationsData = useDataStore((s) => s.organizations);
   const eventsData = useDataStore((s) => s.events);
   const addAccount = useDataStore((s) => s.addAccount);
   const updateAccount = useDataStore((s) => s.updateAccount);
@@ -243,14 +272,17 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const addUser = useDataStore((s) => s.addUser);
   const updateUser = useDataStore((s) => s.updateUser);
   const deleteUserFromStore = useDataStore((s) => s.deleteUser);
-  const updateCompany = useDataStore((s) => s.updateCompany);
-  const deleteCompanyFromStore = useDataStore((s) => s.deleteCompany);
+  const updateOrganization = useDataStore((s) => s.updateOrganization);
+  const deleteOrganizationFromStore = useDataStore((s) => s.deleteOrganization);
   const addEvent = useDataStore((s) => s.addEvent);
   const updateEvent = useDataStore((s) => s.updateEvent);
   const deleteEventFromStore = useDataStore((s) => s.deleteEvent);
+  const liftEventSuspensionFromStore = useDataStore(
+    (s) => s.liftEventSuspension,
+  );
   const accountSummaries = useMemo(
-    () => buildAccountSummaries(accountsData, usersData, companiesData),
-    [accountsData, usersData, companiesData],
+    () => buildAccountSummaries(accountsData, usersData, organizationsData),
+    [accountsData, usersData, organizationsData],
   );
 
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
@@ -271,9 +303,9 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const [eventCityFilter, setEventCityFilter] = useState("all");
   const [eventSort, setEventSort] = useState<EventSort>("date-asc");
 
-  const activeCompaniesData = companiesData.filter((company) => !company.deleted_at);
+  const activeOrganizationsData = organizationsData.filter((organization) => !organization.deleted_at);
   const activeEventsData = eventsData.filter((event) => !event.deleted_at);
-  const firstCompanyId = activeCompaniesData[0]?.id;
+  const firstOrganizationId = activeOrganizationsData[0]?.id;
 
   const hasDuplicateAccountEmail = (email: string, currentAccountId?: number) =>
     accountsData.some(
@@ -290,8 +322,8 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         normalizeComparable(user.username) === normalizeComparable(username),
     );
 
-  const getCompanyName = (companyId: number) =>
-    activeCompaniesData.find((company) => company.id === companyId)?.name ??
+  const getOrganizationName = (organizationId: number) =>
+    activeOrganizationsData.find((organization) => organization.id === organizationId)?.name ??
     "Non rattache";
 
   const filteredUsers = useMemo(
@@ -344,6 +376,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
 
   const filteredEvents = activeEventsData
     .filter((event) => {
+      const eventStatus = getEventAdminStatus(event);
       const matchesSearch = normalizeText(
         [
           event.title,
@@ -353,7 +386,9 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
           event.city,
           event.postal_code,
           event.source ?? "",
-          getCompanyName(event.company_id),
+          getOrganizationName(event.organization_id),
+          eventStatus.label,
+          event.suspension_reason ?? "",
         ].join(" "),
       ).includes(normalizeText(eventSearch));
       const matchesCategory =
@@ -441,8 +476,8 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     }
 
     if (isCreatingUser) {
-      if (userDraft.role === "company") {
-        toast.error("Creez les entreprises via le formulaire entreprise");
+      if (userDraft.role === "organization") {
+        toast.error("Creez les organizations via le formulaire organization");
         return;
       }
 
@@ -496,13 +531,13 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
 
     if (!editedAccount) return;
 
-    if (userDraft.role === "company" && !editedAccount.company_id) {
-      toast.error("Creez les entreprises via le formulaire entreprise");
+    if (userDraft.role === "organization" && !editedAccount.organization_id) {
+      toast.error("Creez les organizations via le formulaire organization");
       return;
     }
 
-    if (editedAccount.company_id && userDraft.role !== "company") {
-      toast.error("Un compte entreprise doit garder le type company");
+    if (editedAccount.organization_id && userDraft.role !== "organization") {
+      toast.error("Un compte organization doit garder le type organization");
       return;
     }
 
@@ -512,7 +547,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     }
 
     if (
-      !editedAccount.company_id &&
+      !editedAccount.organization_id &&
       editedAccount.user_id &&
       hasDuplicateUsername(displayName, editedAccount.user_id)
     ) {
@@ -528,8 +563,8 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       is_active: userDraft.is_active,
     });
 
-    if (editedAccount.company_id) {
-      updateCompany(editedAccount.company_id, {
+    if (editedAccount.organization_id) {
+      updateOrganization(editedAccount.organization_id, {
         name: displayName,
         is_active: userDraft.is_active,
         is_verified: userDraft.is_active,
@@ -561,8 +596,8 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       return;
     }
 
-    if (deletedAccount.company_id) {
-      deleteCompanyFromStore(deletedAccount.company_id);
+    if (deletedAccount.organization_id) {
+      deleteOrganizationFromStore(deletedAccount.organization_id);
     } else if (deletedAccount.user_id) {
       deleteUserFromStore(deletedAccount.user_id);
     } else {
@@ -583,6 +618,11 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     toast.success(`Suspension levee pour ${account.display_name}`);
   };
 
+  const liftEventSuspension = (event: Event) => {
+    liftEventSuspensionFromStore(event.id);
+    toast.success(`Suspension levee pour ${event.title}`);
+  };
+
   const startEventEdit = (event: Event) => {
     setIsCreatingEvent(false);
     setEditingEventId(event.id);
@@ -592,7 +632,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const startEventCreate = () => {
     setEditingEventId(null);
     setIsCreatingEvent(true);
-    setEventDraft(emptyEventDraft(firstCompanyId));
+    setEventDraft(emptyEventDraft(firstOrganizationId));
   };
 
   const closeEventForm = () => {
@@ -604,23 +644,23 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const saveEvent = () => {
     if (!eventDraft) return;
 
-    if (!eventDraft.company_id) {
-      toast.error("L'entreprise est obligatoire");
+    if (!eventDraft.organization_id) {
+      toast.error("L'organization est obligatoire");
       return;
     }
 
-    const selectedCompanyId = Number(eventDraft.company_id);
-    const selectedCompany = activeCompaniesData.find(
-      (company) => company.id === selectedCompanyId,
+    const selectedOrganizationId = Number(eventDraft.organization_id);
+    const selectedOrganization = activeOrganizationsData.find(
+      (organization) => organization.id === selectedOrganizationId,
     );
 
-    if (!selectedCompany) {
-      toast.error("Entreprise introuvable");
+    if (!selectedOrganization) {
+      toast.error("Organization introuvable");
       return;
     }
 
-    if (eventDraft.is_active && !selectedCompany.is_active) {
-      toast.error("Impossible de publier un evenement d'une entreprise inactive");
+    if (eventDraft.is_active && !selectedOrganization.is_active) {
+      toast.error("Impossible de publier un evenement d'une organization inactive");
       return;
     }
 
@@ -693,7 +733,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       postal_code: eventDraft.postal_code.trim(),
       image: eventDraft.image.trim(),
       source: eventDraft.source?.trim() || null,
-      company_id: selectedCompanyId,
+      organization_id: selectedOrganizationId,
       is_active: eventDraft.is_active,
       created_at: now,
       updated_at: now,
@@ -718,7 +758,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         postal_code: payload.postal_code,
         image: payload.image,
         source: payload.source,
-        company_id: payload.company_id,
+        organization_id: payload.organization_id,
         is_active: payload.is_active,
         updated_at: payload.updated_at,
       });
@@ -864,13 +904,17 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                         <StatusBadge role="cell">
                           {user.role}
                         </StatusBadge>
-                        <StatusBadge
-                          variant={accountStatus.variant}
-                          role="cell"
-                          title={user.suspension_reason ?? undefined}
-                        >
-                          {accountStatus.label}
-                        </StatusBadge>
+                        <div className="admin-status-cell" role="cell">
+                          <StatusBadge variant={accountStatus.variant}>
+                            {accountStatus.label}
+                          </StatusBadge>
+                          {accountStatus.value === "suspended" &&
+                            user.suspension_reason && (
+                              <small className="admin-suspension-reason">
+                                Motif: {user.suspension_reason}
+                              </small>
+                            )}
+                        </div>
                         <div className="admin-actions" role="cell">
                           {accountStatus.value === "suspended" && (
                             <Button
@@ -979,36 +1023,53 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                   <span role="columnheader">Actions</span>
                 </div>
                 <div role="rowgroup">
-                  {filteredEvents.map((event) => (
-                    <div className="admin-table__row" role="row" key={event.id}>
-                      <span role="cell">{event.title}</span>
-                      <span role="cell">{getEventCategories(event).join(", ")}</span>
-                      <span role="cell">{event.city}</span>
-                      <span role="cell">{formatEventDateRange(event)}</span>
-                      <StatusBadge
-                        role="cell"
-                        variant={event.is_active ? "active" : "pending"}
-                      >
-                        {event.is_active ? "Publie" : "En attente"}
-                      </StatusBadge>
-                      <div className="admin-actions" role="cell">
-                        <Button
-                          variant="secondary"
-                          type="button"
-                          onClick={() => startEventEdit(event)}
-                        >
-                          Modifier
-                        </Button>
-                        <Button
-                          variant="danger"
-                          type="button"
-                          onClick={() => deleteEvent(event.id)}
-                        >
-                          Supprimer
-                        </Button>
+                  {filteredEvents.map((event) => {
+                    const eventStatus = getEventAdminStatus(event);
+
+                    return (
+                      <div className="admin-table__row" role="row" key={event.id}>
+                        <span role="cell">{event.title}</span>
+                        <span role="cell">{getEventCategories(event).join(", ")}</span>
+                        <span role="cell">{event.city}</span>
+                        <span role="cell">{formatEventDateRange(event)}</span>
+                        <div className="admin-status-cell" role="cell">
+                          <StatusBadge variant={eventStatus.variant}>
+                            {eventStatus.label}
+                          </StatusBadge>
+                          {eventStatus.value === "suspended" &&
+                            event.suspension_reason && (
+                              <small className="admin-suspension-reason">
+                                Motif: {event.suspension_reason}
+                              </small>
+                            )}
+                        </div>
+                        <div className="admin-actions" role="cell">
+                          {eventStatus.value === "suspended" && (
+                            <Button
+                              type="button"
+                              onClick={() => liftEventSuspension(event)}
+                            >
+                              Lever suspension
+                            </Button>
+                          )}
+                          <Button
+                            variant="secondary"
+                            type="button"
+                            onClick={() => startEventEdit(event)}
+                          >
+                            Modifier
+                          </Button>
+                          <Button
+                            variant="danger"
+                            type="button"
+                            onClick={() => deleteEvent(event.id)}
+                          >
+                            Supprimer
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -1041,11 +1102,11 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
               </Select>
             </FormField>
 
-            {accountCreateRole === "company" ? (
-              <CompanyRegisterForm
+            {accountCreateRole === "organization" ? (
+              <OrganizationRegisterForm
                 mode="admin"
-                title="Ajouter une entreprise"
-                submitLabel="Creer l'entreprise"
+                title="Ajouter une organization"
+                submitLabel="Creer l'organization"
                 onCancel={closeUserForm}
                 onSuccess={closeUserForm}
               />
@@ -1086,7 +1147,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
             <h2>{isCreatingEvent ? "Ajouter un evenement" : "Modifier un evenement"}</h2>
             <EventEditor
               draft={eventDraft}
-              companies={activeCompaniesData}
+              organizations={activeOrganizationsData}
               setDraft={setEventDraft}
               onSave={saveEvent}
               onCancel={closeEventForm}
@@ -1182,13 +1243,13 @@ function UserEditor({
 
 function EventEditor({
   draft,
-  companies,
+  organizations,
   setDraft,
   onSave,
   onCancel,
 }: {
   draft: EventDraft;
-  companies: Company[];
+  organizations: Organization[];
   setDraft: DraftSetter<EventDraft>;
   onSave: () => void;
   onCancel: () => void;
@@ -1202,18 +1263,18 @@ function EventEditor({
           onChange={(event) => setDraft({ ...draft, title: event.target.value })}
         />
       </FormField>
-      <FormField label="Entreprise" htmlFor="admin-event-company">
+      <FormField label="Organization" htmlFor="admin-event-organization">
         <Select
-          id="admin-event-company"
-          value={draft.company_id}
+          id="admin-event-organization"
+          value={draft.organization_id}
           onChange={(event) =>
-            setDraft({ ...draft, company_id: event.target.value })
+            setDraft({ ...draft, organization_id: event.target.value })
           }
         >
           <option value="">Selectionner</option>
-          {companies.map((company) => (
-            <option key={company.id} value={company.id}>
-              {company.name}
+          {organizations.map((organization) => (
+            <option key={organization.id} value={organization.id}>
+              {organization.name}
             </option>
           ))}
         </Select>

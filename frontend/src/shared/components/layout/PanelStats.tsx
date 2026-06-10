@@ -4,6 +4,7 @@ export type PanelStat = {
   label: string;
   to: string;
   value?: number;
+  detail?: string;
   end?: boolean;
 };
 
@@ -28,6 +29,9 @@ export default function PanelStats({ ariaLabel, stats }: PanelStatsProps) {
             <span className="panel-stat__value">{stat.value}</span>
           )}
           <span className="panel-stat__label">{stat.label}</span>
+          {stat.detail && (
+            <span className="panel-stat__detail">{stat.detail}</span>
+          )}
         </NavLink>
       ))}
     </nav>

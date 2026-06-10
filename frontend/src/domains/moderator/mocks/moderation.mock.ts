@@ -38,12 +38,12 @@ export const moderationReportsMock: ModerationReport[] = [
   },
   {
     id: 3,
-    target_type: "company",
+    target_type: "organization",
     target_id: 103,
     reporter_user_id: 1,
-    reason: "Justificatifs entreprise incomplets",
+    reason: "Justificatifs organization incomplets",
     details:
-      "Le compte entreprise ne presente pas assez d'elements pour valider son activite.",
+      "Le compte organization ne presente pas assez d'elements pour valider son activite.",
     status: "open",
     priority: "low",
     created_at: "2026-06-03T16:20:00.000Z",

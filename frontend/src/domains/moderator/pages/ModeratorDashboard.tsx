@@ -10,14 +10,14 @@ import Select from "../../../shared/components/ui/Select";
 import StatusBadge from "../../../shared/components/ui/StatusBadge";
 import Textarea from "../../../shared/components/ui/Textarea";
 import useAuthStore from "../../auth/store/authStore";
-import type { Company } from "../../companies/types/company";
-import type { CompanyMember } from "../../companies/types/company-member";
+import type { Organization } from "../../organizations/types/organization";
+import type { Organizer } from "../../organizations/types/organizer";
 import type { Event } from "../../events/types/event";
-import { formatEventDateRange } from "../../events/utils/event";
+import { formatEventDateRange, isEventSuspended } from "../../events/utils/event";
 import {
   createAccountSuspendedNotification,
-  createCompanyApprovedNotification,
-  createCompanyRejectedNotification,
+  createOrganizationApprovedNotification,
+  createOrganizationRejectedNotification,
   createEventApprovedNotification,
   createEventDeletedNotification,
   createEventHiddenNotification,
@@ -37,26 +37,26 @@ import useDataStore, {
 } from "../../../shared/store/dataStore";
 import { ROUTES } from "../../../shared/constants/routes";
 
-type ModeratorView = "dashboard" | "events" | "companies" | "accounts" | "reports";
+type ModeratorView = "dashboard" | "events" | "organizations" | "accounts" | "reports";
 
 type ModeratorDashboardProps = {
   view?: ModeratorView;
 };
 
-type CompanyMemberRow = {
-  member: CompanyMember;
+type OrganizerRow = {
+  member: Organizer;
   user?: User;
   account?: Account;
-  company?: Company;
+  organization?: Organization;
 };
 
 type HandledReportStatus = Extract<
   ModerationReport["status"],
   "resolved" | "dismissed"
 >;
-type ModerationEventFilter = "all" | "pending" | "published";
+type ModerationEventFilter = "all" | "pending" | "published" | "suspended";
 type ModerationEventSort = "date-asc" | "date-desc" | "title-asc" | "city-asc";
-type ModerationCompanyFilter = "all" | "pending" | "active" | "suspended";
+type ModerationOrganizationFilter = "all" | "pending" | "active" | "suspended";
 type ModerationAccountFilter = "all" | "active" | "suspended";
 type ModerationAccountSort = "name-asc" | "name-desc" | "email-asc";
 type ModerationReportFilter = "all" | ModerationReport["status"];
@@ -69,7 +69,7 @@ const finalEventActions: ModerationAction[] = [
   "event_deleted",
 ];
 
-const finalCompanyActions: ModerationAction[] = ["company_rejected"];
+const finalOrganizationActions: ModerationAction[] = ["organization_rejected"];
 
 const viewContent: Record<
   ModeratorView,
@@ -87,13 +87,13 @@ const viewContent: Record<
     title: "Moderation des evenements",
     description: "Validation, refus motive, masquage et suppression d'evenements.",
   },
-  companies: {
-    title: "Moderation des entreprises",
+  organizations: {
+    title: "Moderation des organizations",
     description:
-      "Validation, comptes entreprise et collaborateurs rattaches aux fiches.",
+      "Validation, comptes organization et collaborateurs rattaches aux fiches.",
   },
   accounts: {
-    title: "Moderation des comptes",
+    title: "Moderation des utilisateurs",
     description: "Suspension temporaire des comptes utilisateurs.",
   },
   reports: {
@@ -105,7 +105,7 @@ const viewContent: Record<
 const accountRoleLabels: Record<AccountSummary["role"], string> = {
   admin: "Admin",
   moderator: "Moderateur",
-  company: "Entreprise",
+  organization: "Organization",
   user: "Utilisateur",
 };
 
@@ -128,8 +128,8 @@ const moderationActionLabels: Record<ModerationAction, string> = {
   event_hidden: "Evenement masque",
   event_deleted: "Evenement supprime",
   event_restored: "Evenement restaure",
-  company_approved: "Entreprise validee",
-  company_rejected: "Entreprise refusee",
+  organization_approved: "Organization validee",
+  organization_rejected: "Organization refusee",
   account_suspended: "Compte suspendu",
   report_resolved: "Signalement confirme",
   report_dismissed: "Signalement restaure",
@@ -204,15 +204,17 @@ export default function ModeratorDashboard({
   const currentUser = useAuthStore((s) => s.currentUser);
   const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
-  const companies = useDataStore((s) => s.companies);
-  const companyMembers = useDataStore((s) => s.companyMembers);
+  const organizations = useDataStore((s) => s.organizations);
+  const organizers = useDataStore((s) => s.organizers);
   const events = useDataStore((s) => s.events);
   const moderationReports = useDataStore((s) => s.moderationReports);
   const moderationDecisions = useDataStore((s) => s.moderationDecisions);
-  const updateCompany = useDataStore((s) => s.updateCompany);
-  const activateCompany = useDataStore((s) => s.activateCompany);
+  const updateOrganization = useDataStore((s) => s.updateOrganization);
+  const activateOrganization = useDataStore((s) => s.activateOrganization);
   const updateEvent = useDataStore((s) => s.updateEvent);
   const approveEvent = useDataStore((s) => s.approveEvent);
+  const suspendEvent = useDataStore((s) => s.suspendEvent);
+  const liftEventSuspension = useDataStore((s) => s.liftEventSuspension);
   const deleteEvent = useDataStore((s) => s.deleteEvent);
   const restoreEvent = useDataStore((s) => s.restoreEvent);
   const deleteEventPermanently = useDataStore(
@@ -227,13 +229,16 @@ export default function ModeratorDashboard({
     Record<number, string>
   >({});
   const [suspensionDays, setSuspensionDays] = useState<Record<number, string>>({});
+  const [eventSuspensionDays, setEventSuspensionDays] = useState<
+    Record<number, string>
+  >({});
   const [eventSearch, setEventSearch] = useState("");
   const [eventFilter, setEventFilter] = useState<ModerationEventFilter>("all");
   const [eventSort, setEventSort] = useState<ModerationEventSort>("date-asc");
-  const [companySearch, setCompanySearch] = useState("");
-  const [companyFilter, setCompanyFilter] =
-    useState<ModerationCompanyFilter>("all");
-  const [companySort, setCompanySort] =
+  const [organizationSearch, setOrganizationSearch] = useState("");
+  const [organizationFilter, setOrganizationFilter] =
+    useState<ModerationOrganizationFilter>("all");
+  const [organizationSort, setOrganizationSort] =
     useState<ModerationAccountSort>("name-asc");
   const [accountSearch, setAccountSearch] = useState("");
   const [accountFilter, setAccountFilter] =
@@ -251,8 +256,8 @@ export default function ModeratorDashboard({
   const moderatorUserId = currentUser?.user_id ?? currentUser?.id ?? 0;
   const canFinalizeEvents = currentUser?.role === "admin";
   const accountSummaries = useMemo(
-    () => buildAccountSummaries(accounts, users, companies),
-    [accounts, companies, users],
+    () => buildAccountSummaries(accounts, users, organizations),
+    [accounts, organizations, users],
   );
 
   const latestDecisionByTarget = useMemo(() => {
@@ -275,7 +280,7 @@ export default function ModeratorDashboard({
     return decisionMap;
   }, [moderationDecisions]);
 
-  const activeCompanies = companies.filter((company) => !company.deleted_at);
+  const activeOrganizations = organizations.filter((organization) => !organization.deleted_at);
   const visibleEvents = events.filter((event) => !event.deleted_at);
   const pendingEvents = visibleEvents.filter((event) => {
     const latestDecision = latestDecisionByTarget.get(
@@ -284,58 +289,60 @@ export default function ModeratorDashboard({
 
     return (
       !event.is_active &&
+      !isEventSuspended(event) &&
       (!latestDecision || !finalEventActions.includes(latestDecision))
     );
   });
-  const publishedEvents = visibleEvents.filter((event) => event.is_active);
-  const pendingCompanies = activeCompanies.filter((company) => {
+  const publishedEvents = visibleEvents.filter(
+    (event) => event.is_active && !isEventSuspended(event),
+  );
+  const suspendedEvents = visibleEvents.filter((event) =>
+    isEventSuspended(event),
+  );
+  const pendingOrganizations = activeOrganizations.filter((organization) => {
     const latestDecision = latestDecisionByTarget.get(
-      getTargetKey("company", company.id),
+      getTargetKey("organization", organization.id),
     );
 
     return (
-      !company.is_active &&
-      (!latestDecision || !finalCompanyActions.includes(latestDecision))
+      !organization.is_active &&
+      (!latestDecision || !finalOrganizationActions.includes(latestDecision))
     );
   });
   const pendingReports = moderationReports.filter(
     (report) => report.status === "open",
   );
-  const reviewingReports = moderationReports.filter(
-    (report) => report.status === "reviewing",
-  );
-  const activeReportsCount = pendingReports.length + reviewingReports.length;
   const moderatableAccounts = accountSummaries.filter(
     (account) =>
-      (account.role === "user" || account.role === "company") &&
+      (account.role === "user" || account.role === "organization") &&
       account.is_active &&
       !isAccountSuspended(account),
   );
   const suspendedAccounts = accountSummaries.filter(
     (account) =>
-      (account.role === "user" || account.role === "company") &&
+      (account.role === "user" || account.role === "organization") &&
       isAccountSuspended(account),
   );
   const userAccountsToModerate = moderatableAccounts.filter(
     (account) => account.role === "user",
   );
-  const companyAccountsToModerate = moderatableAccounts.filter(
-    (account) => account.role === "company",
+  const organizationAccountsToModerate = moderatableAccounts.filter(
+    (account) => account.role === "organization",
   );
   const suspendedUserAccounts = suspendedAccounts.filter(
     (account) => account.role === "user",
   );
-  const suspendedCompanyAccounts = suspendedAccounts.filter(
-    (account) => account.role === "company",
+  const suspendedOrganizationAccounts = suspendedAccounts.filter(
+    (account) => account.role === "organization",
   );
-  const companyMemberRows = useMemo<CompanyMemberRow[]>(() => {
-    const companyById = new Map(
-      companies.map((company) => [company.id, company]),
+  const organizerRows = useMemo<OrganizerRow[]>(() => {
+    const organizationById = new Map(
+      organizations.map((organization) => [organization.id, organization]),
     );
     const userById = new Map(users.map((user) => [user.id, user]));
     const accountById = new Map(accounts.map((account) => [account.id, account]));
 
-    return companyMembers
+    return organizers
       .filter((member) => !member.deleted_at)
       .map((member) => {
         const user = userById.get(member.user_id);
@@ -344,10 +351,10 @@ export default function ModeratorDashboard({
           member,
           user,
           account: user ? accountById.get(user.account_id) : undefined,
-          company: companyById.get(member.company_id),
+          organization: organizationById.get(member.organization_id),
         };
       });
-  }, [accounts, companies, companyMembers, users]);
+  }, [accounts, organizations, organizers, users]);
 
   const getReason = (
     targetType: ModerationTargetType,
@@ -409,43 +416,43 @@ export default function ModeratorDashboard({
     });
   };
 
-  const getCompanyName = (companyId: number) =>
-    activeCompanies.find((company) => company.id === companyId)?.name ??
-    "Entreprise introuvable";
+  const getOrganizationName = (organizationId: number) =>
+    activeOrganizations.find((organization) => organization.id === organizationId)?.name ??
+    "Organization introuvable";
 
-  const getCompanyNotificationUser = (company: Company) => {
-    const companyMember = companyMembers.find(
-      (member) => member.company_id === company.id && !member.deleted_at,
+  const getOrganizationNotificationUser = (organization: Organization) => {
+    const organizer = organizers.find(
+      (member) => member.organization_id === organization.id && !member.deleted_at,
     );
 
     return (
       users.find(
-        (user) => user.id === companyMember?.user_id && !user.deleted_at,
+        (user) => user.id === organizer?.user_id && !user.deleted_at,
       ) ??
       users.find(
-        (user) => user.account_id === company.account_id && !user.deleted_at,
+        (user) => user.account_id === organization.account_id && !user.deleted_at,
       )
     );
   };
 
-  const notifyCompany = (
-    company: Company,
+  const notifyOrganization = (
+    organization: Organization,
     buildNotification: (user: User) => Parameters<typeof dispatchNotification>[0],
   ) => {
-    const notificationUser = getCompanyNotificationUser(company);
+    const notificationUser = getOrganizationNotificationUser(organization);
 
     if (!notificationUser) {
-      toast.error("Aucun membre entreprise rattache pour notifier la decision");
+      toast.error("Aucun membre organization rattache pour notifier la decision");
       return;
     }
 
     void dispatchNotification(buildNotification(notificationUser));
   };
 
-  const getCompanyMemberUsers = (companyId: number) => {
+  const getOrganizerUsers = (organizationId: number) => {
     const memberUserIds = new Set(
-      companyMembers
-        .filter((member) => member.company_id === companyId && !member.deleted_at)
+      organizers
+        .filter((member) => member.organization_id === organizationId && !member.deleted_at)
         .map((member) => member.user_id),
     );
 
@@ -468,11 +475,11 @@ export default function ModeratorDashboard({
       report.target_type === "event"
         ? events.find((event) => event.id === report.target_id) ?? null
         : null;
-    const targetCompany =
-      report.target_type === "company"
-        ? companies.find((company) => company.id === report.target_id) ?? null
+    const targetOrganization =
+      report.target_type === "organization"
+        ? organizations.find((organization) => organization.id === report.target_id) ?? null
         : targetEvent
-          ? companies.find((company) => company.id === targetEvent.company_id) ??
+          ? organizations.find((organization) => organization.id === targetEvent.organization_id) ??
             null
           : null;
 
@@ -482,17 +489,17 @@ export default function ModeratorDashboard({
         targetLabel: getReportTargetLabel(
           report,
           events,
-          companies,
+          organizations,
           accountSummaries,
         ),
         moderatorMessage,
         event: targetEvent,
-        company: targetCompany,
+        organization: targetOrganization,
       }),
     );
   };
 
-  const withdrawReportedEventAndNotifyCompany = (
+  const withdrawReportedEventAndNotifyOrganization = (
     report: ModerationReport,
     moderatorMessage: string,
   ) => {
@@ -504,17 +511,17 @@ export default function ModeratorDashboard({
 
     if (!event) return;
 
-    const company = activeCompanies.find((item) => item.id === event.company_id);
+    const organization = activeOrganizations.find((item) => item.id === event.organization_id);
 
-    if (!company) return;
+    if (!organization) return;
 
     recordDecision("event_deleted", "event", event.id, moderatorMessage);
     deleteEvent(event.id);
 
-    getCompanyMemberUsers(company.id).forEach((user) => {
+    getOrganizerUsers(organization.id).forEach((user) => {
       void dispatchNotification(
         createEventWithdrawnAfterReportNotification({
-          company,
+          organization,
           event,
           user,
           moderatorMessage,
@@ -523,48 +530,48 @@ export default function ModeratorDashboard({
     });
   };
 
-  const handleApproveCompany = (company: Company) => {
-    activateCompany(company.id);
-    notifyCompany(company, (user) =>
-      createCompanyApprovedNotification({ company, user }),
+  const handleApproveOrganization = (organization: Organization) => {
+    activateOrganization(organization.id);
+    notifyOrganization(organization, (user) =>
+      createOrganizationApprovedNotification({ organization, user }),
     );
-    recordDecision("company_approved", "company", company.id, "Compte valide");
-    toast.success(`${company.name} est validee`);
+    recordDecision("organization_approved", "organization", organization.id, "Compte valide");
+    toast.success(`${organization.name} est validee`);
   };
 
-  const handleRejectCompany = (company: Company) => {
-    const reason = getReason("company", company.id, "company_rejected");
+  const handleRejectOrganization = (organization: Organization) => {
+    const reason = getReason("organization", organization.id, "organization_rejected");
 
     if (isReasonMissing(reason)) {
       toast.error("Ajoutez une raison de refus");
       return;
     }
 
-    updateCompany(company.id, {
+    updateOrganization(organization.id, {
       is_active: false,
       is_verified: false,
     });
-    notifyCompany(company, (user) =>
-      createCompanyRejectedNotification({ company, user, reason }),
+    notifyOrganization(organization, (user) =>
+      createOrganizationRejectedNotification({ organization, user, reason }),
     );
-    recordDecision("company_rejected", "company", company.id, reason);
-    clearReason("company", company.id, "company_rejected");
-    toast.success(`${company.name} est refusee`);
+    recordDecision("organization_rejected", "organization", organization.id, reason);
+    clearReason("organization", organization.id, "organization_rejected");
+    toast.success(`${organization.name} est refusee`);
   };
 
   const handleApproveEvent = (event: Event) => {
-    const company = activeCompanies.find(
-      (item) => item.id === event.company_id && item.is_active,
+    const organization = activeOrganizations.find(
+      (item) => item.id === event.organization_id && item.is_active,
     );
 
-    if (!company) {
-      toast.error("Impossible de publier un evenement d'une entreprise inactive");
+    if (!organization) {
+      toast.error("Impossible de publier un evenement d'une organization inactive");
       return;
     }
 
     approveEvent(event.id);
-    notifyCompany(company, (user) =>
-      createEventApprovedNotification({ company, event, user }),
+    notifyOrganization(organization, (user) =>
+      createEventApprovedNotification({ organization, event, user }),
     );
     recordDecision("event_approved", "event", event.id, "Evenement valide");
     toast.success(`${event.title} est publie`);
@@ -572,61 +579,80 @@ export default function ModeratorDashboard({
 
   const handleRejectEvent = (event: Event) => {
     const reason = getReason("event", event.id, "event_rejected");
-    const company = activeCompanies.find((item) => item.id === event.company_id);
+    const organization = activeOrganizations.find((item) => item.id === event.organization_id);
 
     if (isReasonMissing(reason)) {
       toast.error("Ajoutez une raison de refus");
       return;
     }
 
-    if (!company) {
-      toast.error("Entreprise rattachee introuvable");
+    if (!organization) {
+      toast.error("Organization rattachee introuvable");
       return;
     }
 
     updateEvent(event.id, { is_active: false });
-    notifyCompany(company, (user) =>
-      createEventRejectedNotification({ company, event, user, reason }),
+    notifyOrganization(organization, (user) =>
+      createEventRejectedNotification({ organization, event, user, reason }),
     );
     recordDecision("event_rejected", "event", event.id, reason);
     clearReason("event", event.id, "event_rejected");
     toast.success(`${event.title} est refuse`);
   };
 
-  const handleHideEvent = (event: Event) => {
+  const handleSuspendEvent = (event: Event) => {
     const reason = getReason("event", event.id, "event_hidden");
-    const company = activeCompanies.find((item) => item.id === event.company_id);
+    const daysValue = Number(eventSuspensionDays[event.id] ?? 7);
+    const organization = activeOrganizations.find((item) => item.id === event.organization_id);
+
+    if (!Number.isFinite(daysValue) || daysValue < 1 || daysValue > 90) {
+      toast.error("La duree doit etre comprise entre 1 et 90 jours");
+      return;
+    }
 
     if (isReasonMissing(reason)) {
-      toast.error("Ajoutez une raison de masquage");
+      toast.error("Ajoutez une raison de suspension");
       return;
     }
 
-    if (!company) {
-      toast.error("Entreprise rattachee introuvable");
+    if (!organization) {
+      toast.error("Organization rattachee introuvable");
       return;
     }
 
-    updateEvent(event.id, { is_active: false });
-    notifyCompany(company, (user) =>
-      createEventHiddenNotification({ company, event, user, reason }),
+    const suspendedUntil = createSuspendedUntil(daysValue);
+
+    suspendEvent(event.id, reason, suspendedUntil);
+    notifyOrganization(organization, (user) =>
+      createEventHiddenNotification({ organization, event, user, reason }),
     );
     recordDecision("event_hidden", "event", event.id, reason);
     clearReason("event", event.id, "event_hidden");
-    toast.success(`${event.title} est masque`);
+    toast.success(`${event.title} est suspendu temporairement`);
+  };
+
+  const handleLiftEventSuspension = (event: Event) => {
+    liftEventSuspension(event.id);
+    recordDecision(
+      "event_restored",
+      "event",
+      event.id,
+      "Suspension levee par la moderation",
+    );
+    toast.success(`Suspension levee pour ${event.title}`);
   };
 
   const handleDeleteEvent = (event: Event) => {
     const reason = getReason("event", event.id, "event_deleted");
-    const company = activeCompanies.find((item) => item.id === event.company_id);
+    const organization = activeOrganizations.find((item) => item.id === event.organization_id);
 
     if (isReasonMissing(reason)) {
       toast.error("Ajoutez une raison de suppression");
       return;
     }
 
-    if (!company) {
-      toast.error("Entreprise rattachee introuvable");
+    if (!organization) {
+      toast.error("Organization rattachee introuvable");
       return;
     }
 
@@ -638,8 +664,8 @@ export default function ModeratorDashboard({
       return;
     }
 
-    notifyCompany(company, (user) =>
-      createEventDeletedNotification({ company, event, user, reason }),
+    notifyOrganization(organization, (user) =>
+      createEventDeletedNotification({ organization, event, user, reason }),
     );
     deleteEvent(event.id);
     recordDecision("event_deleted", "event", event.id, reason);
@@ -662,15 +688,15 @@ export default function ModeratorDashboard({
     }
 
     const suspendedUntil = createSuspendedUntil(daysValue);
-    const company = account.company_id
-      ? companies.find((item) => item.id === account.company_id)
+    const organization = account.organization_id
+      ? organizations.find((item) => item.id === account.organization_id)
       : null;
 
     suspendAccount(account.account_id, reason, suspendedUntil);
     void dispatchNotification(
       createAccountSuspendedNotification({
         user,
-        company,
+        organization,
         reason,
         suspendedUntil,
       }),
@@ -723,37 +749,37 @@ export default function ModeratorDashboard({
       return;
     }
 
-    if (report.target_type === "company") {
-      const reportedCompany = companies.find(
-        (company) => company.id === report.target_id && !company.deleted_at,
+    if (report.target_type === "organization") {
+      const reportedOrganization = organizations.find(
+        (organization) => organization.id === report.target_id && !organization.deleted_at,
       );
 
-      if (!reportedCompany) return;
+      if (!reportedOrganization) return;
 
-      updateCompany(reportedCompany.id, {
+      updateOrganization(reportedOrganization.id, {
         is_active: false,
         is_verified: false,
       });
-      notifyCompany(reportedCompany, (user) =>
-        createCompanyRejectedNotification({
-          company: reportedCompany,
+      notifyOrganization(reportedOrganization, (user) =>
+        createOrganizationRejectedNotification({
+          organization: reportedOrganization,
           user,
           reason: decisionMessage,
         }),
       );
       recordDecision(
-        "company_rejected",
-        "company",
-        reportedCompany.id,
+        "organization_rejected",
+        "organization",
+        reportedOrganization.id,
         decisionMessage,
       );
 
-      const reportedCompanyAccount = accountSummaries.find(
-        (account) => account.company_id === reportedCompany.id,
+      const reportedOrganizationAccount = accountSummaries.find(
+        (account) => account.organization_id === reportedOrganization.id,
       );
 
-      if (reportedCompanyAccount) {
-        handleSuspendAccountSummary(reportedCompanyAccount, decisionMessage, 7);
+      if (reportedOrganizationAccount) {
+        handleSuspendAccountSummary(reportedOrganizationAccount, decisionMessage, 7);
       }
     }
   };
@@ -792,7 +818,7 @@ export default function ModeratorDashboard({
 
     if (status === "resolved") {
       notifyUsefulReport(report, decisionMessage);
-      withdrawReportedEventAndNotifyCompany(report, decisionMessage);
+      withdrawReportedEventAndNotifyOrganization(report, decisionMessage);
       applyResolvedReportTargetAction(report, decisionMessage);
     }
 
@@ -833,6 +859,13 @@ export default function ModeratorDashboard({
     }));
   };
 
+  const updateEventSuspensionDays = (eventId: number, value: string) => {
+    setEventSuspensionDays((currentValues) => ({
+      ...currentValues,
+      [eventId]: value,
+    }));
+  };
+
   const sortAccounts = (items: AccountSummary[], sort: ModerationAccountSort) =>
     [...items].sort((first, second) => {
       if (sort === "name-desc") {
@@ -859,7 +892,7 @@ export default function ModeratorDashboard({
   const filterAccounts = (
     activeItems: AccountSummary[],
     suspendedItems: AccountSummary[],
-    filter: ModerationAccountFilter | ModerationCompanyFilter,
+    filter: ModerationAccountFilter | ModerationOrganizationFilter,
     search: string,
     sort: ModerationAccountSort,
   ) => {
@@ -883,7 +916,9 @@ export default function ModeratorDashboard({
         ? pendingEvents
         : eventFilter === "published"
           ? publishedEvents
-          : [...pendingEvents, ...publishedEvents];
+          : eventFilter === "suspended"
+            ? suspendedEvents
+            : [...pendingEvents, ...publishedEvents, ...suspendedEvents];
 
     return sourceEvents
       .filter((event) =>
@@ -894,7 +929,8 @@ export default function ModeratorDashboard({
             event.city,
             event.postal_code,
             event.address,
-            activeCompanies.find((company) => company.id === event.company_id)
+            event.suspension_reason ?? "",
+            activeOrganizations.find((organization) => organization.id === event.organization_id)
               ?.name ?? "",
           ].join(" "),
         ).includes(eventSearchText),
@@ -921,52 +957,59 @@ export default function ModeratorDashboard({
         );
       });
   })();
-  const filteredPendingEvents = filteredEvents.filter((event) => !event.is_active);
-  const filteredPublishedEvents = filteredEvents.filter((event) => event.is_active);
+  const filteredPendingEvents = filteredEvents.filter(
+    (event) => !event.is_active && !isEventSuspended(event),
+  );
+  const filteredPublishedEvents = filteredEvents.filter(
+    (event) => event.is_active && !isEventSuspended(event),
+  );
+  const filteredSuspendedEvents = filteredEvents.filter((event) =>
+    isEventSuspended(event),
+  );
 
-  const filteredCompanies = (() => {
-    const companySearchText = normalizeText(companySearch);
-    const sourceCompanies =
-      companyFilter === "active" || companyFilter === "suspended"
+  const filteredOrganizations = (() => {
+    const organizationSearchText = normalizeText(organizationSearch);
+    const sourceOrganizations =
+      organizationFilter === "active" || organizationFilter === "suspended"
         ? []
-        : pendingCompanies;
+        : pendingOrganizations;
 
-    return [...sourceCompanies]
-      .filter((company) =>
+    return [...sourceOrganizations]
+      .filter((organization) =>
         normalizeText(
           [
-            company.name,
-            company.contact_email,
-            company.description ?? "",
-            company.city,
-            company.postal_code,
-            company.siret ?? "",
+            organization.name,
+            organization.contact_email,
+            organization.description ?? "",
+            organization.city,
+            organization.postal_code,
+            organization.siret ?? "",
           ].join(" "),
-        ).includes(companySearchText),
+        ).includes(organizationSearchText),
       )
-      .sort((firstCompany, secondCompany) =>
-        companySort === "name-desc"
-          ? secondCompany.name.localeCompare(firstCompany.name, "fr-FR")
-          : firstCompany.name.localeCompare(secondCompany.name, "fr-FR"),
+      .sort((firstOrganization, secondOrganization) =>
+        organizationSort === "name-desc"
+          ? secondOrganization.name.localeCompare(firstOrganization.name, "fr-FR")
+          : firstOrganization.name.localeCompare(secondOrganization.name, "fr-FR"),
       );
   })();
-  const filteredCompanyAccounts = filterAccounts(
-    companyAccountsToModerate,
-    suspendedCompanyAccounts,
-    companyFilter,
-    companySearch,
-    companySort,
+  const filteredOrganizationAccounts = filterAccounts(
+    organizationAccountsToModerate,
+    suspendedOrganizationAccounts,
+    organizationFilter,
+    organizationSearch,
+    organizationSort,
   );
-  const filteredCompanyMembers = companyMemberRows
-    .filter(({ member, user, account, company }) =>
+  const filteredOrganizers = organizerRows
+    .filter(({ member, user, account, organization }) =>
       normalizeText(
         [
           user?.username ?? "",
           account?.login_email ?? "",
-          company?.name ?? "",
+          organization?.name ?? "",
           member.job_role ?? "",
         ].join(" "),
-      ).includes(normalizeText(companySearch)),
+      ).includes(normalizeText(organizationSearch)),
     )
     .sort((firstRow, secondRow) =>
       (firstRow.user?.username ?? "").localeCompare(
@@ -988,10 +1031,10 @@ export default function ModeratorDashboard({
   const filteredSuspendedUserAccounts = filteredUserAccounts.filter((account) =>
     isAccountSuspended(account),
   );
-  const filteredActiveCompanyAccounts = filteredCompanyAccounts.filter(
+  const filteredActiveOrganizationAccounts = filteredOrganizationAccounts.filter(
     (account) => !isAccountSuspended(account),
   );
-  const filteredSuspendedCompanyAccounts = filteredCompanyAccounts.filter(
+  const filteredSuspendedOrganizationAccounts = filteredOrganizationAccounts.filter(
     (account) => isAccountSuspended(account),
   );
 
@@ -1008,7 +1051,7 @@ export default function ModeratorDashboard({
         const targetLabel = getReportTargetLabel(
           report,
           events,
-          companies,
+          organizations,
           accountSummaries,
         );
 
@@ -1063,13 +1106,13 @@ export default function ModeratorDashboard({
   );
 
   const isEventsView = view === "events";
-  const isCompaniesView = view === "companies";
+  const isOrganizationsView = view === "organizations";
   const isAccountsView = view === "accounts";
   const isReportsView = view === "reports";
   const currentViewContent = viewContent[view];
   const moderatorStats = [
     {
-      label: "Comptes",
+      label: "Utilisateurs",
       to: ROUTES.MODERATOR.DASHBOARD,
       value: userAccountsToModerate.length + suspendedUserAccounts.length,
       end: true,
@@ -1077,20 +1120,20 @@ export default function ModeratorDashboard({
     {
       label: "Evenements",
       to: ROUTES.MODERATOR.EVENTS,
-      value: pendingEvents.length,
+      value: visibleEvents.length,
+      detail: `${pendingEvents.length} en attente`,
     },
     {
-      label: "Entreprises",
-      to: ROUTES.MODERATOR.COMPANIES,
-      value:
-        pendingCompanies.length +
-        companyAccountsToModerate.length +
-        suspendedCompanyAccounts.length,
+      label: "Organizations",
+      to: ROUTES.MODERATOR.ORGANIZATIONS,
+      value: activeOrganizations.length,
+      detail: `${pendingOrganizations.length} en attente`,
     },
     {
       label: "Signalements",
       to: ROUTES.MODERATOR.REPORTS,
-      value: activeReportsCount,
+      value: moderationReports.length,
+      detail: `${pendingReports.length} en attente`,
     },
   ];
 
@@ -1111,7 +1154,7 @@ export default function ModeratorDashboard({
             Rechercher
             <Input
               value={eventSearch}
-              placeholder="Titre, ville, entreprise..."
+              placeholder="Titre, ville, organization..."
               onChange={(event) => setEventSearch(event.target.value)}
             />
           </label>
@@ -1126,6 +1169,7 @@ export default function ModeratorDashboard({
               <option value="all">Tous les statuts</option>
               <option value="pending">A valider</option>
               <option value="published">Publies</option>
+              <option value="suspended">Suspendus</option>
             </Select>
           </label>
           <label>
@@ -1155,11 +1199,11 @@ export default function ModeratorDashboard({
           {filteredPendingEvents.length === 0 ? (
             <EmptyState message="Aucun evenement en attente." />
           ) : (
-            <div className="company-review-list">
+            <div className="organization-review-list">
               {filteredPendingEvents.map((event) => (
                 <EventModerationCard
                   event={event}
-                  companyName={getCompanyName(event.company_id)}
+                  organizationName={getOrganizationName(event.organization_id)}
                   key={event.id}
                   approveLabel="Valider"
                   rejectLabel="Refuser"
@@ -1186,21 +1230,25 @@ export default function ModeratorDashboard({
           {filteredPublishedEvents.length === 0 ? (
             <EmptyState message="Aucun evenement publie." />
           ) : (
-            <div className="company-review-list">
+            <div className="organization-review-list">
               {filteredPublishedEvents.map((event) => (
                 <PublishedEventModerationCard
                   event={event}
-                  companyName={getCompanyName(event.company_id)}
-                  hideReason={getReason("event", event.id, "event_hidden")}
+                  organizationName={getOrganizationName(event.organization_id)}
+                  suspensionDays={eventSuspensionDays[event.id] ?? "7"}
+                  suspensionReason={getReason("event", event.id, "event_hidden")}
                   deleteReason={getReason("event", event.id, "event_deleted")}
                   key={event.id}
-                  onHideReasonChange={(reason) =>
+                  onSuspensionDaysChange={(value) =>
+                    updateEventSuspensionDays(event.id, value)
+                  }
+                  onSuspensionReasonChange={(reason) =>
                     updateReason("event", event.id, "event_hidden", reason)
                   }
                   onDeleteReasonChange={(reason) =>
                     updateReason("event", event.id, "event_deleted", reason)
                   }
-                  onHide={() => handleHideEvent(event)}
+                  onSuspend={() => handleSuspendEvent(event)}
                   onDelete={() => handleDeleteEvent(event)}
                 />
               ))}
@@ -1209,22 +1257,46 @@ export default function ModeratorDashboard({
         </section>
       )}
 
-      {isCompaniesView && (
-        <Toolbar ariaLabel="Filtres des entreprises" className="admin-toolbar">
+      {isEventsView && (
+        <section className="admin-section admin-section--wide">
+          <div className="admin-section__title">
+            <h2>Evenements suspendus</h2>
+            <span className="admin-count">{filteredSuspendedEvents.length}</span>
+          </div>
+
+          {filteredSuspendedEvents.length === 0 ? (
+            <EmptyState message="Aucun evenement suspendu." />
+          ) : (
+            <div className="organization-review-list">
+              {filteredSuspendedEvents.map((event) => (
+                <SuspendedEventModerationCard
+                  event={event}
+                  organizationName={getOrganizationName(event.organization_id)}
+                  key={event.id}
+                  onLift={() => handleLiftEventSuspension(event)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {isOrganizationsView && (
+        <Toolbar ariaLabel="Filtres des organizations" className="admin-toolbar">
           <label>
             Rechercher
             <Input
-              value={companySearch}
-              placeholder="Entreprise, email, SIRET..."
-              onChange={(event) => setCompanySearch(event.target.value)}
+              value={organizationSearch}
+              placeholder="Organization, email, SIRET..."
+              onChange={(event) => setOrganizationSearch(event.target.value)}
             />
           </label>
           <label>
             Statut
             <Select
-              value={companyFilter}
+              value={organizationFilter}
               onChange={(event) =>
-                setCompanyFilter(event.target.value as ModerationCompanyFilter)
+                setOrganizationFilter(event.target.value as ModerationOrganizationFilter)
               }
             >
               <option value="all">Tous les statuts</option>
@@ -1236,9 +1308,9 @@ export default function ModeratorDashboard({
           <label>
             Trier par
             <Select
-              value={companySort}
+              value={organizationSort}
               onChange={(event) =>
-                setCompanySort(event.target.value as ModerationAccountSort)
+                setOrganizationSort(event.target.value as ModerationAccountSort)
               }
             >
               <option value="name-asc">Nom A-Z</option>
@@ -1249,27 +1321,27 @@ export default function ModeratorDashboard({
         </Toolbar>
       )}
 
-      {isCompaniesView && (
+      {isOrganizationsView && (
         <section className="admin-section admin-section--wide">
           <div className="admin-section__title">
-            <h2>Comptes entreprise proposes</h2>
-            <span className="admin-count">{filteredCompanies.length}</span>
+            <h2>Comptes organization proposes</h2>
+            <span className="admin-count">{filteredOrganizations.length}</span>
           </div>
 
-          {filteredCompanies.length === 0 ? (
-            <EmptyState message="Aucun compte entreprise en attente." />
+          {filteredOrganizations.length === 0 ? (
+            <EmptyState message="Aucun compte organization en attente." />
           ) : (
-            <div className="company-review-list">
-              {filteredCompanies.map((company) => (
-                <CompanyModerationCard
-                  company={company}
-                  key={company.id}
-                  reason={getReason("company", company.id, "company_rejected")}
+            <div className="organization-review-list">
+              {filteredOrganizations.map((organization) => (
+                <OrganizationModerationCard
+                  organization={organization}
+                  key={organization.id}
+                  reason={getReason("organization", organization.id, "organization_rejected")}
                   onReasonChange={(reason) =>
-                    updateReason("company", company.id, "company_rejected", reason)
+                    updateReason("organization", organization.id, "organization_rejected", reason)
                   }
-                  onApprove={() => handleApproveCompany(company)}
-                  onReject={() => handleRejectCompany(company)}
+                  onApprove={() => handleApproveOrganization(organization)}
+                  onReject={() => handleRejectOrganization(organization)}
                 />
               ))}
             </div>
@@ -1277,10 +1349,10 @@ export default function ModeratorDashboard({
         </section>
       )}
 
-      {isCompaniesView && (
+      {isOrganizationsView && (
         <>
           <AccountSuspensionSection
-            accounts={filteredActiveCompanyAccounts}
+            accounts={filteredActiveOrganizationAccounts}
             getReason={getReason}
             onDaysChange={updateSuspensionDays}
             onReasonChange={(accountId, reason) =>
@@ -1288,15 +1360,12 @@ export default function ModeratorDashboard({
             }
             onSuspend={handleSuspendAccount}
             suspensionDays={suspensionDays}
-            title="Liste des entreprise"
+            title="Liste des organizations"
           />
 
-          <CompanyMemberAccountsSection rows={filteredCompanyMembers} />
+          <OrganizerAccountsSection rows={filteredOrganizers} />
 
-          <SuspendedAccountsSection
-            companyAccounts={filteredSuspendedCompanyAccounts}
-            userAccounts={[]}
-          />
+          <SuspendedOrganizationsSection accounts={filteredSuspendedOrganizationAccounts} />
         </>
       )}
 
@@ -1354,7 +1423,7 @@ export default function ModeratorDashboard({
           />
 
           <SuspendedAccountsSection
-            companyAccounts={[]}
+            organizationAccounts={[]}
             userAccounts={filteredSuspendedUserAccounts}
           />
         </>
@@ -1433,7 +1502,7 @@ export default function ModeratorDashboard({
                 reports={filteredPendingReports}
                 emptyText="Aucun signalement en attente."
                 events={events}
-                companies={companies}
+                organizations={organizations}
                 accountSummaries={accountSummaries}
                 users={users}
                 decisionMessages={reportDecisionMessages}
@@ -1445,7 +1514,7 @@ export default function ModeratorDashboard({
                 reports={filteredReviewingReports}
                 emptyText="Aucun signalement en cours de traitement."
                 events={events}
-                companies={companies}
+                organizations={organizations}
                 accountSummaries={accountSummaries}
                 users={users}
                 decisionMessages={reportDecisionMessages}
@@ -1457,7 +1526,7 @@ export default function ModeratorDashboard({
                 reports={filteredHandledReports}
                 emptyText="Aucun signalement traite."
                 events={events}
-                companies={companies}
+                organizations={organizations}
                 accountSummaries={accountSummaries}
                 users={users}
                 decisionMessages={reportDecisionMessages}
@@ -1525,7 +1594,7 @@ export default function ModeratorDashboard({
 
 function EventModerationCard({
   event,
-  companyName,
+  organizationName,
   approveLabel,
   rejectLabel,
   reason,
@@ -1534,7 +1603,7 @@ function EventModerationCard({
   onReject,
 }: {
   event: Event;
-  companyName: string;
+  organizationName: string;
   approveLabel: string;
   rejectLabel: string;
   reason: string;
@@ -1543,22 +1612,22 @@ function EventModerationCard({
   onReject: () => void;
 }) {
   return (
-    <article className="company-review">
-      <div className="company-review__media">
+    <article className="organization-review">
+      <div className="organization-review__media">
         <img src={event.image} alt={`Visuel ${event.title}`} />
       </div>
-      <div className="company-review__content">
-        <div className="company-review__header">
+      <div className="organization-review__content">
+        <div className="organization-review__header">
           <div>
             <h3>{event.title}</h3>
             <p>{event.description}</p>
           </div>
           <StatusBadge variant="pending">En attente</StatusBadge>
         </div>
-        <dl className="company-review__details">
+        <dl className="organization-review__details">
           <div>
-            <dt>Entreprise</dt>
-            <dd>{companyName}</dd>
+            <dt>Organization</dt>
+            <dd>{organizationName}</dd>
           </div>
           <div>
             <dt>Debut / fin</dt>
@@ -1591,55 +1660,73 @@ function EventModerationCard({
 
 function PublishedEventModerationCard({
   event,
-  companyName,
-  hideReason,
+  organizationName,
+  suspensionDays,
+  suspensionReason,
   deleteReason,
-  onHideReasonChange,
+  onSuspensionDaysChange,
+  onSuspensionReasonChange,
   onDeleteReasonChange,
-  onHide,
+  onSuspend,
   onDelete,
 }: {
   event: Event;
-  companyName: string;
-  hideReason: string;
+  organizationName: string;
+  suspensionDays: string;
+  suspensionReason: string;
   deleteReason: string;
-  onHideReasonChange: (reason: string) => void;
+  onSuspensionDaysChange: (value: string) => void;
+  onSuspensionReasonChange: (reason: string) => void;
   onDeleteReasonChange: (reason: string) => void;
-  onHide: () => void;
+  onSuspend: () => void;
   onDelete: () => void;
 }) {
   return (
-    <article className="company-review">
-      <div className="company-review__media">
+    <article className="organization-review">
+      <div className="organization-review__media">
         <img src={event.image} alt={`Visuel ${event.title}`} />
       </div>
-      <div className="company-review__content">
-        <div className="company-review__header">
+      <div className="organization-review__content">
+        <div className="organization-review__header">
           <div>
             <h3>{event.title}</h3>
             <p>{event.description}</p>
           </div>
           <StatusBadge variant="active">Publie</StatusBadge>
         </div>
-        <dl className="company-review__details">
+        <dl className="organization-review__details">
           <div>
-            <dt>Entreprise</dt>
-            <dd>{companyName}</dd>
+            <dt>Organization</dt>
+            <dd>{organizationName}</dd>
           </div>
           <div>
             <dt>Debut / fin</dt>
             <dd>{formatEventDateRange(event)}</dd>
           </div>
         </dl>
-        <div className="moderator-split-actions">
-          <DecisionReason
-            value={hideReason}
-            placeholder="Raison de masquage"
-            onChange={onHideReasonChange}
-          />
-          <Button variant="secondary" type="button" onClick={onHide}>
-            Masquer
-          </Button>
+        <div className="moderator-split-actions moderator-split-actions--event">
+          <div className="moderator-event-suspension">
+            <label className="moderator-days">
+              Jours
+              <Input
+                min={1}
+                max={90}
+                type="number"
+                value={suspensionDays}
+                onChange={(event) =>
+                  onSuspensionDaysChange(event.target.value)
+                }
+              />
+            </label>
+            <DecisionReason
+              value={suspensionReason}
+              placeholder="Motif de suspension"
+              onChange={onSuspensionReasonChange}
+            />
+            <Button variant="secondary" type="button" onClick={onSuspend}>
+              Suspendre
+            </Button>
+          </div>
           <DecisionReason
             value={deleteReason}
             placeholder="Raison de suppression"
@@ -1654,45 +1741,91 @@ function PublishedEventModerationCard({
   );
 }
 
-function CompanyModerationCard({
-  company,
+function SuspendedEventModerationCard({
+  event,
+  organizationName,
+  onLift,
+}: {
+  event: Event;
+  organizationName: string;
+  onLift: () => void;
+}) {
+  return (
+    <article className="organization-review">
+      <div className="organization-review__media">
+        <img src={event.image} alt={`Visuel ${event.title}`} />
+      </div>
+      <div className="organization-review__content">
+        <div className="organization-review__header">
+          <div>
+            <h3>{event.title}</h3>
+            <p>{event.description}</p>
+          </div>
+          <StatusBadge variant="suspended">Suspendu</StatusBadge>
+        </div>
+        <dl className="organization-review__details">
+          <div>
+            <dt>Organization</dt>
+            <dd>{organizationName}</dd>
+          </div>
+          <div>
+            <dt>Fin de suspension</dt>
+            <dd>Jusqu'au {formatDate(event.suspended_until)}</dd>
+          </div>
+          <div>
+            <dt>Motif</dt>
+            <dd>{event.suspension_reason ?? "Motif non renseigne"}</dd>
+          </div>
+        </dl>
+        <div className="admin-actions">
+          <Button type="button" onClick={onLift}>
+            Lever suspension
+          </Button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function OrganizationModerationCard({
+  organization,
   reason,
   onReasonChange,
   onApprove,
   onReject,
 }: {
-  company: Company;
+  organization: Organization;
   reason: string;
   onReasonChange: (reason: string) => void;
   onApprove: () => void;
   onReject: () => void;
 }) {
   return (
-    <article className="company-review">
-      <div className="company-review__media">
-        <img src={company.logo ?? ""} alt={`Logo ${company.name}`} />
+    <article className="organization-review">
+      <div className="organization-review__media">
+        <img src={organization.logo ?? ""} alt={`Logo ${organization.name}`} />
       </div>
-      <div className="company-review__content">
-        <div className="company-review__header">
+      <div className="organization-review__content">
+        <div className="organization-review__header">
           <div>
-            <h3>{company.name}</h3>
-            <p>{company.description}</p>
+            <h3>{organization.name}</h3>
+            <p>{organization.description}</p>
           </div>
           <StatusBadge variant="pending">En attente</StatusBadge>
         </div>
-        <dl className="company-review__details">
+        <dl className="organization-review__details">
           <div>
             <dt>Email</dt>
-            <dd>{company.contact_email}</dd>
+            <dd>{organization.contact_email}</dd>
           </div>
           <div>
             <dt>SIRET</dt>
-            <dd>{company.siret ?? "Non renseigne"}</dd>
+            <dd>{organization.siret ?? "Non renseigne"}</dd>
           </div>
           <div>
             <dt>Adresse</dt>
             <dd>
-              {company.address}, {company.city} {company.postal_code}
+              {organization.address}, {organization.city} {organization.postal_code}
             </dd>
           </div>
         </dl>
@@ -1719,7 +1852,7 @@ function ReportGroup({
   reports,
   emptyText,
   events,
-  companies,
+  organizations,
   accountSummaries,
   users,
   decisionMessages,
@@ -1730,7 +1863,7 @@ function ReportGroup({
   reports: ModerationReport[];
   emptyText: string;
   events: Event[];
-  companies: Company[];
+  organizations: Organization[];
   accountSummaries: AccountSummary[];
   users: User[];
   decisionMessages: Record<number, string>;
@@ -1751,7 +1884,7 @@ function ReportGroup({
       {reports.length === 0 ? (
         <EmptyState message={emptyText} />
       ) : (
-        <div className="company-review-list">
+        <div className="organization-review-list">
           {reports.map((report) => (
             <ReportCard
               report={report}
@@ -1759,7 +1892,7 @@ function ReportGroup({
               targetLabel={getReportTargetLabel(
                 report,
                 events,
-                companies,
+                organizations,
                 accountSummaries,
               )}
               reporterName={getUserName(report.reporter_user_id, users)}
@@ -1817,9 +1950,9 @@ function ReportCard({
     : null;
 
   return (
-    <article className="company-review moderator-report">
-      <div className="company-review__content">
-        <div className="company-review__header">
+    <article className="organization-review moderator-report">
+      <div className="organization-review__content">
+        <div className="organization-review__header">
           <div>
             <h3>{report.reason}</h3>
             <p>{report.details}</p>
@@ -1835,7 +1968,7 @@ function ReportCard({
             ) : null}
           </div>
         </div>
-        <dl className="company-review__details">
+        <dl className="organization-review__details">
           <div>
             <dt>Cible</dt>
             <dd>{targetLabel}</dd>
@@ -2005,13 +2138,13 @@ function AccountSuspensionSection({
   );
 }
 
-function CompanyMemberAccountsSection({
+function OrganizerAccountsSection({
   rows,
 }: {
-  rows: CompanyMemberRow[];
+  rows: OrganizerRow[];
 }) {
   return (
-    <section className="admin-section admin-section--wide moderator-company-members-section">
+    <section className="admin-section admin-section--wide moderator-organizers-section">
       <div className="admin-section__title">
         <h2>Comptes employes</h2>
         <span className="admin-count">{rows.length}</span>
@@ -2021,19 +2154,19 @@ function CompanyMemberAccountsSection({
         <EmptyState message="Aucun compte employe rattache." />
       ) : (
         <div
-          className="admin-table admin-table--company-members"
+          className="admin-table admin-table--organizers"
           role="table"
           aria-label="Comptes employes"
         >
           <div className="admin-table__row admin-table__row--head" role="row">
             <span role="columnheader">Employe</span>
             <span role="columnheader">Email</span>
-            <span role="columnheader">Entreprise</span>
+            <span role="columnheader">Organization</span>
             <span role="columnheader">Poste</span>
             <span role="columnheader">Statut</span>
           </div>
           <div role="rowgroup">
-            {rows.map(({ member, user, account, company }) => {
+            {rows.map(({ member, user, account, organization }) => {
               const isActiveAccount =
                 !!account &&
                 account.is_active &&
@@ -2057,7 +2190,7 @@ function CompanyMemberAccountsSection({
                     {account?.login_email ?? "Email introuvable"}
                   </span>
                   <span role="cell">
-                    {company?.name ?? `Entreprise #${member.company_id}`}
+                    {organization?.name ?? `Organization #${member.organization_id}`}
                   </span>
                   <span role="cell">{member.job_role ?? "Non renseigne"}</span>
                   <StatusBadge
@@ -2078,12 +2211,12 @@ function CompanyMemberAccountsSection({
 
 function SuspendedAccountsSection({
   userAccounts,
-  companyAccounts,
+  organizationAccounts,
 }: {
   userAccounts: AccountSummary[];
-  companyAccounts: AccountSummary[];
+  organizationAccounts: AccountSummary[];
 }) {
-  const totalSuspendedAccounts = userAccounts.length + companyAccounts.length;
+  const totalSuspendedAccounts = userAccounts.length + organizationAccounts.length;
 
   if (totalSuspendedAccounts === 0) return null;
 
@@ -2096,8 +2229,29 @@ function SuspendedAccountsSection({
 
       <div className="moderator-suspended-groups">
         <SuspendedAccountList title="Utilisateurs" accounts={userAccounts} />
-        <SuspendedAccountList title="Entreprises" accounts={companyAccounts} />
+        <SuspendedAccountList title="Organizations" accounts={organizationAccounts} />
       </div>
+    </section>
+  );
+}
+
+function SuspendedOrganizationsSection({
+  accounts,
+}: {
+  accounts: AccountSummary[];
+}) {
+  return (
+    <section className="admin-section admin-section--wide moderator-suspended-section">
+      <div className="admin-section__title">
+        <h2>Organizations suspendues</h2>
+        <span className="admin-count">{accounts.length}</span>
+      </div>
+
+      {accounts.length === 0 ? (
+        <EmptyState message="Aucune organization suspendue." />
+      ) : (
+        <SuspendedAccountList title="Organizations" accounts={accounts} />
+      )}
     </section>
   );
 }
@@ -2173,17 +2327,17 @@ function DecisionReason({
 function getReportTargetLabel(
   report: ModerationReport,
   events: Event[],
-  companies: Company[],
+  organizations: Organization[],
   accountSummaries: AccountSummary[],
 ) {
   if (report.target_type === "event") {
     return events.find((event) => event.id === report.target_id)?.title ?? "Evenement";
   }
 
-  if (report.target_type === "company") {
+  if (report.target_type === "organization") {
     return (
-      companies.find((company) => company.id === report.target_id)?.name ??
-      "Entreprise"
+      organizations.find((organization) => organization.id === report.target_id)?.name ??
+      "Organization"
     );
   }
 

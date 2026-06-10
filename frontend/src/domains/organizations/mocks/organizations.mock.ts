@@ -1,6 +1,6 @@
-import type { Company } from "../types/company";
+import type { Organization } from "../types/organization";
 
-export const companiesMock: Company[] = [
+export const organizationsMock: Organization[] = [
   {
     id: 101,
     account_id: 10,

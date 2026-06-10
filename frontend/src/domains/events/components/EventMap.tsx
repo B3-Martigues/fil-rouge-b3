@@ -71,16 +71,16 @@ export default function EventMap({
   selectedEventRequestId = 0,
 }: EventMapProps) {
   const { position } = useUserLocation();
-  const companies = useDataStore((s) => s.companies);
+  const organizations = useDataStore((s) => s.organizations);
   const [openPopupEventId, setOpenPopupEventId] = useState<number | null>(null);
-  const activeCompaniesById = useMemo(
+  const activeOrganizationsById = useMemo(
     () =>
       new Map(
-        companies
-          .filter((company) => company.is_active && !company.deleted_at)
-          .map((company) => [company.id, company]),
+        organizations
+          .filter((organization) => organization.is_active && !organization.deleted_at)
+          .map((organization) => [organization.id, organization]),
       ),
-    [companies],
+    [organizations],
   );
   const mappableEvents = useMemo(
     () =>
@@ -88,25 +88,25 @@ export default function EventMap({
         .map((event) => {
           if (hasEventCoordinates(event)) return event;
 
-          const company = activeCompaniesById.get(event.company_id);
+          const organization = activeOrganizationsById.get(event.organization_id);
 
           if (
-            company?.latitude == null ||
-            company.longitude == null
+            organization?.latitude == null ||
+            organization.longitude == null
           ) {
             return null;
           }
 
           return {
             ...event,
-            latitude: company.latitude,
-            longitude: company.longitude,
+            latitude: organization.latitude,
+            longitude: organization.longitude,
           };
         })
         .filter(
           (event): event is MappableEvent => event != null,
         ),
-    [activeCompaniesById, events],
+    [activeOrganizationsById, events],
   );
   const selectedEvent = useMemo(
     () =>

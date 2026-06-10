@@ -24,7 +24,7 @@ import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 const getRedirectPathByRole = (role: Role) => {
   if (role === "admin") return ROUTES.ADMIN.DASHBOARD;
   if (role === "moderator") return ROUTES.MODERATOR.DASHBOARD;
-  if (role === "company") return ROUTES.COMPANY.EVENTS;
+  if (role === "organization") return ROUTES.ORGANIZATION.EVENTS;
   return ROUTES.PUBLIC.HOME;
 };
 
@@ -33,7 +33,7 @@ export default function LoginForm() {
   const login = useAuthStore((s) => s.login);
   const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
-  const companies = useDataStore((s) => s.companies);
+  const organizations = useDataStore((s) => s.organizations);
 
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -55,7 +55,7 @@ export default function LoginForm() {
       await new Promise((resolve) => setTimeout(resolve, 800));
 
       const result = authenticateMockAccount(
-        { accounts, users, companies },
+        { accounts, users, organizations },
         data,
       );
 

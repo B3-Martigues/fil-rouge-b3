@@ -1,4 +1,4 @@
-import type { Company } from "../../companies/types/company";
+import type { Organization } from "../../organizations/types/organization";
 import type { Event } from "../types/event";
 import type { EventCategoryName } from "../types/event-categories";
 
@@ -16,7 +16,7 @@ export type EventListFilters = {
   search?: string;
   city?: string;
   categories?: EventCategoryName[];
-  companyId?: number;
+  organizationId?: number;
   includeInactive?: boolean;
 };
 
@@ -27,7 +27,7 @@ export type EventCreatePayload = Omit<
 
 export type EventUpdatePayload = Partial<EventCreatePayload>;
 
-export const isPublicMockEvent = (event: Event, company?: Company | null) =>
+export const isPublicMockEvent = (event: Event, organization?: Organization | null) =>
   !event.deleted_at &&
   event.is_active &&
-  (company ? company.is_active && !company.deleted_at : true);
+  (organization ? organization.is_active && !organization.deleted_at : true);

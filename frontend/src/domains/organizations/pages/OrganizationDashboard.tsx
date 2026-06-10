@@ -12,10 +12,10 @@ import Input from "../../../shared/components/ui/Input";
 import Textarea from "../../../shared/components/ui/Textarea";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import useDataStore from "../../../shared/store/dataStore";
-import { useCompanyAccess } from "../hooks/useCompanyAccess";
+import { useOrganizationAccess } from "../hooks/useOrganizationAccess";
 import { ROUTES } from "../../../shared/constants/routes";
 
-type CompanyEventForm = {
+type OrganizationEventForm = {
   title: string;
   description: string;
   start_date: string;
@@ -29,9 +29,9 @@ type CompanyEventForm = {
   image: string;
 };
 
-type CompanyEventErrors = Partial<Record<keyof CompanyEventForm, string>>;
+type OrganizationEventErrors = Partial<Record<keyof OrganizationEventForm, string>>;
 
-const emptyEventForm = (): CompanyEventForm => ({
+const emptyEventForm = (): OrganizationEventForm => ({
   title: "",
   description: "",
   start_date: "",
@@ -52,8 +52,8 @@ const isValidOptionalCoordinate = (value: string, min: number, max: number) => {
   return !Number.isNaN(numberValue) && numberValue >= min && numberValue <= max;
 };
 
-const validateEventForm = (form: CompanyEventForm): CompanyEventErrors => {
-  const errors: CompanyEventErrors = {};
+const validateEventForm = (form: OrganizationEventForm): OrganizationEventErrors => {
+  const errors: OrganizationEventErrors = {};
 
   if (form.title.trim().length < 3) {
     errors.title = "Le titre doit contenir au moins 3 caracteres";
@@ -112,21 +112,21 @@ const validateEventForm = (form: CompanyEventForm): CompanyEventErrors => {
   return errors;
 };
 
-export default function CompanyDashboard() {
+export default function OrganizationDashboard() {
   const navigate = useNavigate();
-  const { isPendingApproval } = useCompanyAccess();
+  const { isPendingApproval } = useOrganizationAccess();
   const currentUser = useAuthStore((s) => s.currentUser);
   const addEvent = useDataStore((s) => s.addEvent);
-  const [form, setForm] = useState<CompanyEventForm>(emptyEventForm);
-  const [errors, setErrors] = useState<CompanyEventErrors>({});
+  const [form, setForm] = useState<OrganizationEventForm>(emptyEventForm);
+  const [errors, setErrors] = useState<OrganizationEventErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const imagePreviewUrl = form.image.trim();
   const canPreviewImage =
     imagePreviewUrl !== "" && URL.canParse(imagePreviewUrl);
 
-  const updateField = <Key extends keyof CompanyEventForm>(
+  const updateField = <Key extends keyof OrganizationEventForm>(
     field: Key,
-    value: CompanyEventForm[Key],
+    value: OrganizationEventForm[Key],
   ) => {
     setForm((currentForm) => ({ ...currentForm, [field]: value }));
     setErrors((currentErrors) => ({ ...currentErrors, [field]: undefined }));
@@ -145,8 +145,8 @@ export default function CompanyDashboard() {
     event.preventDefault();
     setServerError(null);
 
-    if (!currentUser?.company_id) {
-      setServerError("Impossible d'identifier l'entreprise connectee");
+    if (!currentUser?.organization_id) {
+      setServerError("Impossible d'identifier l'organization connectee");
       return;
     }
 
@@ -160,7 +160,7 @@ export default function CompanyDashboard() {
     const now = new Date().toISOString();
     const newEvent: Event = {
       id: Date.now(),
-      company_id: currentUser.company_id,
+      organization_id: currentUser.organization_id,
       title: form.title.trim(),
       description: form.description.trim(),
       start_date: new Date(form.start_date).toISOString(),
@@ -172,7 +172,7 @@ export default function CompanyDashboard() {
       postal_code: form.postal_code.trim(),
       category_slugs: form.categories,
       image: form.image.trim(),
-      source: "Evenement cree par une entreprise",
+      source: "Evenement cree par une organization",
       is_active: false,
       created_at: now,
       updated_at: now,
@@ -181,7 +181,7 @@ export default function CompanyDashboard() {
     addEvent(newEvent);
     setForm(emptyEventForm());
     toast.success("Evenement envoye en attente de publication");
-    navigate(ROUTES.COMPANY.EVENTS);
+    navigate(ROUTES.ORGANIZATION.EVENTS);
     requestAnimationFrame(() => {
       window.scrollTo({ top: 0, left: 0 });
     });
@@ -189,7 +189,7 @@ export default function CompanyDashboard() {
 
   if (isPendingApproval) {
     return (
-      <div className="company-dashboard">
+      <div className="organization-dashboard">
         <h2>Votre compte est en attente de validation</h2>
         <p>
           Votre compte doit etre valide par un administrateur avant de pouvoir
@@ -200,18 +200,18 @@ export default function CompanyDashboard() {
   }
 
   return (
-    <div className="company-dashboard">
-      <section className="company-dashboard__header">
+    <div className="organization-dashboard">
+      <section className="organization-dashboard__header">
         <h2>Nouvel evenement</h2>
-        <p>Ajoutez un evenement public rattache a votre entreprise.</p>
+        <p>Ajoutez un evenement public rattache a votre organization.</p>
       </section>
 
       <section
-        className="company-event-form"
-        aria-labelledby="company-event-form-title"
+        className="organization-event-form"
+        aria-labelledby="organization-event-form-title"
       >
         <form onSubmit={handleSubmit} noValidate>
-          <div className="company-event-form__grid">
+          <div className="organization-event-form__grid">
             <FormField label="Titre" htmlFor="event-title" error={errors.title}>
               <Input
                 id="event-title"
@@ -225,7 +225,7 @@ export default function CompanyDashboard() {
               />
             </FormField>
 
-            <div id="event-categories" className="company-event-form__wide">
+            <div id="event-categories" className="organization-event-form__wide">
               <CategorySelect
                 error={errors.categories}
                 labelId="event-categories-label"
@@ -234,7 +234,7 @@ export default function CompanyDashboard() {
               />
             </div>
 
-            <div className="company-event-form__wide">
+            <div className="organization-event-form__wide">
               <FormField
                 label="Description"
                 htmlFor="event-description"
@@ -388,7 +388,7 @@ export default function CompanyDashboard() {
               />
             </FormField>
 
-            <div className="company-event-form__wide company-event-form__image-field">
+            <div className="organization-event-form__wide organization-event-form__image-field">
               <FormField
                 label="Image"
                 htmlFor="event-image"
@@ -406,7 +406,7 @@ export default function CompanyDashboard() {
                 />
               </FormField>
 
-              <div className="company-event-form__image-preview">
+              <div className="organization-event-form__image-preview">
                 <span>Apercu de l'image</span>
                 {canPreviewImage && (
                   <img src={imagePreviewUrl} alt="" loading="lazy" />

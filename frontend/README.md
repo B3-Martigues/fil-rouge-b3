@@ -10,8 +10,8 @@ L'application permet:
 - la recherche et le filtrage des événements par catégorie, ville et code postal
 - l'authentification utilisateur
 - la gestion des favoris et de l'historique
-- la gestion d'événements par les entreprises
-- la validation des comptes entreprise par l'administration
+- la gestion d'événements par les organizations
+- la validation des comptes organization par l'administration
 - la validation des événements par l'administration avant affichage public
 - l'administration de la plateforme
 
@@ -80,17 +80,17 @@ Contient:
 - styles # styles liés à l'utilisateur
 - types # types liés à l'utilisateur
 
-company/
+organization/
 Contient:
 
-- pages # pages liées à l'espace entreprise (dashboard, profil, gestion des événements)
-- components # composants spécifiques à l'entreprise
-- hooks # logique métier liée aux entreprises (ex. accès, is_active)
-- api # futurs appels API backend pour les entreprises
-- mocks # données temporaires pour les comptes entreprise
+- pages # pages liées à l'espace organization (dashboard, profil, gestion des événements)
+- components # composants spécifiques à l'organization
+- hooks # logique métier liée aux organizations (ex. accès, is_active)
+- api # futurs appels API backend pour les organizations
+- mocks # données temporaires pour les comptes organization
 - validations # schèmas de validation des formulaires
-- styles # styles liés aux entreprises
-- types # types liés aux entreprises
+- styles # styles liés aux organizations
+- types # types liés aux organizations
 
 admin/
 Contient:
@@ -118,7 +118,7 @@ Contient:
 
 - UI components # Button, Input, FormField
 - feedback components # Loader, ErrorMessage, SuccessMessage, EmptyState
-- layouts # Public, Privat, Admin, Company - facilitent la scalabilité du projet
+- layouts # Public, Privat, Admin, Organization - facilitent la scalabilité du projet
 - constants # routes globales, constantes métier
 - hooks # hooks réutilisables
 - utils # fonctions utilitaires
@@ -128,26 +128,26 @@ Contient:
 L'application gère actuellement plusieurs rôles:
 
 - user # compte utilisateur classique avèc accès immédiat
-- company # compte entreprise avec accès limité tant que la validation administrateur est en attente
+- organization # compte organization avec accès limité tant que la validation administrateur est en attente
 - admin # accès à l'administration de la plateforme
 
 Les accès sont protégés via:
 
 - des routes privées
 - des guards de rôles
-- des conditions métier (is_active pour les entreprises)
+- des conditions métier (is_active pour les organizations)
 
 Règles métier actuelles:
 
-- un compte company en attente conserve uniquement les onglets Accueil et Profil
-- un compte company validé accède à la création et à la gestion de ses événements
-- une connexion company redirige vers /company/events
-- un événement créé ou modifié par une company repasse en attente de validation
+- un compte organization en attente conserve uniquement les onglets Accueil et Profil
+- un compte organization validé accède à la création et à la gestion de ses événements
+- une connexion organization redirige vers /organization/events
+- un événement créé ou modifié par une organization repasse en attente de validation
 - la date de création d'un événement est conservée lors des modifications
-- la liste des événements company reprend l'affichage des cartes de validation admin
+- la liste des événements organization reprend l'affichage des cartes de validation admin
 - seuls les événements validés sont affichés dans le listing public
-- l'administration affiche les statistiques des entreprises et événements en attente
-- l'administration peut modifier, supprimer ou valider les entreprises et événements en attente
+- l'administration affiche les statistiques des organizations et événements en attente
+- l'administration peut modifier, supprimer ou valider les organizations et événements en attente
 
 ## Authentification
 
@@ -172,7 +172,7 @@ examples:
 
 - feature/auth
 - feature/events
-- feature/company-dashboard
+- feature/organization-dashboard
 
 ## Objectif de l'architecture
 

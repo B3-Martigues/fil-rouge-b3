@@ -39,26 +39,31 @@
 .moderator-panel {
   .admin-table--accounts .admin-table__row {
     grid-template-columns:
-      minmax(120px, 1fr) minmax(150px, 1.1fr) auto 92px
-      minmax(220px, 1.4fr);
+      minmax(150px, 1fr) minmax(140px, 0.9fr) minmax(100px, 0.6fr)
+      minmax(120px, 0.65fr) minmax(220px, 1.2fr);
   }
 
   .moderator-account-table .admin-table__row {
     grid-template-columns:
-      minmax(170px, 1.2fr) auto 92px minmax(220px, 1.3fr)
-      auto;
+      minmax(170px, 1.15fr) minmax(110px, 0.55fr) minmax(92px, 0.45fr)
+      minmax(220px, 1.25fr) minmax(130px, 0.65fr);
+  }
+
+  .moderator-account-table .admin-table__row:not(.admin-table__row--head) {
     align-items: end;
   }
 
   .admin-table--suspended .admin-table__row {
-    grid-template-columns: minmax(160px, 1.2fr) auto minmax(120px, 0.7fr) minmax(180px, 1fr);
+    grid-template-columns:
+      minmax(170px, 1.1fr) minmax(120px, 0.6fr) minmax(130px, 0.65fr)
+      minmax(190px, 1fr);
     align-items: start;
   }
 
-  .admin-table--company-members .admin-table__row {
+  .admin-table--organizers .admin-table__row {
     grid-template-columns:
       minmax(150px, 1fr) minmax(180px, 1.1fr) minmax(150px, 1fr)
-      minmax(150px, 0.9fr) auto;
+      minmax(150px, 0.9fr) minmax(120px, 0.65fr);
     align-items: start;
   }
 }
@@ -109,6 +114,17 @@
   gap: 10px;
   align-items: end;
   margin-top: 14px;
+}
+
+.moderator-split-actions--event {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+
+.moderator-event-suspension {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
 }
 
 .moderator-decision-list {
@@ -188,7 +204,7 @@
   .moderator-panel {
     .moderator-account-table .admin-table__row,
     .admin-table--suspended .admin-table__row,
-    .admin-table--company-members .admin-table__row {
+    .admin-table--organizers .admin-table__row {
       grid-template-columns: 1fr;
       align-items: start;
     }
@@ -203,12 +219,16 @@
   .moderator-panel {
     .admin-table--accounts .admin-table__row,
     .admin-table--suspended .admin-table__row,
-    .admin-table--company-members .admin-table__row {
+    .admin-table--organizers .admin-table__row {
       grid-template-columns: 1fr;
     }
   }
 
   .moderator-split-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .moderator-event-suspension {
     grid-template-columns: 1fr;
   }
 

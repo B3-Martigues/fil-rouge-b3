@@ -46,6 +46,15 @@ export function hasEventCoordinates(
   return event.latitude != null && event.longitude != null;
 }
 
+export function isEventSuspended(
+  event: Pick<Event, "suspended_until">,
+  at = new Date(),
+): boolean {
+  if (!event.suspended_until) return false;
+
+  return new Date(event.suspended_until).getTime() > at.getTime();
+}
+
 export function formatEventDateRange(
   event: Pick<Event, "start_date" | "end_date">,
 ): string {

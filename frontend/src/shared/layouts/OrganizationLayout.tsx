@@ -1,11 +1,11 @@
 /**
- * Layout pour les entreprises.
+ * Layout pour les organizations.
  */
 
 import { Outlet } from "react-router-dom";
 import Header from "../components/layout/Header";
 
-export default function CompanyLayout() {
+export default function OrganizationLayout() {
   return (
     <>
       <Header />

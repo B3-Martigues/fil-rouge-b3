@@ -2,7 +2,7 @@ import type { EventCategoryName, EventCategoryOption } from "./event-categories"
 
 export type Event = {
   id: number;
-  company_id: number;
+  organization_id: number;
   title: string;
   description: string;
   start_date: string;
@@ -16,6 +16,8 @@ export type Event = {
   image: string;
   source?: string | null;
   is_active: boolean;
+  suspended_until?: string | null;
+  suspension_reason?: string | null;
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;

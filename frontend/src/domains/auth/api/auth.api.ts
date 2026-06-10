@@ -1,4 +1,4 @@
-import type { Company } from "../../companies/types/company";
+import type { Organization } from "../../organizations/types/organization";
 import type {
   Account,
   AuthenticatedUser,
@@ -6,7 +6,7 @@ import type {
 } from "../../user/types/user";
 import {
   isAccountSuspended,
-  toAuthenticatedCompany,
+  toAuthenticatedOrganization,
   toAuthenticatedUser,
 } from "../../user/types/user";
 
@@ -27,7 +27,7 @@ export type LoginCredentials = {
 export type MockAuthContext = {
   accounts: Account[];
   users: User[];
-  companies: Company[];
+  organizations: Organization[];
 };
 
 export type MockAuthErrorCode =
@@ -81,23 +81,29 @@ export function authenticateMockAccount(
   if (isAccountSuspended(account, at)) {
     const suspendedUntil = account.suspended_until
       ? new Date(account.suspended_until).toLocaleDateString("fr-FR")
+      : null;
+    const suspensionEnd = suspendedUntil
+      ? ` jusqu'au ${suspendedUntil}`
       : "";
 
     return {
       ok: false,
       code: "suspended_account",
-      message: `Ce compte est temporairement suspendu${suspendedUntil ? ` jusqu'au ${suspendedUntil}` : ""}.`,
+      message: `Ce compte a ete suspendu${suspensionEnd}. Consultez vos mails pour avoir plus de details sur la raison et la date de suspension.`,
     };
   }
 
-  const company = context.companies.find(
-    (item) => item.account_id === account.id && !item.deleted_at,
-  );
+  const organization =
+    account.account_type === "organization"
+      ? context.organizations.find(
+          (item) => item.account_id === account.id && !item.deleted_at,
+        )
+      : undefined;
   const user = context.users.find(
     (item) => item.account_id === account.id && !item.deleted_at,
   );
-  const authenticatedUser = company
-    ? toAuthenticatedCompany({ account, user, company })
+  const authenticatedUser = organization
+    ? toAuthenticatedOrganization({ account, user, organization })
     : user
       ? toAuthenticatedUser(account, user)
       : null;

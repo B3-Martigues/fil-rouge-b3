@@ -1,4 +1,4 @@
-export type ModerationTargetType = "event" | "company" | "account";
+export type ModerationTargetType = "event" | "organization" | "account";
 
 export type ModerationReportStatus =
   | "open"
@@ -14,8 +14,8 @@ export type ModerationAction =
   | "event_hidden"
   | "event_deleted"
   | "event_restored"
-  | "company_approved"
-  | "company_rejected"
+  | "organization_approved"
+  | "organization_rejected"
   | "account_suspended"
   | "report_resolved"
   | "report_dismissed";

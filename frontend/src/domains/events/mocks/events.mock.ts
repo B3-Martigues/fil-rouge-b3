@@ -3,7 +3,7 @@ import type { Event } from "../types/event-categories";
 export const eventsMock: Event[] = [
   {
     id: 1001,
-    company_id: 101,
+    organization_id: 101,
     title: "Jazz sur le Vieux-Port",
     description:
       "Concert en plein air avec trois formations jazz locales et vue sur le Vieux-Port.",
@@ -23,7 +23,7 @@ export const eventsMock: Event[] = [
   },
   {
     id: 1002,
-    company_id: 102,
+    organization_id: 102,
     title: "Marche gourmand de Provence",
     description:
       "Food trucks, producteurs locaux, degustations et animations culinaires toute la journee.",
@@ -43,7 +43,7 @@ export const eventsMock: Event[] = [
   },
   {
     id: 1003,
-    company_id: 104,
+    organization_id: 104,
     title: "Randonnee crepusculaire dans les Calanques",
     description:
       "Sortie accompagnee au coucher du soleil, niveau facile, depart depuis Cassis.",
@@ -63,7 +63,7 @@ export const eventsMock: Event[] = [
   },
   {
     id: 1004,
-    company_id: 101,
+    organization_id: 101,
     title: "Expo photo: Marseille de nuit",
     description:
       "Exposition immersive dediee aux paysages urbains et aux ports illumines.",
@@ -83,7 +83,7 @@ export const eventsMock: Event[] = [
   },
   {
     id: 1005,
-    company_id: 102,
+    organization_id: 102,
     title: "Atelier cuisine mediterraneenne",
     description:
       "Session passee pour tester l'affichage de l'historique et des événements termines.",
@@ -103,10 +103,10 @@ export const eventsMock: Event[] = [
   },
   {
     id: 1006,
-    company_id: 103,
+    organization_id: 103,
     title: "Atelier design solidaire",
     description:
-      "Evenement propose par une entreprise encore en attente de validation administrateur.",
+      "Evenement propose par une organization encore en attente de validation administrateur.",
     start_date: "2026-06-10T08:00:00.000Z",
     end_date: "2026-06-10T11:30:00.000Z",
     latitude: 43.3442,
@@ -123,7 +123,7 @@ export const eventsMock: Event[] = [
   },
   {
     id: 1007,
-    company_id: 101,
+    organization_id: 101,
     title: "Conference web et accessibilite",
     description:
       "Rencontre technique sans coordonnees GPS pour verifier l'affichage liste sans marker carte.",
@@ -143,7 +143,7 @@ export const eventsMock: Event[] = [
   },
   {
     id: 1008,
-    company_id: 104,
+    organization_id: 104,
     title: "Course annulee du bord de mer",
     description:
       "Evenement soft-deleted pour verifier qu'il ne ressort ni dans la liste ni dans la carte.",

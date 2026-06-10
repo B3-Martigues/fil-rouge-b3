@@ -5,18 +5,18 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import {
-  companyRegisterSchema,
-  type CompanyRegisterFormData,
+  organizationRegisterSchema,
+  type OrganizationRegisterFormData,
 } from "../validations/register.schema";
 import type { Account, User } from "../../user/types/user";
 import {
   ACCOUNT_TYPE_IDS,
   ROLE_IDS,
-  toAuthenticatedCompany,
+  toAuthenticatedOrganization,
 } from "../../user/types/user";
-import type { Company } from "../../companies/types/company";
-import type { CompanyMember } from "../../companies/types/company-member";
-import { CATEGORIES } from "../../companies/types/company-categories";
+import type { Organization } from "../../organizations/types/organization";
+import type { Organizer } from "../../organizations/types/organizer";
+import { CATEGORIES } from "../../organizations/types/organization-categories";
 import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
@@ -29,7 +29,7 @@ import Textarea from "../../../shared/components/ui/Textarea";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import { createWelcomeNotification } from "../../notifications/services/notificationFactory";
 
-type CompanyRegisterFormProps = {
+type OrganizationRegisterFormProps = {
   mode?: "public" | "admin";
   title?: string;
   submitLabel?: string;
@@ -37,11 +37,11 @@ type CompanyRegisterFormProps = {
   onSuccess?: () => void;
 };
 
-type CompanyRegisterField = FieldPath<CompanyRegisterFormData>;
+type OrganizationRegisterField = FieldPath<OrganizationRegisterFormData>;
 
-const companyRegisterSteps: {
+const organizationRegisterSteps: {
   title: string;
-  fields: CompanyRegisterField[];
+  fields: OrganizationRegisterField[];
 }[] = [
   {
     title: "Compte",
@@ -55,7 +55,7 @@ const companyRegisterSteps: {
     ],
   },
   {
-    title: "Entreprise",
+    title: "Organization",
     fields: [
       "contact_email",
       "description",
@@ -76,23 +76,23 @@ const createNextId = (items: { id: number }[]) =>
 
 const normalizeComparable = (value: string) => value.trim().toLowerCase();
 
-export default function CompanyRegisterForm({
+export default function OrganizationRegisterForm({
   mode = "public",
-  title = "Inscription entreprise",
+  title = "Inscription organization",
   submitLabel,
   onCancel,
   onSuccess,
-}: CompanyRegisterFormProps) {
+}: OrganizationRegisterFormProps) {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
   const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
-  const companies = useDataStore((s) => s.companies);
-  const companyMembers = useDataStore((s) => s.companyMembers);
+  const organizations = useDataStore((s) => s.organizations);
+  const organizers = useDataStore((s) => s.organizers);
   const addAccount = useDataStore((s) => s.addAccount);
   const addUser = useDataStore((s) => s.addUser);
-  const addCompany = useDataStore((s) => s.addCompany);
-  const addCompanyMember = useDataStore((s) => s.addCompanyMember);
+  const addOrganization = useDataStore((s) => s.addOrganization);
+  const addOrganizer = useDataStore((s) => s.addOrganizer);
   const dispatchNotification = useDataStore((s) => s.dispatchNotification);
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -103,8 +103,8 @@ export default function CompanyRegisterForm({
     handleSubmit,
     trigger,
     formState: { errors },
-  } = useForm<CompanyRegisterFormData>({
-    resolver: zodResolver(companyRegisterSchema),
+  } = useForm<OrganizationRegisterFormData>({
+    resolver: zodResolver(organizationRegisterSchema),
     mode: "onTouched",
     defaultValues: {
       categories: [],
@@ -112,8 +112,8 @@ export default function CompanyRegisterForm({
   });
 
   const isFirstStep = currentStep === 0;
-  const isLastStep = currentStep === companyRegisterSteps.length - 1;
-  const step = companyRegisterSteps[currentStep];
+  const isLastStep = currentStep === organizationRegisterSteps.length - 1;
+  const step = organizationRegisterSteps[currentStep];
 
   const goToPreviousStep = () => {
     setServerError(null);
@@ -126,12 +126,12 @@ export default function CompanyRegisterForm({
 
     if (isValidStep) {
       setCurrentStep((value) =>
-        Math.min(companyRegisterSteps.length - 1, value + 1),
+        Math.min(organizationRegisterSteps.length - 1, value + 1),
       );
     }
   };
 
-  const onSubmit = async (data: CompanyRegisterFormData) => {
+  const onSubmit = async (data: OrganizationRegisterFormData) => {
     const isAdminMode = mode === "admin";
 
     setLoading(true);
@@ -145,7 +145,7 @@ export default function CompanyRegisterForm({
       const loginEmail = data.login_email.trim();
       const memberName = data.member_name.trim();
       const memberJobRole = data.member_job_role.trim();
-      const companyName = data.name.trim();
+      const organizationName = data.name.trim();
       const contactEmail = data.contact_email.trim();
       const siret = data.siret.trim();
       const existingAccount = accounts.find(
@@ -172,9 +172,9 @@ export default function CompanyRegisterForm({
         return;
       }
 
-      const existingContactEmail = companies.find(
-        (company) =>
-          normalizeComparable(company.contact_email) ===
+      const existingContactEmail = organizations.find(
+        (organization) =>
+          normalizeComparable(organization.contact_email) ===
           normalizeComparable(contactEmail),
       );
 
@@ -184,9 +184,9 @@ export default function CompanyRegisterForm({
         return;
       }
 
-      const existingSiret = companies.find(
-        (company) =>
-          normalizeComparable(company.siret ?? "") === normalizeComparable(siret),
+      const existingSiret = organizations.find(
+        (organization) =>
+          normalizeComparable(organization.siret ?? "") === normalizeComparable(siret),
       );
 
       if (existingSiret) {
@@ -197,13 +197,13 @@ export default function CompanyRegisterForm({
 
       const accountId = createNextId(accounts);
       const userId = createNextId(users);
-      const companyId = createNextId(companies);
-      const companyMemberId = createNextId(companyMembers);
+      const organizationId = createNextId(organizations);
+      const organizerId = createNextId(organizers);
       const createdAt = new Date().toISOString();
       const account: Account = {
         id: accountId,
-        account_type_id: ACCOUNT_TYPE_IDS.company,
-        account_type: "company",
+        account_type_id: ACCOUNT_TYPE_IDS.organization,
+        account_type: "organization",
         login_email: loginEmail,
         password_hash: data.password,
         is_active: true,
@@ -214,17 +214,17 @@ export default function CompanyRegisterForm({
         id: userId,
         account_id: accountId,
         username: memberName,
-        role_id: ROLE_IDS.company,
-        role: "company",
+        role_id: ROLE_IDS.organization,
+        role: "organization",
         created_at: createdAt,
         updated_at: createdAt,
       };
-      const company: Company = {
-        id: companyId,
+      const organization: Organization = {
+        id: organizationId,
         account_id: accountId,
-        name: companyName,
+        name: organizationName,
         contact_email: contactEmail,
-        role_id: ROLE_IDS.company,
+        role_id: ROLE_IDS.organization,
         description: data.description.trim(),
         website: data.website.trim(),
         address: data.address.trim(),
@@ -239,10 +239,10 @@ export default function CompanyRegisterForm({
         updated_at: createdAt,
         category_slugs: data.categories,
       };
-      const companyMember: CompanyMember = {
-        id: companyMemberId,
+      const organizer: Organizer = {
+        id: organizerId,
         user_id: userId,
-        company_id: companyId,
+        organization_id: organizationId,
         job_role: memberJobRole,
         created_at: createdAt,
         updated_at: createdAt,
@@ -250,26 +250,26 @@ export default function CompanyRegisterForm({
 
       addAccount(account);
       addUser(memberUser);
-      addCompany(company);
-      addCompanyMember(companyMember);
+      addOrganization(organization);
+      addOrganizer(organizer);
       void dispatchNotification(
-        createWelcomeNotification({ user: memberUser, company }),
+        createWelcomeNotification({ user: memberUser, organization }),
       );
 
       if (isAdminMode) {
-        toast.success("Compte entreprise cree");
+        toast.success("Compte organization cree");
         onSuccess?.();
         return;
       }
 
-      login(toAuthenticatedCompany({ account, user: memberUser, company }));
-      toast.success("Compte entreprise cree. En attente de validation");
-      navigate(ROUTES.COMPANY.DASHBOARD);
+      login(toAuthenticatedOrganization({ account, user: memberUser, organization }));
+      toast.success("Compte organization cree. En attente de validation");
+      navigate(ROUTES.ORGANIZATION.DASHBOARD);
     } catch {
       setServerError(
         mode === "admin"
-          ? "Erreur lors de la creation de l'entreprise"
-          : "Erreur lors de l'inscription entreprise",
+          ? "Erreur lors de la creation de l'organization"
+          : "Erreur lors de l'inscription organization",
       );
     } finally {
       setLoading(false);
@@ -281,7 +281,7 @@ export default function CompanyRegisterForm({
       <h1>{title}</h1>
 
       <ol className="form-stepper" aria-label="Progression du formulaire">
-        {companyRegisterSteps.map((item, index) => (
+        {organizationRegisterSteps.map((item, index) => (
           <li
             className={index === currentStep ? "is-active" : ""}
             key={item.title}
@@ -298,7 +298,7 @@ export default function CompanyRegisterForm({
             <legend>Compte et membre principal</legend>
 
             <FormField
-              label="Nom de l'entreprise"
+              label="Nom de l'organization"
               htmlFor="name"
               error={errors.name?.message}
             >
@@ -306,7 +306,7 @@ export default function CompanyRegisterForm({
                 id="name"
                 type="text"
                 autoComplete="organization"
-                placeholder="Nom de l'entreprise"
+                placeholder="Nom de l'organization"
                 hasError={!!errors.name}
                 {...register("name")}
               />
@@ -351,7 +351,7 @@ export default function CompanyRegisterForm({
                 id="email"
                 type="email"
                 autoComplete="email"
-                placeholder="contact@entreprise.fr"
+                placeholder="contact@organization.fr"
                 hasError={!!errors.login_email}
                 aria-describedby="email-error"
                 {...register("login_email")}
@@ -394,7 +394,7 @@ export default function CompanyRegisterForm({
 
         {currentStep === 1 && (
           <fieldset className="auth-form-section">
-            <legend>Informations entreprise</legend>
+            <legend>Informations organization</legend>
 
             <FormField
               label="Email de contact"
@@ -405,7 +405,7 @@ export default function CompanyRegisterForm({
                 id="contact_email"
                 type="email"
                 autoComplete="email"
-                placeholder="contact@entreprise.fr"
+                placeholder="contact@organization.fr"
                 hasError={!!errors.contact_email}
                 aria-describedby="contact_email-error"
                 {...register("contact_email")}
@@ -420,7 +420,7 @@ export default function CompanyRegisterForm({
               <Textarea
                 id="description"
                 hasError={!!errors.description}
-                placeholder="Description de l'entreprise"
+                placeholder="Description de l'organization"
                 rows={4}
                 {...register("description")}
               />
@@ -492,7 +492,7 @@ export default function CompanyRegisterForm({
                 id="address"
                 type="text"
                 autoComplete="street-address"
-                placeholder="Adresse de l'entreprise"
+                placeholder="Adresse de l'organization"
                 hasError={!!errors.address}
                 {...register("address")}
               />
@@ -556,7 +556,7 @@ export default function CompanyRegisterForm({
 
           {isLastStep ? (
             <Button type="submit" loading={loading}>
-              {submitLabel ?? "Creer un compte entreprise"}
+              {submitLabel ?? "Creer un compte organization"}
             </Button>
           ) : (
             <Button type="button" disabled={loading} onClick={goToNextStep}>

@@ -271,9 +271,23 @@
     text-transform: uppercase;
   }
 
+  &__detail {
+    color: var(--text-p);
+    font-size: 13px;
+    line-height: 1.25;
+  }
+
   &.is-active &__value {
     color: var(--color-inverse);
   }
+
+  &.is-active &__detail {
+    color: var(--color-inverse);
+  }
+}
+
+.theme-toggle {
+  flex: 0 0 auto;
 }
 
 @media (max-width: 760px) {

@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 
 import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
 import { FormModalLink } from "../../../shared/components/forms/FormModalLink";
+import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
 import {
@@ -26,6 +27,7 @@ export default function UserProfileForm() {
   const logout = useAuthStore((s) => s.logout);
   const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
+  const organizers = useDataStore((s) => s.organizers);
   const updateAccount = useDataStore((s) => s.updateAccount);
   const updateUser = useDataStore((s) => s.updateUser);
   const deleteUser = useDataStore((s) => s.deleteUser);
@@ -33,6 +35,11 @@ export default function UserProfileForm() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const hasOrganizations =
+    !!user?.user_id &&
+    organizers.some(
+      (organizer) => organizer.user_id === user.user_id && !organizer.deleted_at,
+    );
 
   const {
     register,
@@ -161,13 +168,19 @@ export default function UserProfileForm() {
           Enregistrer les modifications
         </Button>
         <div className="user-profile-actions">
-          <FormModalLink className="btn" to="/profile/change-password">
+          <FormModalLink className="btn" to={ROUTES.USER.CHANGE_PASSWORD}>
             Modifier le mot de passe
           </FormModalLink>
 
-          <FormModalLink className="btn" to="/preferences">
+          <FormModalLink className="btn" to={ROUTES.USER.PREFERENCES}>
             Modifier mes préférences
           </FormModalLink>
+
+          {!hasOrganizations && (
+            <FormModalLink className="btn" to={ROUTES.USER.BECOME_ORGANIZER}>
+              Devenir organisateur
+            </FormModalLink>
+          )}
 
           <Button
             variant="danger"

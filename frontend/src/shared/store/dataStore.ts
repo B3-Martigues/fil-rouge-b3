@@ -3,10 +3,10 @@ import { persist } from "zustand/middleware";
 
 import { accountsMock } from "../../domains/auth/mocks/accounts.mock";
 import type { PasswordResetToken } from "../../domains/auth/types/passwordReset";
-import { companyMembersMock } from "../../domains/companies/mocks/company-members.mock";
-import { companiesMock } from "../../domains/companies/mocks/companies.mock";
-import type { Company } from "../../domains/companies/types/company";
-import type { CompanyMember } from "../../domains/companies/types/company-member";
+import { organizersMock } from "../../domains/organizations/mocks/organizers.mock";
+import { organizationsMock } from "../../domains/organizations/mocks/organizations.mock";
+import type { Organization } from "../../domains/organizations/types/organization";
+import type { Organizer } from "../../domains/organizations/types/organizer";
 import { eventsMock } from "../../domains/events/mocks/events.mock";
 import type { Event } from "../../domains/events/types/event";
 import {
@@ -77,8 +77,8 @@ type AddModerationReportPayload = {
 type DataState = {
   accounts: Account[];
   users: User[];
-  companies: Company[];
-  companyMembers: CompanyMember[];
+  organizations: Organization[];
+  organizers: Organizer[];
   events: Event[];
   favorites: Favorite[];
   histories: History[];
@@ -112,12 +112,12 @@ type DataState = {
   updateUser: (userId: number, data: Partial<User>) => void;
   deleteUser: (userId: number) => void;
 
-  addCompany: (company: Company) => void;
-  updateCompany: (companyId: number, data: Partial<Company>) => void;
-  activateCompany: (companyId: number) => void;
-  deleteCompany: (companyId: number) => void;
+  addOrganization: (organization: Organization) => void;
+  updateOrganization: (organizationId: number, data: Partial<Organization>) => void;
+  activateOrganization: (organizationId: number) => void;
+  deleteOrganization: (organizationId: number) => void;
 
-  addCompanyMember: (companyMember: CompanyMember) => void;
+  addOrganizer: (organizer: Organizer) => void;
 
   addEvent: (event: Event) => void;
   updateEvent: (
@@ -125,6 +125,12 @@ type DataState = {
     data: Partial<Omit<Event, "id" | "created_at">>,
   ) => void;
   approveEvent: (eventId: number) => void;
+  suspendEvent: (
+    eventId: number,
+    reason: string,
+    suspendedUntil: string,
+  ) => void;
+  liftEventSuspension: (eventId: number) => void;
   deleteEvent: (eventId: number) => void;
   restoreEvent: (eventId: number) => void;
   deleteEventPermanently: (eventId: number) => void;
@@ -207,12 +213,12 @@ const buildResetLink = (token: string) => {
 
 const buildProfileUrl = (
   accountId: number,
-  companies: Company[],
+  organizations: Organization[],
 ): string | undefined => {
-  const path = companies.some(
-    (company) => company.account_id === accountId && !company.deleted_at,
+  const path = organizations.some(
+    (organization) => organization.account_id === accountId && !organization.deleted_at,
   )
-    ? "/company/profile"
+    ? "/organization/profile"
     : "/profile";
 
   if (typeof window === "undefined") return path;
@@ -246,13 +252,13 @@ const isDuplicateNotification = (
       );
     }
 
-    if (notificationTypeConfig.slug === "company_approved") {
-      return notification.company_id === draft.company_id;
+    if (notificationTypeConfig.slug === "organization_approved") {
+      return notification.organization_id === draft.organization_id;
     }
 
     if (notificationTypeConfig.slug === "event_approved") {
       return (
-        notification.company_id === draft.company_id &&
+        notification.organization_id === draft.organization_id &&
         notification.event_id === draft.event_id
       );
     }
@@ -265,7 +271,7 @@ const getNotificationRecipient = (
   notification: Notification,
   accounts: Account[],
   users: User[],
-  companies: Company[],
+  organizations: Organization[],
 ) => {
   const user = users.find(
     (item) => item.id === notification.user_id && !item.deleted_at,
@@ -273,47 +279,50 @@ const getNotificationRecipient = (
   const account = user
     ? accounts.find((item) => item.id === user.account_id && !item.deleted_at)
     : undefined;
-  const company = notification.company_id
-    ? companies.find(
-        (item) => item.id === notification.company_id && !item.deleted_at,
+  const organization = notification.organization_id
+    ? organizations.find(
+        (item) => item.id === notification.organization_id && !item.deleted_at,
       )
     : undefined;
 
   if (!user || !account) return null;
 
   return {
-    email: company?.contact_email || account.login_email,
-    name: company?.name ?? user.username,
+    email: organization?.contact_email || account.login_email,
+    name: organization?.name ?? user.username,
   };
 };
 
 export const buildAccountSummaries = (
   accounts: Account[],
   users: User[],
-  companies: Company[],
+  organizations: Organization[],
 ): AccountSummary[] =>
   accounts.filter(isNotDeleted).map((account) => {
     const user = users.find(
       (item) => item.account_id === account.id && isNotDeleted(item),
     );
-    const company = companies.find(
-      (item) => item.account_id === account.id && isNotDeleted(item),
-    );
+    const organization =
+      account.account_type === "organization"
+        ? organizations.find(
+            (item) => item.account_id === account.id && isNotDeleted(item),
+          )
+        : undefined;
 
-    if (company) {
+    if (organization) {
       return {
         account_id: account.id,
         login_email: account.login_email,
         password_hash: account.password_hash,
-        role: "company",
-        role_id: company.role_id ?? ROLE_IDS.company,
-        display_name: company.name,
-        is_active: account.is_active && company.is_active,
+        role: "organization",
+        role_id: organization.role_id ?? ROLE_IDS.organization,
+        display_name: organization.name,
+        is_active: account.is_active && organization.is_active,
         suspended_until: account.suspended_until ?? null,
         suspension_reason: account.suspension_reason ?? null,
         user_id: user?.id,
-        company_id: company.id,
-        is_verified: company.is_verified,
+        organization_id: organization.id,
+        is_verified: organization.is_verified,
       };
     }
 
@@ -338,8 +347,8 @@ const useDataStore = create<DataState>()(
     (set, get) => ({
       accounts: accountsMock,
       users: usersMock,
-      companies: companiesMock,
-      companyMembers: companyMembersMock,
+      organizations: organizationsMock,
+      organizers: organizersMock,
       events: eventsMock,
       favorites: favoritesMock,
       histories: historiesMock,
@@ -352,7 +361,7 @@ const useDataStore = create<DataState>()(
       passwordResetTokens: [],
 
       getAccountSummaries: () =>
-        buildAccountSummaries(get().accounts, get().users, get().companies),
+        buildAccountSummaries(get().accounts, get().users, get().organizations),
 
       dispatchNotification: async (draft) => {
         if (isDuplicateNotification(get().notifications, draft)) {
@@ -363,7 +372,7 @@ const useDataStore = create<DataState>()(
           id: createNextId(get().notifications),
           user_id: draft.user_id,
           event_id: draft.event_id ?? null,
-          company_id: draft.company_id ?? null,
+          organization_id: draft.organization_id ?? null,
           notification_type_id: draft.notification_type_id,
           title: draft.title,
           message: draft.message,
@@ -389,7 +398,7 @@ const useDataStore = create<DataState>()(
           notification,
           get().accounts,
           get().users,
-          get().companies,
+          get().organizations,
         );
 
         if (!recipient) {
@@ -610,7 +619,7 @@ const useDataStore = create<DataState>()(
         void get().dispatchNotification(
           createPasswordChangedNotification({
             user,
-            profileUrl: buildProfileUrl(account.id, state.companies),
+            profileUrl: buildProfileUrl(account.id, state.organizations),
           }),
         );
 
@@ -636,9 +645,9 @@ const useDataStore = create<DataState>()(
           const deletedUserIds = state.users
             .filter((user) => user.account_id === accountId)
             .map((user) => user.id);
-          const deletedCompanyIds = state.companies
-            .filter((company) => company.account_id === accountId)
-            .map((company) => company.id);
+          const deletedOrganizationIds = state.organizations
+            .filter((organization) => organization.account_id === accountId)
+            .map((organization) => organization.id);
 
           return {
             accounts: state.accounts.map((account) =>
@@ -651,21 +660,21 @@ const useDataStore = create<DataState>()(
                 ? { ...user, ...createSoftDeletePatch() }
                 : user,
             ),
-            companies: state.companies.map((company) =>
-              company.account_id === accountId
+            organizations: state.organizations.map((organization) =>
+              organization.account_id === accountId
                 ? {
-                    ...company,
+                    ...organization,
                     is_active: false,
                     is_verified: false,
                     ...createSoftDeletePatch(),
                   }
-                : company,
+                : organization,
             ),
-            companyMembers: state.companyMembers.map((companyMember) =>
-              deletedUserIds.includes(companyMember.user_id) ||
-              deletedCompanyIds.includes(companyMember.company_id)
-                ? { ...companyMember, ...createSoftDeletePatch() }
-                : companyMember,
+            organizers: state.organizers.map((organizer) =>
+              deletedUserIds.includes(organizer.user_id) ||
+              deletedOrganizationIds.includes(organizer.organization_id)
+                ? { ...organizer, ...createSoftDeletePatch() }
+                : organizer,
             ),
           };
         }),
@@ -698,10 +707,10 @@ const useDataStore = create<DataState>()(
                 ? { ...account, is_active: false, ...createSoftDeletePatch() }
                 : account,
             ),
-            companyMembers: state.companyMembers.map((companyMember) =>
-              companyMember.user_id === userId
-                ? { ...companyMember, ...createSoftDeletePatch() }
-                : companyMember,
+            organizers: state.organizers.map((organizer) =>
+              organizer.user_id === userId
+                ? { ...organizer, ...createSoftDeletePatch() }
+                : organizer,
             ),
             favorites: state.favorites.map((favorite) =>
               favorite.user_id === userId
@@ -716,27 +725,27 @@ const useDataStore = create<DataState>()(
           };
         }),
 
-      addCompany: (company) =>
+      addOrganization: (organization) =>
         set((state) => ({
-          companies: [...state.companies, company],
+          organizations: [...state.organizations, organization],
         })),
 
-      updateCompany: (companyId, data) =>
+      updateOrganization: (organizationId, data) =>
         set((state) => ({
-          companies: state.companies.map((company) =>
-            company.id === companyId
-              ? { ...company, ...data, updated_at: now() }
-              : company,
+          organizations: state.organizations.map((organization) =>
+            organization.id === organizationId
+              ? { ...organization, ...data, updated_at: now() }
+              : organization,
           ),
         })),
 
-      activateCompany: (companyId) =>
+      activateOrganization: (organizationId) =>
         set((state) => {
-          const company = state.companies.find((item) => item.id === companyId);
+          const organization = state.organizations.find((item) => item.id === organizationId);
 
           return {
-            companies: state.companies.map((item) =>
-              item.id === companyId
+            organizations: state.organizations.map((item) =>
+              item.id === organizationId
                 ? {
                     ...item,
                     is_active: true,
@@ -746,51 +755,60 @@ const useDataStore = create<DataState>()(
                 : item,
             ),
             accounts: state.accounts.map((account) =>
-              account.id === company?.account_id
+              account.id === organization?.account_id
                 ? { ...account, is_active: true, updated_at: now() }
                 : account,
             ),
           };
         }),
 
-      deleteCompany: (companyId) =>
+      deleteOrganization: (organizationId) =>
         set((state) => {
-          const deletedCompany = state.companies.find(
-            (company) => company.id === companyId,
+          const deletedOrganization = state.organizations.find(
+            (organization) => organization.id === organizationId,
           );
-          const deletedUserIds = state.users
-            .filter((user) => user.account_id === deletedCompany?.account_id)
-            .map((user) => user.id);
+          const owningAccount = state.accounts.find(
+            (account) => account.id === deletedOrganization?.account_id,
+          );
+          const shouldDeleteOwningAccount =
+            owningAccount?.account_type === "organization";
+          const deletedUserIds = shouldDeleteOwningAccount
+            ? state.users
+                .filter((user) => user.account_id === deletedOrganization?.account_id)
+                .map((user) => user.id)
+            : [];
 
           return {
-            companies: state.companies.map((company) =>
-              company.id === companyId
+            organizations: state.organizations.map((organization) =>
+              organization.id === organizationId
                 ? {
-                    ...company,
+                    ...organization,
                     is_active: false,
                     is_verified: false,
                     ...createSoftDeletePatch(),
                   }
-                : company,
+                : organization,
             ),
             accounts: state.accounts.map((account) =>
-              account.id === deletedCompany?.account_id
+              shouldDeleteOwningAccount &&
+              account.id === deletedOrganization?.account_id
                 ? { ...account, is_active: false, ...createSoftDeletePatch() }
                 : account,
             ),
             users: state.users.map((user) =>
-              user.account_id === deletedCompany?.account_id
+              shouldDeleteOwningAccount &&
+              user.account_id === deletedOrganization?.account_id
                 ? { ...user, ...createSoftDeletePatch() }
                 : user,
             ),
-            companyMembers: state.companyMembers.map((companyMember) =>
-              companyMember.company_id === companyId ||
-              deletedUserIds.includes(companyMember.user_id)
-                ? { ...companyMember, ...createSoftDeletePatch() }
-                : companyMember,
+            organizers: state.organizers.map((organizer) =>
+              organizer.organization_id === organizationId ||
+              deletedUserIds.includes(organizer.user_id)
+                ? { ...organizer, ...createSoftDeletePatch() }
+                : organizer,
             ),
             events: state.events.map((event) =>
-              event.company_id === companyId
+              event.organization_id === organizationId
                 ? { ...event, is_active: false, ...createSoftDeletePatch() }
                 : event,
             ),
@@ -807,9 +825,9 @@ const useDataStore = create<DataState>()(
           };
         }),
 
-      addCompanyMember: (companyMember) =>
+      addOrganizer: (organizer) =>
         set((state) => ({
-          companyMembers: [...state.companyMembers, companyMember],
+          organizers: [...state.organizers, organizer],
         })),
 
       addEvent: (event) =>
@@ -838,6 +856,36 @@ const useDataStore = create<DataState>()(
               ? {
                   ...event,
                   is_active: true,
+                  suspended_until: null,
+                  suspension_reason: null,
+                  updated_at: now(),
+                }
+              : event,
+          ),
+        })),
+
+      suspendEvent: (eventId, reason, suspendedUntil) =>
+        set((state) => ({
+          events: state.events.map((event) =>
+            event.id === eventId
+              ? {
+                  ...event,
+                  suspended_until: suspendedUntil,
+                  suspension_reason: reason,
+                  updated_at: now(),
+                }
+              : event,
+          ),
+        })),
+
+      liftEventSuspension: (eventId) =>
+        set((state) => ({
+          events: state.events.map((event) =>
+            event.id === eventId
+              ? {
+                  ...event,
+                  suspended_until: null,
+                  suspension_reason: null,
                   updated_at: now(),
                 }
               : event,
@@ -1050,7 +1098,30 @@ const useDataStore = create<DataState>()(
           };
         }),
     }),
-    { name: "app-data-storage-v9" },
+    {
+      name: "app-data-storage-v10",
+      merge: (persistedState, currentState) => {
+        const persistedData = persistedState as Partial<DataState> | undefined;
+
+        if (!persistedData) return currentState;
+
+        const persistedOrganizers = persistedData.organizers ?? [];
+        const persistedOrganizerIds = new Set(
+          persistedOrganizers.map((member) => member.id),
+        );
+
+        return {
+          ...currentState,
+          ...persistedData,
+          organizers: [
+            ...persistedOrganizers,
+            ...organizersMock.filter(
+              (member) => !persistedOrganizerIds.has(member.id),
+            ),
+          ],
+        };
+      },
+    },
   ),
 );
 

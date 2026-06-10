@@ -5,10 +5,9 @@
 import UserProfileForm from "../components/UserProfileForm";
 
 export default function Profile() {
-
   return (
-    <section>
-      <UserProfileForm/>
+    <section className="user-profile-page">
+      <UserProfileForm />
     </section>
   );
 }

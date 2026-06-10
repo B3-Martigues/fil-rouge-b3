@@ -54,7 +54,7 @@ const useAuthStore = create<AuthState>()(
 
     
     /**Persistence du store dans le localStorage */
-    { name: "auth-storage-v3" },
+    { name: "auth-storage-v4" },
   ),
 );
 

@@ -1,22 +1,22 @@
-export const ROLES = ["user", "admin", "moderator", "company"] as const;
+export const ROLES = ["user", "admin", "moderator", "organization"] as const;
 
 export type Role = (typeof ROLES)[number];
 
-export const ACCOUNT_TYPES = ["user", "admin", "moderator", "company"] as const;
+export const ACCOUNT_TYPES = ["user", "admin", "moderator", "organization"] as const;
 
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
 
 export const ACCOUNT_TYPE_IDS: Record<AccountType, number> = {
   user: 1,
   admin: 2,
-  company: 3,
+  organization: 3,
   moderator: 4,
 };
 
 export const ROLE_IDS: Record<Role, number> = {
   user: 1,
   admin: 2,
-  company: 3,
+  organization: 3,
   moderator: 4,
 };
 
@@ -62,7 +62,7 @@ export type AccountSummary = {
   suspended_until?: string | null;
   suspension_reason?: string | null;
   user_id?: number;
-  company_id?: number;
+  organization_id?: number;
   is_verified?: boolean;
 };
 
@@ -83,7 +83,7 @@ export type AuthenticatedUser = {
   suspended_until?: string | null;
   suspension_reason?: string | null;
   user_id?: number;
-  company_id?: number;
+  organization_id?: number;
   is_verified?: boolean;
 };
 
@@ -114,12 +114,12 @@ export function toAuthenticatedUser(
   };
 }
 
-export function toAuthenticatedCompany(params: {
+export function toAuthenticatedOrganization(params: {
   account: Account;
   user?: {
     id: number;
   } | null;
-  company: {
+  organization: {
     id: number;
     name: string;
     role_id?: number | null;
@@ -131,14 +131,14 @@ export function toAuthenticatedCompany(params: {
     id: params.account.id,
     account_id: params.account.id,
     login_email: params.account.login_email,
-    role: "company",
-    role_id: params.company.role_id ?? ROLE_IDS.company,
-    username: params.company.name,
-    is_active: params.account.is_active && params.company.is_active,
+    role: "organization",
+    role_id: params.organization.role_id ?? ROLE_IDS.organization,
+    username: params.organization.name,
+    is_active: params.account.is_active && params.organization.is_active,
     suspended_until: params.account.suspended_until ?? null,
     suspension_reason: params.account.suspension_reason ?? null,
     user_id: params.user?.id,
-    company_id: params.company.id,
-    is_verified: params.company.is_verified,
+    organization_id: params.organization.id,
+    is_verified: params.organization.is_verified,
   };
 }

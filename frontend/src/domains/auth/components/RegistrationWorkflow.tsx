@@ -1,0 +1,503 @@
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+
+import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
+import ActionRow from "../../../shared/components/layout/ActionRow";
+import Button from "../../../shared/components/ui/Button";
+import FormField from "../../../shared/components/ui/FormField";
+import Input from "../../../shared/components/ui/Input";
+import { ROUTES } from "../../../shared/constants/routes";
+import useDataStore from "../../../shared/store/dataStore";
+import type { Organization } from "../../organizations/types/organization";
+import type { Organizer } from "../../organizations/types/organizer";
+import { OrganizationFields } from "../../organizations/pages/OrganizationSetup";
+import {
+  createNextId,
+  emptyOrganizationForm,
+  emptyOrganizerProfileForm,
+  normalizeComparable,
+  parseOptionalCoordinate,
+  validateOrganizationForm,
+  validateOrganizerProfileForm,
+  type OrganizationForm,
+  type OrganizationFormErrors,
+  type OrganizerProfileErrors,
+  type OrganizerProfileForm,
+} from "../../organizations/utils/organizationWorkflow";
+import { createWelcomeNotification } from "../../notifications/services/notificationFactory";
+import PreferencesGrid from "../../user/components/PreferencesGrid";
+import { useUserPreferences } from "../../user/hooks/useUserPreferences";
+import type { Account, User } from "../../user/types/user";
+import { ACCOUNT_TYPE_IDS, ROLE_IDS, toAuthenticatedUser } from "../../user/types/user";
+import useAuthStore from "../store/authStore";
+import { registerSchema, type RegisterFormData } from "../validations/register.schema";
+
+type WorkflowStep = "user" | "organizer-choice" | "organizer" | "organization";
+
+const workflowSteps = [
+  { key: "user", label: "Utilisateur" },
+  { key: "organizer", label: "Organisateur" },
+  { key: "organization", label: "Organisation" },
+] as const;
+
+const isActiveStep = (step: WorkflowStep, key: (typeof workflowSteps)[number]["key"]) => {
+  if (step === "organizer-choice") return key === "user";
+
+  return step === key;
+};
+
+export default function RegistrationWorkflow() {
+  const navigate = useNavigate();
+  const login = useAuthStore((s) => s.login);
+  const accounts = useDataStore((s) => s.accounts);
+  const users = useDataStore((s) => s.users);
+  const organizations = useDataStore((s) => s.organizations);
+  const organizers = useDataStore((s) => s.organizers);
+  const addAccount = useDataStore((s) => s.addAccount);
+  const addUser = useDataStore((s) => s.addUser);
+  const addOrganization = useDataStore((s) => s.addOrganization);
+  const addOrganizer = useDataStore((s) => s.addOrganizer);
+  const setUserEventPreferences = useDataStore((s) => s.setUserEventPreferences);
+  const dispatchNotification = useDataStore((s) => s.dispatchNotification);
+  const { preferences, toggle } = useUserPreferences([]);
+  const [step, setStep] = useState<WorkflowStep>("user");
+  const [userDraft, setUserDraft] = useState<RegisterFormData | null>(null);
+  const [organizerForm, setOrganizerForm] = useState<OrganizerProfileForm>(
+    emptyOrganizerProfileForm,
+  );
+  const [organizationForm, setOrganizationForm] = useState<OrganizationForm>(
+    emptyOrganizationForm,
+  );
+  const [organizerErrors, setOrganizerErrors] = useState<OrganizerProfileErrors>({});
+  const [organizationErrors, setOrganizationErrors] =
+    useState<OrganizationFormErrors>({});
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [preferencesError, setPreferencesError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+    mode: "onTouched",
+  });
+
+  const validateUserUniqueness = (data: RegisterFormData) => {
+    const loginEmail = data.login_email.trim();
+    const username = data.username.trim();
+    const existingAccount = accounts.find(
+      (account) =>
+        !account.deleted_at &&
+        normalizeComparable(account.login_email) === normalizeComparable(loginEmail),
+    );
+
+    if (existingAccount) {
+      return "Cet email est deja utilise";
+    }
+
+    const existingUsername = users.find(
+      (user) =>
+        !user.deleted_at &&
+        normalizeComparable(user.username) === normalizeComparable(username),
+    );
+
+    if (existingUsername) {
+      return "Ce nom d'utilisateur est deja utilise";
+    }
+
+    return null;
+  };
+
+  const createAccountAndUser = (data: RegisterFormData) => {
+    const createdAt = new Date().toISOString();
+    const accountId = createNextId(accounts);
+    const userId = createNextId(users);
+    const account: Account = {
+      id: accountId,
+      account_type_id: ACCOUNT_TYPE_IDS.user,
+      account_type: "user",
+      login_email: data.login_email.trim(),
+      password_hash: data.password,
+      is_active: true,
+      created_at: createdAt,
+      updated_at: createdAt,
+      deleted_at: null,
+    };
+    const user: User = {
+      id: userId,
+      account_id: accountId,
+      username: data.username.trim(),
+      role_id: ROLE_IDS.user,
+      role: "user",
+      created_at: createdAt,
+      updated_at: createdAt,
+      deleted_at: null,
+    };
+
+    addAccount(account);
+    addUser(user);
+    setUserEventPreferences(userId, preferences);
+
+    return { account, user, createdAt };
+  };
+
+  const completeUserOnlyRegistration = async () => {
+    if (!userDraft) return;
+
+    setLoading(true);
+    setServerError(null);
+
+    try {
+      const duplicateError = validateUserUniqueness(userDraft);
+
+      if (duplicateError) {
+        setStep("user");
+        setServerError(duplicateError);
+        return;
+      }
+
+      const { account, user } = createAccountAndUser(userDraft);
+      void dispatchNotification(createWelcomeNotification({ user }));
+      login(toAuthenticatedUser(account, user));
+      toast.success("Compte cree avec succes");
+      navigate(ROUTES.PUBLIC.HOME, { replace: true });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onUserStepSubmit = (data: RegisterFormData) => {
+    setServerError(null);
+    setPreferencesError(null);
+
+    const duplicateError = validateUserUniqueness(data);
+
+    if (duplicateError) {
+      setServerError(duplicateError);
+      return;
+    }
+
+    if (preferences.length === 0) {
+      setPreferencesError("Selectionnez au moins une preference d'evenement.");
+      return;
+    }
+
+    setUserDraft(data);
+    setStep("organizer-choice");
+  };
+
+  const updateOrganizerField = <Key extends keyof OrganizerProfileForm>(
+    field: Key,
+    value: OrganizerProfileForm[Key],
+  ) => {
+    setOrganizerForm((currentForm) => ({ ...currentForm, [field]: value }));
+    setOrganizerErrors((currentErrors) => ({ ...currentErrors, [field]: undefined }));
+    setServerError(null);
+  };
+
+  const updateOrganizationField = <Key extends keyof OrganizationForm>(
+    field: Key,
+    value: OrganizationForm[Key],
+  ) => {
+    setOrganizationForm((currentForm) => ({ ...currentForm, [field]: value }));
+    setOrganizationErrors((currentErrors) => ({
+      ...currentErrors,
+      [field]: undefined,
+    }));
+    setServerError(null);
+  };
+
+  const toggleOrganizationCategory = (category: OrganizationForm["categories"][number]) => {
+    updateOrganizationField(
+      "categories",
+      organizationForm.categories.includes(category)
+        ? organizationForm.categories.filter((item) => item !== category)
+        : [...organizationForm.categories, category],
+    );
+  };
+
+  const goToOrganizationStep = () => {
+    const errors = validateOrganizerProfileForm(organizerForm);
+    setOrganizerErrors(errors);
+    setServerError(null);
+
+    if (Object.keys(errors).length === 0) {
+      setStep("organization");
+    }
+  };
+
+  const completeOrganizerRegistration = () => {
+    if (!userDraft) return;
+
+    setLoading(true);
+    setServerError(null);
+
+    try {
+      const duplicateError = validateUserUniqueness(userDraft);
+
+      if (duplicateError) {
+        setStep("user");
+        setServerError(duplicateError);
+        return;
+      }
+
+      const organizationValidationErrors = validateOrganizationForm(
+        organizationForm,
+        organizations,
+      );
+      setOrganizationErrors(organizationValidationErrors);
+
+      if (Object.keys(organizationValidationErrors).length > 0) return;
+
+      const { account, user, createdAt } = createAccountAndUser(userDraft);
+      const organizationId = createNextId(organizations);
+      const organizerId = createNextId(organizers);
+      const organization: Organization = {
+        id: organizationId,
+        account_id: account.id,
+        name: organizationForm.name.trim(),
+        contact_email: organizationForm.contact_email.trim(),
+        role_id: null,
+        description: organizationForm.description.trim(),
+        website: organizationForm.website.trim() || null,
+        latitude: parseOptionalCoordinate(organizationForm.latitude),
+        longitude: parseOptionalCoordinate(organizationForm.longitude),
+        address: organizationForm.address.trim(),
+        city: organizationForm.city.trim(),
+        postal_code: organizationForm.postal_code.trim(),
+        logo: organizationForm.logo.trim() || null,
+        contact_phone_number: organizationForm.contact_phone_number.trim() || null,
+        siret: organizationForm.siret.trim() || null,
+        is_verified: false,
+        is_active: false,
+        created_at: createdAt,
+        updated_at: createdAt,
+        deleted_at: null,
+        category_slugs: organizationForm.categories,
+      };
+      const organizer: Organizer = {
+        id: organizerId,
+        user_id: user.id,
+        organization_id: organizationId,
+        job_role: organizerForm.job_role.trim(),
+        created_at: createdAt,
+        updated_at: createdAt,
+        deleted_at: null,
+      };
+
+      addOrganization(organization);
+      addOrganizer(organizer);
+      void dispatchNotification(createWelcomeNotification({ user, organization }));
+      login(toAuthenticatedUser(account, user));
+      toast.success("Compte cree avec organisation en attente de validation");
+      navigate(ROUTES.PUBLIC.HOME, { replace: true });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="auth-page auth-page--wide">
+      <h1>Inscription</h1>
+
+      <ol className="form-stepper" aria-label="Progression du formulaire">
+        {workflowSteps.map((item, index) => (
+          <li className={isActiveStep(step, item.key) ? "is-active" : ""} key={item.key}>
+            <span>{index + 1}</span>
+            {item.label}
+          </li>
+        ))}
+      </ol>
+
+      {step === "user" && (
+        <form onSubmit={handleSubmit(onUserStepSubmit)} noValidate>
+          <fieldset className="auth-form-section">
+            <legend>Inscription utilisateur</legend>
+            <FormField
+              label="Nom d'utilisateur"
+              htmlFor="username"
+              error={errors.username?.message}
+            >
+              <Input
+                id="username"
+                autoComplete="username"
+                hasError={!!errors.username}
+                placeholder="Votre nom"
+                type="text"
+                {...register("username")}
+              />
+            </FormField>
+
+            <FormField
+              label="Email"
+              htmlFor="email"
+              error={errors.login_email?.message}
+            >
+              <Input
+                id="email"
+                autoComplete="email"
+                hasError={!!errors.login_email}
+                placeholder="Votre email"
+                type="email"
+                {...register("login_email")}
+              />
+            </FormField>
+
+            <FormField
+              label="Mot de passe"
+              htmlFor="password"
+              error={errors.password?.message}
+            >
+              <Input
+                id="password"
+                autoComplete="new-password"
+                hasError={!!errors.password}
+                placeholder="Votre mot de passe"
+                type="password"
+                {...register("password")}
+              />
+            </FormField>
+
+            <FormField
+              label="Confirmation du mot de passe"
+              htmlFor="confirmPassword"
+              error={errors.confirmPassword?.message}
+            >
+              <Input
+                id="confirmPassword"
+                autoComplete="new-password"
+                hasError={!!errors.confirmPassword}
+                placeholder="Confirmer votre mot de passe"
+                type="password"
+                {...register("confirmPassword")}
+              />
+            </FormField>
+          </fieldset>
+
+          <fieldset className="auth-form-section">
+            <legend>Preferences d'evenements</legend>
+            <PreferencesGrid
+              selected={preferences}
+              toggle={(category) => {
+                setPreferencesError(null);
+                toggle(category);
+              }}
+            />
+            {preferencesError && <ErrorMessage message={preferencesError} />}
+          </fieldset>
+
+          {serverError && <ErrorMessage message={serverError} />}
+
+          <ActionRow className="form-step-actions" align="center">
+            <Button type="submit">Continuer</Button>
+          </ActionRow>
+        </form>
+      )}
+
+      {step === "organizer-choice" && (
+        <section className="auth-choice" aria-labelledby="organizer-choice-title">
+          <h2 id="organizer-choice-title">
+            Souhaitez-vous egalement organiser des evenements ?
+          </h2>
+
+          {serverError && <ErrorMessage message={serverError} />}
+
+          <ActionRow className="form-step-actions" align="center">
+            <Button
+              disabled={loading}
+              type="button"
+              variant="secondary"
+              onClick={() => setStep("user")}
+            >
+              Precedent
+            </Button>
+            <Button
+              loading={loading}
+              type="button"
+              variant="secondary"
+              onClick={completeUserOnlyRegistration}
+            >
+              Non
+            </Button>
+            <Button disabled={loading} type="button" onClick={() => setStep("organizer")}>
+              Oui
+            </Button>
+          </ActionRow>
+        </section>
+      )}
+
+      {step === "organizer" && (
+        <form onSubmit={(event) => event.preventDefault()}>
+          <fieldset className="auth-form-section">
+            <legend>Informations de l'organisateur</legend>
+            <FormField
+              label="Fonction"
+              htmlFor="registration-organizer-job-role"
+              error={organizerErrors.job_role}
+            >
+              <Input
+                id="registration-organizer-job-role"
+                autoComplete="organization-title"
+                hasError={!!organizerErrors.job_role}
+                placeholder="Responsable evenementiel"
+                value={organizerForm.job_role}
+                onChange={(event) =>
+                  updateOrganizerField("job_role", event.target.value)
+                }
+              />
+            </FormField>
+          </fieldset>
+
+          {serverError && <ErrorMessage message={serverError} />}
+
+          <ActionRow className="form-step-actions" align="center">
+            <Button type="button" variant="secondary" onClick={() => setStep("organizer-choice")}>
+              Precedent
+            </Button>
+            <Button type="button" onClick={goToOrganizationStep}>
+              Suivant
+            </Button>
+          </ActionRow>
+        </form>
+      )}
+
+      {step === "organization" && (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            completeOrganizerRegistration();
+          }}
+          noValidate
+        >
+          <OrganizationFields
+            errors={organizationErrors}
+            form={organizationForm}
+            onCategoryToggle={toggleOrganizationCategory}
+            onFieldChange={updateOrganizationField}
+          />
+
+          {serverError && <ErrorMessage message={serverError} />}
+
+          <ActionRow className="form-step-actions" align="center">
+            <Button
+              disabled={loading}
+              type="button"
+              variant="secondary"
+              onClick={() => setStep("organizer")}
+            >
+              Precedent
+            </Button>
+            <Button loading={loading} type="submit">
+              Creer le compte
+            </Button>
+          </ActionRow>
+        </form>
+      )}
+    </div>
+  );
+}

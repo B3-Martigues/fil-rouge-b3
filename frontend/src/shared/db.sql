@@ -68,8 +68,8 @@ SELECT setval(
     (SELECT MAX(id) FROM event_categories)
 );
 
--- Company Categories
-CREATE TABLE company_categories (
+-- Organization Categories
+CREATE TABLE organization_categories (
     id SERIAL PRIMARY KEY,
     name VARCHAR(50) NOT NULL UNIQUE,
     slug VARCHAR(50) NOT NULL UNIQUE
@@ -110,8 +110,8 @@ CREATE TABLE users (
     deleted_at TIMESTAMP
 );
 
--- Companies
-CREATE TABLE companies (
+-- Organizations
+CREATE TABLE organizations (
     id SERIAL PRIMARY KEY,
     account_id INT NOT NULL UNIQUE REFERENCES accounts(id) ON DELETE CASCADE,
     name VARCHAR(90) NOT NULL,
@@ -134,30 +134,30 @@ CREATE TABLE companies (
     deleted_at TIMESTAMP
 );
 
--- Company Members
-CREATE TABLE company_members (
+-- Organization Members
+CREATE TABLE organizers (
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    company_id INT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    organization_id INT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     job_role VARCHAR(50),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP,
-    UNIQUE (user_id, company_id)
+    UNIQUE (user_id, organization_id)
 );
 
--- Company Categories Links
-CREATE TABLE company_categories_links (
+-- Organization Categories Links
+CREATE TABLE organization_categories_links (
     id SERIAL PRIMARY KEY,
-    company_id INT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-    company_category_id INT NOT NULL REFERENCES company_categories(id) ON DELETE CASCADE,
-    UNIQUE (company_id, company_category_id)
+    organization_id INT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    organization_category_id INT NOT NULL REFERENCES organization_categories(id) ON DELETE CASCADE,
+    UNIQUE (organization_id, organization_category_id)
 );
 
 -- Events
 CREATE TABLE events (
     id SERIAL PRIMARY KEY,
-    company_id INT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    organization_id INT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     title VARCHAR(150) NOT NULL,
     description TEXT NOT NULL,
     start_date TIMESTAMP NOT NULL,
@@ -216,7 +216,7 @@ CREATE TABLE notifications (
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     event_id INT REFERENCES events(id) ON DELETE CASCADE,
-    company_id INT REFERENCES companies(id) ON DELETE CASCADE,
+    organization_id INT REFERENCES organizations(id) ON DELETE CASCADE,
     notification_type_id INT NOT NULL REFERENCES notification_types(id),
     title VARCHAR(150) NOT NULL,
     message TEXT NOT NULL,

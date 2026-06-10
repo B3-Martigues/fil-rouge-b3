@@ -13,7 +13,7 @@ import useAuthStore from "../domains/auth/store/authStore";
 import { getEventCategoryById } from "../domains/events/types/event-categories";
 import { isAccountSuspended, type Role } from "../domains/user/types/user";
 import AdminLayout from "../shared/layouts/AdminLayout";
-import CompanyLayout from "../shared/layouts/CompanyLayout";
+import OrganizationLayout from "../shared/layouts/OrganizationLayout";
 import ModeratorLayout from "../shared/layouts/ModeratorLayout";
 import PrivateLayout from "../shared/layouts/PrivateLayout";
 import PublicLayout from "../shared/layouts/PublicLayout";
@@ -24,8 +24,8 @@ import useDataStore from "../shared/store/dataStore";
 const Home = lazy(() => import("../domains/events/pages/Home"));
 const Register = lazy(() => import("../domains/auth/pages/Register"));
 const UserRegister = lazy(() => import("../domains/auth/pages/UserRegister"));
-const CompanyRegister = lazy(
-  () => import("../domains/auth/pages/CompanyRegister"),
+const OrganizationRegister = lazy(
+  () => import("../domains/auth/pages/OrganizationRegister"),
 );
 const Login = lazy(() => import("../domains/auth/pages/Login"));
 const ForgotPassword = lazy(
@@ -42,14 +42,23 @@ const AdminDashboard = lazy(
 const ModeratorDashboard = lazy(
   () => import("../domains/moderator/pages/ModeratorDashboard"),
 );
-const CompanyDashboard = lazy(
-  () => import("../domains/companies/pages/CompanyDashboard"),
+const OrganizationDashboard = lazy(
+  () => import("../domains/organizations/pages/OrganizationDashboard"),
 );
-const CompanyEvents = lazy(
-  () => import("../domains/companies/pages/CompanyEvents"),
+const OrganizationsPage = lazy(
+  () => import("../domains/organizations/pages/OrganizationsPage"),
 );
-const CompanyProfile = lazy(
-  () => import("../domains/companies/pages/CompanyProfile"),
+const OrganizationDetailPage = lazy(
+  () => import("../domains/organizations/pages/OrganizationDetailPage"),
+);
+const OrganizationSetup = lazy(
+  () => import("../domains/organizations/pages/OrganizationSetup"),
+);
+const OrganizationEvents = lazy(
+  () => import("../domains/organizations/pages/OrganizationEvents"),
+);
+const OrganizationProfile = lazy(
+  () => import("../domains/organizations/pages/OrganizationProfile"),
 );
 const Favorites = lazy(() => import("../domains/user/pages/Favorites"));
 const History = lazy(() => import("../domains/user/pages/History"));
@@ -71,14 +80,16 @@ const formModalRoutes = [
   { path: ROUTES.PUBLIC.LOGIN, label: "Connexion" },
   { path: ROUTES.PUBLIC.REGISTER, label: "Inscription" },
   { path: ROUTES.PUBLIC.REGISTER_USER, label: "Inscription utilisateur" },
-  { path: ROUTES.PUBLIC.REGISTER_COMPANY, label: "Inscription entreprise" },
+  { path: ROUTES.PUBLIC.REGISTER_ORGANIZATION, label: "Inscription organization" },
   { path: ROUTES.PUBLIC.FORGOT_PASSWORD, label: "Mot de passe oublie" },
   { path: ROUTES.PUBLIC.RESET_PASSWORD, label: "Reinitialisation du mot de passe" },
   { path: ROUTES.USER.PROFILE, label: "Profil utilisateur" },
   { path: ROUTES.USER.CHANGE_PASSWORD, label: "Changement de mot de passe" },
   { path: ROUTES.USER.PREFERENCES, label: "Preferences utilisateur" },
-  { path: ROUTES.COMPANY.PROFILE, label: "Profil entreprise" },
-  { path: ROUTES.COMPANY.CREATE, label: "Nouvel evenement" },
+  { path: ROUTES.USER.BECOME_ORGANIZER, label: "Devenir organisateur" },
+  { path: ROUTES.USER.CREATE_ORGANIZATION, label: "Nouvelle organisation" },
+  { path: ROUTES.ORGANIZATION.PROFILE, label: "Profil organization" },
+  { path: ROUTES.ORGANIZATION.CREATE, label: "Nouvel evenement" },
 ] as const;
 
 const getFormModalLabel = (pathname: string) =>
@@ -94,7 +105,7 @@ const PrivateRoute = ({ children }: Props) => {
   const currentUser = useAuthStore((s) => s.currentUser);
   const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
-  const companies = useDataStore((s) => s.companies);
+  const organizations = useDataStore((s) => s.organizations);
 
   const account = currentUser
     ? accounts.find((item) => item.id === currentUser.account_id)
@@ -105,12 +116,12 @@ const PrivateRoute = ({ children }: Props) => {
     !account.deleted_at &&
     !isAccountSuspended(account);
   const hasValidProfile =
-    currentUser?.role === "company"
-      ? companies.some(
-          (company) =>
-            company.id === currentUser.company_id &&
-            company.account_id === currentUser.account_id &&
-            !company.deleted_at,
+    currentUser?.role === "organization"
+      ? organizations.some(
+          (organization) =>
+            organization.id === currentUser.organization_id &&
+            organization.account_id === currentUser.account_id &&
+            !organization.deleted_at,
         )
       : users.some(
           (user) =>
@@ -207,8 +218,8 @@ const Router = () => {
           <Route path={ROUTES.PUBLIC.REGISTER} element={<Register />} />
           <Route path={ROUTES.PUBLIC.REGISTER_USER} element={<UserRegister />} />
           <Route
-            path={ROUTES.PUBLIC.REGISTER_COMPANY}
-            element={<CompanyRegister />}
+            path={ROUTES.PUBLIC.REGISTER_ORGANIZATION}
+            element={<OrganizationRegister />}
           />
           <Route path={ROUTES.PUBLIC.LOGIN} element={<Login />} />
           <Route
@@ -267,6 +278,30 @@ const Router = () => {
             path={ROUTES.USER.PREFERENCES}
             element={<ProfilePreferences />}
           />
+          <Route
+            path={ROUTES.USER.ORGANIZATIONS}
+            element={
+              <RequireUserPreferences>
+                <OrganizationsPage />
+              </RequireUserPreferences>
+            }
+          />
+          <Route
+            path={ROUTES.USER.ORGANIZATION_DETAIL}
+            element={
+              <RequireUserPreferences>
+                <OrganizationDetailPage />
+              </RequireUserPreferences>
+            }
+          />
+          <Route
+            path={ROUTES.USER.BECOME_ORGANIZER}
+            element={<OrganizationSetup mode="become" />}
+          />
+          <Route
+            path={ROUTES.USER.CREATE_ORGANIZATION}
+            element={<OrganizationSetup mode="create" />}
+          />
         </Route>
 
         <Route
@@ -310,8 +345,8 @@ const Router = () => {
             element={<ModeratorDashboard view="events" />}
           />
           <Route
-            path={ROUTES.MODERATOR.COMPANIES}
-            element={<ModeratorDashboard view="companies" />}
+            path={ROUTES.MODERATOR.ORGANIZATIONS}
+            element={<ModeratorDashboard view="organizations" />}
           />
           <Route
             path={ROUTES.MODERATOR.ACCOUNTS}
@@ -326,16 +361,16 @@ const Router = () => {
         <Route
           element={
             <PrivateRoute>
-              <RoleRoute role="company">
-                <CompanyLayout />
+              <RoleRoute role="organization">
+                <OrganizationLayout />
               </RoleRoute>
             </PrivateRoute>
           }
         >
-          <Route path={ROUTES.COMPANY.DASHBOARD} element={<CompanyDashboard />} />
-          <Route path={ROUTES.COMPANY.PROFILE} element={<CompanyProfile />} />
-          <Route path={ROUTES.COMPANY.EVENTS} element={<CompanyEvents />} />
-          <Route path={ROUTES.COMPANY.CREATE} element={<CompanyDashboard />} />
+          <Route path={ROUTES.ORGANIZATION.DASHBOARD} element={<OrganizationDashboard />} />
+          <Route path={ROUTES.ORGANIZATION.PROFILE} element={<OrganizationProfile />} />
+          <Route path={ROUTES.ORGANIZATION.EVENTS} element={<OrganizationEvents />} />
+          <Route path={ROUTES.ORGANIZATION.CREATE} element={<OrganizationDashboard />} />
         </Route>
 
           <Route path="*" element={<Navigate to={ROUTES.PUBLIC.HOME} replace />} />
@@ -354,8 +389,8 @@ const Router = () => {
               <Route path={ROUTES.PUBLIC.REGISTER} element={<Register />} />
               <Route path={ROUTES.PUBLIC.REGISTER_USER} element={<UserRegister />} />
               <Route
-                path={ROUTES.PUBLIC.REGISTER_COMPANY}
-                element={<CompanyRegister />}
+                path={ROUTES.PUBLIC.REGISTER_ORGANIZATION}
+                element={<OrganizationRegister />}
               />
               <Route path={ROUTES.PUBLIC.LOGIN} element={<Login />} />
               <Route
@@ -401,21 +436,41 @@ const Router = () => {
                 }
               />
               <Route
-                path={ROUTES.COMPANY.PROFILE}
+                path={ROUTES.USER.BECOME_ORGANIZER}
                 element={
                   <PrivateRoute>
-                    <RoleRoute role="company">
-                      <CompanyProfile />
+                    <RoleRoute role="user">
+                      <OrganizationSetup mode="become" />
                     </RoleRoute>
                   </PrivateRoute>
                 }
               />
               <Route
-                path={ROUTES.COMPANY.CREATE}
+                path={ROUTES.USER.CREATE_ORGANIZATION}
                 element={
                   <PrivateRoute>
-                    <RoleRoute role="company">
-                      <CompanyDashboard />
+                    <RoleRoute role="user">
+                      <OrganizationSetup mode="create" />
+                    </RoleRoute>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path={ROUTES.ORGANIZATION.PROFILE}
+                element={
+                  <PrivateRoute>
+                    <RoleRoute role="organization">
+                      <OrganizationProfile />
+                    </RoleRoute>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path={ROUTES.ORGANIZATION.CREATE}
+                element={
+                  <PrivateRoute>
+                    <RoleRoute role="organization">
+                      <OrganizationDashboard />
                     </RoleRoute>
                   </PrivateRoute>
                 }

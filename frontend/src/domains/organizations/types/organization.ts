@@ -1,6 +1,6 @@
-import type { CompanyCategoryName, CompanyCategoryOption } from "./company-categories";
+import type { OrganizationCategoryName, OrganizationCategoryOption } from "./organization-categories";
 
-export type Company = {
+export type Organization = {
   id: number;
   account_id: number;
   name: string;
@@ -21,11 +21,11 @@ export type Company = {
   created_at: string;
   updated_at: string;
   deleted_at?: string | null;
-  category_slugs: CompanyCategoryName[];
+  category_slugs: OrganizationCategoryName[];
 };
 
-export type CompanyWithCategories = Company & {
-  categories: CompanyCategoryOption[];
+export type OrganizationWithCategories = Organization & {
+  categories: OrganizationCategoryOption[];
 };
 
-export type AuthenticatedCompany = Company;
+export type AuthenticatedOrganization = Organization;

@@ -83,7 +83,9 @@
 
   &__row {
     display: grid;
-    grid-template-columns: minmax(120px, 1fr) minmax(160px, 1.3fr) auto auto auto;
+    grid-template-columns:
+      minmax(140px, 1fr) minmax(180px, 1.25fr) minmax(90px, 0.65fr)
+      minmax(150px, 0.9fr) minmax(220px, 1.1fr);
     align-items: center;
     gap: 10px;
     min-height: 48px;
@@ -106,21 +108,15 @@
     grid-column: 1 / -1;
   }
 
-  &--accounts &__row,
-  &--events &__row {
+  &--accounts &__row:not(.admin-table__row--head),
+  &--events &__row:not(.admin-table__row--head) {
     align-items: start;
   }
 
   &--events &__row {
     grid-template-columns:
-      minmax(130px, 1fr) minmax(140px, 1fr) minmax(90px, 0.6fr)
-      minmax(160px, 1.2fr) auto auto;
-  }
-}
-
-.admin-section + .admin-section {
-  .admin-table__row {
-    grid-template-columns: minmax(160px, 1fr) minmax(90px, 0.5fr) auto auto;
+      minmax(150px, 1.1fr) minmax(140px, 0.9fr) minmax(90px, 0.6fr)
+      minmax(160px, 1fr) minmax(150px, 0.9fr) minmax(220px, 1.1fr);
   }
 }
 
@@ -163,6 +159,19 @@
 
 .admin-actions {
   @include action-row;
+}
+
+.admin-status-cell {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.admin-suspension-reason {
+  color: var(--text-p);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .admin-form-grid,
@@ -234,8 +243,7 @@
 }
 
 @include respond-below($bp-sm) {
-  .admin-table__row,
-  .admin-section + .admin-section .admin-table__row {
+  .admin-table__row {
     grid-template-columns: 1fr;
   }
 

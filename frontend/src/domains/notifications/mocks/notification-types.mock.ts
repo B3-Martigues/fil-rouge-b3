@@ -22,8 +22,8 @@ export const notificationTypesMock: NotificationType[] = [
   },
   {
     id: 4,
-    name: "Compte entreprise valide",
-    slug: "company_approved",
+    name: "Compte organization valide",
+    slug: "organization_approved",
   },
   {
     id: 5,
@@ -37,8 +37,8 @@ export const notificationTypesMock: NotificationType[] = [
   },
   {
     id: 7,
-    name: "Compte entreprise refuse",
-    slug: "company_rejected",
+    name: "Compte organization refuse",
+    slug: "organization_rejected",
   },
   {
     id: 8,

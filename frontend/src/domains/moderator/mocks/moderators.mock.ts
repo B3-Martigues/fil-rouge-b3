@@ -1,6 +1,6 @@
 export const moderatorPermissions = [
   "review_events",
-  "review_companies",
+  "review_organizations",
   "moderate_events",
   "suspend_accounts",
   "manage_reports",

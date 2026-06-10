@@ -1,5 +1,5 @@
 import { ROUTES } from "../../../shared/constants/routes";
-import type { Company } from "../../companies/types/company";
+import type { Organization } from "../../organizations/types/organization";
 import type { Event } from "../../events/types/event";
 import { formatDateTime } from "../../events/utils/event";
 import type { Account, User } from "../../user/types/user";
@@ -11,6 +11,18 @@ const getAppUrl = (path: string) => {
 
   return new URL(path, window.location.origin).toString();
 };
+
+const getOrganizationManagementPath = (
+  organization: Organization,
+  user: User,
+  legacyOrganizationPath: string = ROUTES.ORGANIZATION.PROFILE,
+) =>
+  user.role === "organization"
+    ? legacyOrganizationPath
+    : ROUTES.USER.ORGANIZATION_DETAIL.replace(
+        ":organizationId",
+        String(organization.id),
+      );
 
 const withReason = (message: string, reason: string) =>
   `${message} Raison: ${reason.trim()}`;
@@ -25,7 +37,7 @@ export function createFavoriteEventTodayNotification(params: {
   return {
     user_id: params.user.id,
     event_id: params.event.id,
-    company_id: params.event.company_id,
+    organization_id: params.event.organization_id,
     notification_type_id: getNotificationTypeBySlug("favorite_event_today").id,
     title: "Un evenement favori a lieu aujourd'hui",
     message: `${params.event.title} a lieu aujourd'hui a ${params.event.city}. Debut: ${formatDateTime(
@@ -43,7 +55,7 @@ export function createPasswordResetNotification(params: {
   return {
     user_id: params.user.id,
     event_id: null,
-    company_id: null,
+    organization_id: null,
     notification_type_id: getNotificationTypeBySlug("password_reset_requested")
       .id,
     title: "Reinitialisation de votre mot de passe",
@@ -61,7 +73,7 @@ export function createPasswordChangedNotification(params: {
   return {
     user_id: params.user.id,
     event_id: null,
-    company_id: null,
+    organization_id: null,
     notification_type_id: getNotificationTypeBySlug("password_changed").id,
     title: "Votre mot de passe a ete modifie",
     message:
@@ -72,78 +84,90 @@ export function createPasswordChangedNotification(params: {
 
 export function createWelcomeNotification(params: {
   user: User;
-  company?: Company | null;
+  organization?: Organization | null;
 }): NotificationDraft {
-  const company = params.company ?? null;
+  const organization = params.organization ?? null;
 
   return {
     user_id: params.user.id,
     event_id: null,
-    company_id: company?.id ?? null,
+    organization_id: organization?.id ?? null,
     notification_type_id: getNotificationTypeBySlug("welcome_email").id,
     title: "Bienvenue sur la plateforme",
-    message: company
-      ? `${company.name}, votre compte entreprise a bien ete cree. Il est en attente de validation par un administrateur.`
+    message: organization
+      ? `${organization.name}, votre compte organization a bien ete cree. Il est en attente de validation par un administrateur.`
       : `${params.user.username}, votre compte a bien ete cree. Vous pouvez maintenant explorer les événements et gerer vos favoris.`,
     action_url: getAppUrl(
-      company ? ROUTES.COMPANY.DASHBOARD : ROUTES.PUBLIC.HOME,
+      organization
+        ? getOrganizationManagementPath(organization, params.user)
+        : ROUTES.PUBLIC.HOME,
     ),
     is_read: true,
   };
 }
 
-export function createCompanyApprovedNotification(params: {
-  company: Company;
+export function createOrganizationApprovedNotification(params: {
+  organization: Organization;
   user: User;
 }): NotificationDraft {
   return {
     user_id: params.user.id,
     event_id: null,
-    company_id: params.company.id,
-    notification_type_id: getNotificationTypeBySlug("company_approved").id,
-    title: "Votre compte entreprise est valide",
-    message: `${params.company.name} a ete validee. Vous pouvez maintenant gerer vos événements.`,
-    action_url: getAppUrl(ROUTES.COMPANY.PROFILE),
+    organization_id: params.organization.id,
+    notification_type_id: getNotificationTypeBySlug("organization_approved").id,
+    title: "Votre compte organization est valide",
+    message: `${params.organization.name} a ete validee. Vous pouvez maintenant gerer vos événements.`,
+    action_url: getAppUrl(
+      getOrganizationManagementPath(params.organization, params.user),
+    ),
   };
 }
 
-export function createCompanyRejectedNotification(params: {
-  company: Company;
+export function createOrganizationRejectedNotification(params: {
+  organization: Organization;
   user: User;
   reason: string;
 }): NotificationDraft {
   return {
     user_id: params.user.id,
     event_id: null,
-    company_id: params.company.id,
-    notification_type_id: getNotificationTypeBySlug("company_rejected").id,
-    title: "Votre compte entreprise est refuse",
+    organization_id: params.organization.id,
+    notification_type_id: getNotificationTypeBySlug("organization_rejected").id,
+    title: "Votre compte organization est refuse",
     message: withReason(
-      `${params.company.name} n'a pas ete validee par la moderation.`,
+      `${params.organization.name} n'a pas ete validee par la moderation.`,
       params.reason,
     ),
-    action_url: getAppUrl(ROUTES.COMPANY.PROFILE),
+    action_url: getAppUrl(
+      getOrganizationManagementPath(params.organization, params.user),
+    ),
   };
 }
 
 export function createEventApprovedNotification(params: {
-  company: Company;
+  organization: Organization;
   event: Event;
   user: User;
 }): NotificationDraft {
   return {
     user_id: params.user.id,
     event_id: params.event.id,
-    company_id: params.company.id,
+    organization_id: params.organization.id,
     notification_type_id: getNotificationTypeBySlug("event_approved").id,
     title: "Votre evenement est publie",
     message: `${params.event.title} a ete valide et publie. Il est maintenant visible par les utilisateurs.`,
-    action_url: getAppUrl(ROUTES.COMPANY.EVENTS),
+    action_url: getAppUrl(
+      getOrganizationManagementPath(
+        params.organization,
+        params.user,
+        ROUTES.ORGANIZATION.EVENTS,
+      ),
+    ),
   };
 }
 
 export function createEventRejectedNotification(params: {
-  company: Company;
+  organization: Organization;
   event: Event;
   user: User;
   reason: string;
@@ -151,19 +175,25 @@ export function createEventRejectedNotification(params: {
   return {
     user_id: params.user.id,
     event_id: params.event.id,
-    company_id: params.company.id,
+    organization_id: params.organization.id,
     notification_type_id: getNotificationTypeBySlug("event_rejected").id,
     title: "Votre evenement est refuse",
     message: withReason(
       `${params.event.title} ne peut pas etre publie en l'etat.`,
       params.reason,
     ),
-    action_url: getAppUrl(ROUTES.COMPANY.EVENTS),
+    action_url: getAppUrl(
+      getOrganizationManagementPath(
+        params.organization,
+        params.user,
+        ROUTES.ORGANIZATION.EVENTS,
+      ),
+    ),
   };
 }
 
 export function createEventHiddenNotification(params: {
-  company: Company;
+  organization: Organization;
   event: Event;
   user: User;
   reason: string;
@@ -171,19 +201,25 @@ export function createEventHiddenNotification(params: {
   return {
     user_id: params.user.id,
     event_id: params.event.id,
-    company_id: params.company.id,
+    organization_id: params.organization.id,
     notification_type_id: getNotificationTypeBySlug("event_hidden").id,
     title: "Votre evenement a ete masque",
     message: withReason(
       `${params.event.title} n'est plus visible publiquement.`,
       params.reason,
     ),
-    action_url: getAppUrl(ROUTES.COMPANY.EVENTS),
+    action_url: getAppUrl(
+      getOrganizationManagementPath(
+        params.organization,
+        params.user,
+        ROUTES.ORGANIZATION.EVENTS,
+      ),
+    ),
   };
 }
 
 export function createEventDeletedNotification(params: {
-  company: Company;
+  organization: Organization;
   event: Event;
   user: User;
   reason: string;
@@ -191,27 +227,33 @@ export function createEventDeletedNotification(params: {
   return {
     user_id: params.user.id,
     event_id: params.event.id,
-    company_id: params.company.id,
+    organization_id: params.organization.id,
     notification_type_id: getNotificationTypeBySlug("event_deleted").id,
     title: "Votre evenement a ete supprime",
     message: withReason(
       `${params.event.title} a ete retire par la moderation.`,
       params.reason,
     ),
-    action_url: getAppUrl(ROUTES.COMPANY.EVENTS),
+    action_url: getAppUrl(
+      getOrganizationManagementPath(
+        params.organization,
+        params.user,
+        ROUTES.ORGANIZATION.EVENTS,
+      ),
+    ),
   };
 }
 
 export function createAccountSuspendedNotification(params: {
   user: User;
-  company?: Company | null;
+  organization?: Organization | null;
   reason: string;
   suspendedUntil: string;
 }): NotificationDraft {
   return {
     user_id: params.user.id,
     event_id: null,
-    company_id: params.company?.id ?? null,
+    organization_id: params.organization?.id ?? null,
     notification_type_id: getNotificationTypeBySlug("account_suspended").id,
     title: "Votre compte est temporairement suspendu",
     message: withReason(
@@ -229,12 +271,12 @@ export function createReportUsefulNotification(params: {
   targetLabel: string;
   moderatorMessage: string;
   event?: Event | null;
-  company?: Company | null;
+  organization?: Organization | null;
 }): NotificationDraft {
   return {
     user_id: params.user.id,
     event_id: params.event?.id ?? null,
-    company_id: params.company?.id ?? params.event?.company_id ?? null,
+    organization_id: params.organization?.id ?? params.event?.organization_id ?? null,
     notification_type_id: getNotificationTypeBySlug("moderation_decision").id,
     title: "Votre signalement a ete utile",
     message: withModeratorMessage(
@@ -246,7 +288,7 @@ export function createReportUsefulNotification(params: {
 }
 
 export function createEventWithdrawnAfterReportNotification(params: {
-  company: Company;
+  organization: Organization;
   event: Event;
   user: User;
   moderatorMessage: string;
@@ -254,13 +296,19 @@ export function createEventWithdrawnAfterReportNotification(params: {
   return {
     user_id: params.user.id,
     event_id: params.event.id,
-    company_id: params.company.id,
+    organization_id: params.organization.id,
     notification_type_id: getNotificationTypeBySlug("moderation_decision").id,
     title: "Decision moderation: evenement retire",
     message: withModeratorMessage(
       `${params.event.title} a ete retire de la plateforme suite au traitement d'un signalement.`,
       params.moderatorMessage,
     ),
-    action_url: getAppUrl(ROUTES.COMPANY.EVENTS),
+    action_url: getAppUrl(
+      getOrganizationManagementPath(
+        params.organization,
+        params.user,
+        ROUTES.ORGANIZATION.EVENTS,
+      ),
+    ),
   };
 }

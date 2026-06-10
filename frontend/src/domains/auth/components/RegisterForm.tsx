@@ -37,7 +37,7 @@ import { createWelcomeNotification } from "../../notifications/services/notifica
 
 type RegisterFormProps = {
   mode?: "public" | "admin";
-  role?: Exclude<Role, "company">;
+  role?: Exclude<Role, "organization">;
   title?: string;
   submitLabel?: string;
   onCancel?: () => void;

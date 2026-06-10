@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { CATEGORIES } from "../../companies/types/company-categories";
+import { CATEGORIES } from "../../organizations/types/organization-categories";
 
 const passwordSchema = z
   .string()
@@ -26,9 +26,9 @@ export const registerSchema = z
 
 export type RegisterFormData = z.infer<typeof registerSchema>;
 
-export const companyRegisterSchema = z
+export const organizationRegisterSchema = z
   .object({
-    name: z.string().min(2, "Nom de l'entreprise requis"),
+    name: z.string().min(2, "Nom de l'organization requis"),
     member_name: z.string().min(2, "Nom du membre requis").max(50, "Nom trop long"),
     member_job_role: z
       .string()
@@ -61,4 +61,4 @@ export const companyRegisterSchema = z
     path: ["confirmPassword"],
   });
 
-export type CompanyRegisterFormData = z.infer<typeof companyRegisterSchema>;
+export type OrganizationRegisterFormData = z.infer<typeof organizationRegisterSchema>;

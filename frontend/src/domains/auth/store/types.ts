@@ -6,7 +6,7 @@ import type { AuthenticatedUser, Role } from "../../user/types/user";
 /**AuthState décrit :
  * - si l'utilisateur est connecté
  * - les informations de l'utilisateur courant
- * - son rôle (user, admin, company)
+ * - son rôle (user, admin, organization)
  * - les fonctions pour se connecter et se déconnecter
  */
 export type AuthState = {

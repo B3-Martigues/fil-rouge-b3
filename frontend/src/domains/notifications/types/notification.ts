@@ -2,8 +2,8 @@ export const NOTIFICATION_TYPE_SLUGS = [
   "favorite_event_today",
   "password_reset_requested",
   "password_changed",
-  "company_approved",
-  "company_rejected",
+  "organization_approved",
+  "organization_rejected",
   "event_approved",
   "event_rejected",
   "event_hidden",
@@ -31,7 +31,7 @@ export type Notification = {
   id: number;
   user_id: number;
   event_id?: number | null;
-  company_id?: number | null;
+  organization_id?: number | null;
   notification_type_id: number;
   title: string;
   message: string;

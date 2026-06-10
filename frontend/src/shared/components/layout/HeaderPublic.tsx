@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 
 import { FormModalNavLink } from "../forms/FormModalLink";
 import { ROUTES } from "../../constants/routes";
+import ThemeToggle from "./ThemeToggle";
 
 export default function HeaderPublic() {
   return (
@@ -9,6 +10,7 @@ export default function HeaderPublic() {
       <nav className="role-header__nav">
         <NavLink to={ROUTES.PUBLIC.HOME}>Accueil</NavLink>
         <FormModalNavLink to={ROUTES.PUBLIC.LOGIN}>Connexion</FormModalNavLink>
+        <ThemeToggle />
       </nav>
     </header>
   );

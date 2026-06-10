@@ -19,7 +19,7 @@ import type { EventCategory } from "../../events/types/event-categories";
 import type { Event } from "../../events/types/event";
 import useDataStore from "../../../shared/store/dataStore";
 import { ROUTES } from "../../../shared/constants/routes";
-import { useCompanyAccess } from "../hooks/useCompanyAccess";
+import { useOrganizationAccess } from "../hooks/useOrganizationAccess";
 import {
   formatDateTime,
   formatEventDateRange,
@@ -38,7 +38,7 @@ type EventDraft = Omit<
   | "id"
   | "latitude"
   | "longitude"
-  | "company_id"
+  | "organization_id"
   | "postal_code"
   | "created_at"
   | "updated_at"
@@ -63,8 +63,8 @@ const toEventDraft = (event: Event): EventDraft => ({
   category_slugs: event.category_slugs,
   image: event.image,
   source:
-    event.source === "company" || event.source === "Entreprise"
-      ? "Evenement cree par une entreprise"
+    event.source === "organization" || event.source === "Organization"
+      ? "Evenement cree par une organization"
       : event.source ?? "",
   is_active: event.is_active,
 });
@@ -93,8 +93,8 @@ const isValidOptionalCoordinate = (value: string, min: number, max: number) => {
   return !Number.isNaN(numberValue) && numberValue >= min && numberValue <= max;
 };
 
-export default function CompanyEvents() {
-  const { isPendingApproval } = useCompanyAccess();
+export default function OrganizationEvents() {
+  const { isPendingApproval } = useOrganizationAccess();
   const currentUser = useAuthStore((s) => s.currentUser);
   const events = useDataStore((s) => s.events);
   const updateEvent = useDataStore((s) => s.updateEvent);
@@ -108,16 +108,16 @@ export default function CompanyEvents() {
     null,
   );
 
-  const companyEvents = events.filter(
+  const organizationEvents = events.filter(
     (event) =>
-      event.company_id === currentUser?.company_id && !event.deleted_at,
+      event.organization_id === currentUser?.organization_id && !event.deleted_at,
   );
-  const companyCities = Array.from(
-    new Set(companyEvents.map((event) => event.city.trim()).filter(Boolean)),
+  const organizationCities = Array.from(
+    new Set(organizationEvents.map((event) => event.city.trim()).filter(Boolean)),
   ).sort((firstCity, secondCity) =>
     firstCity.localeCompare(secondCity, "fr-FR"),
   );
-  const filteredCompanyEvents = companyEvents
+  const filteredOrganizationEvents = organizationEvents
     .filter((event) => {
       const normalizedSearch = eventSearch.trim().toLowerCase();
       const matchesSearch = [
@@ -176,8 +176,8 @@ export default function CompanyEvents() {
   };
 
   const saveEvent = () => {
-    if (!editingEventId || !eventDraft || !currentUser?.company_id) return;
-    const originalEvent = companyEvents.find(
+    if (!editingEventId || !eventDraft || !currentUser?.organization_id) return;
+    const originalEvent = organizationEvents.find(
       (event) => event.id === editingEventId,
     );
 
@@ -249,8 +249,8 @@ export default function CompanyEvents() {
       postal_code: eventDraft.postal_code.trim(),
       category_slugs: eventDraft.category_slugs,
       image: eventDraft.image.trim(),
-      source: eventDraft.source?.trim() || "Evenement cree par une entreprise",
-      company_id: currentUser.company_id,
+      source: eventDraft.source?.trim() || "Evenement cree par une organization",
+      organization_id: currentUser.organization_id,
       is_active: false,
     });
 
@@ -259,7 +259,7 @@ export default function CompanyEvents() {
   };
 
   const deleteEvent = (eventId: number) => {
-    const deletedEvent = companyEvents.find((event) => event.id === eventId);
+    const deletedEvent = organizationEvents.find((event) => event.id === eventId);
     if (!deletedEvent) return;
 
     deleteEventFromStore(eventId);
@@ -268,13 +268,13 @@ export default function CompanyEvents() {
     toast.success(`${deletedEvent.title} supprime`);
   };
 
-  const pendingDeleteEvent = companyEvents.find(
+  const pendingDeleteEvent = organizationEvents.find(
     (event) => event.id === pendingDeleteEventId,
   );
 
   if (isPendingApproval) {
     return (
-      <div className="company-dashboard">
+      <div className="organization-dashboard">
         <h2>Votre compte est en attente de validation</h2>
         <p>
           Votre compte doit etre valide par un administrateur avant de pouvoir
@@ -285,7 +285,7 @@ export default function CompanyEvents() {
   }
 
   return (
-    <div className="company-dashboard">
+    <div className="organization-dashboard">
       <ConfirmDialog
         confirmLabel="Supprimer"
         message={
@@ -310,7 +310,7 @@ export default function CompanyEvents() {
         onClose={cancelEdit}
       >
         {eventDraft && (
-          <CompanyEventEditor
+          <OrganizationEventEditor
             draft={eventDraft}
             setDraft={setEventDraft}
             onCancel={cancelEdit}
@@ -319,16 +319,16 @@ export default function CompanyEvents() {
         )}
       </FormModal>
 
-      <section className="company-dashboard__header">
+      <section className="organization-dashboard__header">
         <h2>Mes événements</h2>
-        <p>Consultez, modifiez ou supprimez les événements de votre entreprise.</p>
+        <p>Consultez, modifiez ou supprimez les événements de votre organization.</p>
       </section>
 
-      <section className="company-events" aria-labelledby="company-events-title">
-        <h2 id="company-events-title">Liste des événements</h2>
+      <section className="organization-events" aria-labelledby="organization-events-title">
+        <h2 id="organization-events-title">Liste des événements</h2>
 
         <Toolbar
-          ariaLabel="Filtres des evenements entreprise"
+          ariaLabel="Filtres des evenements organization"
           className="admin-toolbar"
         >
           <label>
@@ -346,7 +346,7 @@ export default function CompanyEvents() {
               onChange={(event) => setEventCityFilter(event.target.value)}
             >
               <option value="all">Toutes les villes</option>
-              {companyCities.map((city) => (
+              {organizationCities.map((city) => (
                 <option key={city} value={city}>
                   {city}
                 </option>
@@ -368,21 +368,21 @@ export default function CompanyEvents() {
           </label>
         </Toolbar>
 
-        {companyEvents.length === 0 ? (
+        {organizationEvents.length === 0 ? (
           <EmptyState message="Aucun evenement cree pour le moment." />
-        ) : filteredCompanyEvents.length === 0 ? (
+        ) : filteredOrganizationEvents.length === 0 ? (
           <EmptyState message="Aucun evenement ne correspond aux filtres." />
         ) : (
-          <div className="company-review-list">
-            {filteredCompanyEvents.map((event) => (
-              <article className="company-review" key={event.id}>
-                <div className="company-review__media">
+          <div className="organization-review-list">
+            {filteredOrganizationEvents.map((event) => (
+              <article className="organization-review" key={event.id}>
+                <div className="organization-review__media">
                   <img src={event.image} alt={`Visuel ${event.title}`} />
                 </div>
 
-                <div className="company-review__content">
+                <div className="organization-review__content">
                   <>
-                      <div className="company-review__header">
+                      <div className="organization-review__header">
                         <div>
                           <h3>{event.title}</h3>
                           <p>{event.description}</p>
@@ -393,7 +393,7 @@ export default function CompanyEvents() {
                           {event.is_active ? "Publie" : "En attente"}
                         </StatusBadge>
                       </div>
-                      <dl className="company-review__details">
+                      <dl className="organization-review__details">
                         <div>
                           <dt>Debut / fin</dt>
                           <dd>{formatEventDateRange(event)}</dd>
@@ -426,8 +426,8 @@ export default function CompanyEvents() {
                           </dd>
                         </div>
                       </dl>
-                      <div className="company-review__footer">
-                        <div className="company-review__categories">
+                      <div className="organization-review__footer">
+                        <div className="organization-review__categories">
                           {getEventCategories(event).map((category) => (
                             <StatusBadge key={category}>
                               {category}
@@ -459,7 +459,7 @@ export default function CompanyEvents() {
             ))}
           </div>
         )}
-        <FormModalLink className="btn" to={ROUTES.COMPANY.CREATE}>
+        <FormModalLink className="btn" to={ROUTES.ORGANIZATION.CREATE}>
           Ajouter un nouvel evenement
         </FormModalLink>
       </section>
@@ -467,7 +467,7 @@ export default function CompanyEvents() {
   );
 }
 
-function CompanyEventEditor({
+function OrganizationEventEditor({
   draft,
   setDraft,
   onCancel,
@@ -482,9 +482,9 @@ function CompanyEventEditor({
     <div className="admin-create-account">
       <h2>Modifier un evenement</h2>
       <div className="admin-form-grid">
-        <FormField label="Titre" htmlFor="company-event-title">
+        <FormField label="Titre" htmlFor="organization-event-title">
           <Input
-            id="company-event-title"
+            id="organization-event-title"
             value={draft.title}
             onChange={(event) =>
               setDraft({ ...draft, title: event.target.value })
@@ -494,7 +494,7 @@ function CompanyEventEditor({
 
         <div className="admin-form-grid__wide">
           <CategorySelect
-            labelId="company-event-categories"
+            labelId="organization-event-categories"
             selected={draft.category_slugs}
             onToggle={(category) => setDraft(toggleDraftCategory(draft, category))}
           />
@@ -502,11 +502,11 @@ function CompanyEventEditor({
 
         <FormField
           label="Description"
-          htmlFor="company-event-description"
+          htmlFor="organization-event-description"
           className="admin-form-grid__wide"
         >
           <Textarea
-            id="company-event-description"
+            id="organization-event-description"
             rows={4}
             value={draft.description}
             onChange={(event) =>
@@ -515,9 +515,9 @@ function CompanyEventEditor({
           />
         </FormField>
 
-        <FormField label="Date de debut" htmlFor="company-event-start-date">
+        <FormField label="Date de debut" htmlFor="organization-event-start-date">
           <Input
-            id="company-event-start-date"
+            id="organization-event-start-date"
             type="datetime-local"
             value={draft.start_date}
             onChange={(event) =>
@@ -526,9 +526,9 @@ function CompanyEventEditor({
           />
         </FormField>
 
-        <FormField label="Date de fin" htmlFor="company-event-end-date">
+        <FormField label="Date de fin" htmlFor="organization-event-end-date">
           <Input
-            id="company-event-end-date"
+            id="organization-event-end-date"
             type="datetime-local"
             value={draft.end_date}
             onChange={(event) =>
@@ -537,9 +537,9 @@ function CompanyEventEditor({
           />
         </FormField>
 
-        <FormField label="Adresse" htmlFor="company-event-address">
+        <FormField label="Adresse" htmlFor="organization-event-address">
           <Input
-            id="company-event-address"
+            id="organization-event-address"
             value={draft.address}
             onChange={(event) =>
               setDraft({ ...draft, address: event.target.value })
@@ -547,9 +547,9 @@ function CompanyEventEditor({
           />
         </FormField>
 
-        <FormField label="Ville" htmlFor="company-event-city">
+        <FormField label="Ville" htmlFor="organization-event-city">
           <Input
-            id="company-event-city"
+            id="organization-event-city"
             value={draft.city}
             onChange={(event) =>
               setDraft({ ...draft, city: event.target.value })
@@ -557,9 +557,9 @@ function CompanyEventEditor({
           />
         </FormField>
 
-        <FormField label="Code postal" htmlFor="company-event-postal-code">
+        <FormField label="Code postal" htmlFor="organization-event-postal-code">
           <Input
-            id="company-event-postal-code"
+            id="organization-event-postal-code"
             inputMode="numeric"
             value={draft.postal_code}
             onChange={(event) =>
@@ -568,9 +568,9 @@ function CompanyEventEditor({
           />
         </FormField>
 
-        <FormField label="Latitude" htmlFor="company-event-latitude">
+        <FormField label="Latitude" htmlFor="organization-event-latitude">
           <Input
-            id="company-event-latitude"
+            id="organization-event-latitude"
             type="number"
             step="any"
             value={draft.latitude}
@@ -580,9 +580,9 @@ function CompanyEventEditor({
           />
         </FormField>
 
-        <FormField label="Longitude" htmlFor="company-event-longitude">
+        <FormField label="Longitude" htmlFor="organization-event-longitude">
           <Input
-            id="company-event-longitude"
+            id="organization-event-longitude"
             type="number"
             step="any"
             value={draft.longitude}
@@ -592,9 +592,9 @@ function CompanyEventEditor({
           />
         </FormField>
 
-        <FormField label="Image" htmlFor="company-event-image">
+        <FormField label="Image" htmlFor="organization-event-image">
           <Input
-            id="company-event-image"
+            id="organization-event-image"
             value={draft.image}
             onChange={(event) =>
               setDraft({ ...draft, image: event.target.value })

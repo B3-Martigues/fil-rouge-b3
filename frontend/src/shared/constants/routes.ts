@@ -8,7 +8,7 @@ export const ROUTES = {
     RESET_PASSWORD: "/reset-password/:token",
     REGISTER: "/register",
     REGISTER_USER: "/register/user",
-    REGISTER_COMPANY: "/register/company",
+    REGISTER_ORGANIZATION: "/register/organization",
   },
 
   USER: {
@@ -18,6 +18,10 @@ export const ROUTES = {
     CHANGE_PASSWORD: "/profile/change-password",
     ONBOARDING: "/onboarding",
     PREFERENCES: "/preferences",
+    ORGANIZATIONS: "/organizations",
+    ORGANIZATION_DETAIL: "/organizations/:organizationId",
+    BECOME_ORGANIZER: "/organizations/devenir-organisateur",
+    CREATE_ORGANIZATION: "/organizations/new",
   },
 
   ADMIN: {
@@ -28,14 +32,14 @@ export const ROUTES = {
   MODERATOR: {
     DASHBOARD: "/moderator",
     EVENTS: "/moderator/events",
-    COMPANIES: "/moderator/companies",
+    ORGANIZATIONS: "/moderator/organizations",
     ACCOUNTS: "/moderator/accounts",
     REPORTS: "/moderator/reports",
   },
-  COMPANY: {
-    DASHBOARD: "/company",
-    EVENTS: "/company/events",
-    CREATE: "/company/create",
-    PROFILE: "/company/profile",
+  ORGANIZATION: {
+    DASHBOARD: "/organization",
+    EVENTS: "/organization/events",
+    CREATE: "/organization/create",
+    PROFILE: "/organization/profile",
   },
 } as const;

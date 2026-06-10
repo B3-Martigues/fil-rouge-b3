@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import LogoutButton from "../../../domains/auth/components/LogoutButton";
 import NotificationCenter from "../../../domains/notifications/components/NotificationCenter";
 import { ROUTES } from "../../constants/routes";
+import ThemeToggle from "./ThemeToggle";
 
 export default function HeaderAdmin() {
   return (
@@ -12,6 +13,7 @@ export default function HeaderAdmin() {
         <NavLink to={ROUTES.ADMIN.DASHBOARD}>Admin</NavLink>
         <NavLink to={ROUTES.MODERATOR.DASHBOARD}>Moderation</NavLink>
         <NotificationCenter />
+        <ThemeToggle />
         <LogoutButton />
       </nav>
     </header>

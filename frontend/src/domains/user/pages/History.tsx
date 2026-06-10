@@ -7,11 +7,11 @@ export default function History() {
   const user = useAuthStore((s) => s.currentUser);
   const histories = useDataStore((s) => s.histories);
   const events = useDataStore((s) => s.events);
-  const companies = useDataStore((s) => s.companies);
-  const activeCompanyIds = new Set(
-    companies
-      .filter((company) => company.is_active && !company.deleted_at)
-      .map((company) => company.id),
+  const organizations = useDataStore((s) => s.organizations);
+  const activeOrganizationIds = new Set(
+    organizations
+      .filter((organization) => organization.is_active && !organization.deleted_at)
+      .map((organization) => organization.id),
   );
 
   const latestHistoryByEvent = histories
@@ -39,7 +39,7 @@ export default function History() {
       (item) =>
         item.event?.is_active &&
         !item.event.deleted_at &&
-        activeCompanyIds.has(item.event.company_id),
+        activeOrganizationIds.has(item.event.organization_id),
     )
     .sort(
       (firstItem, secondItem) =>

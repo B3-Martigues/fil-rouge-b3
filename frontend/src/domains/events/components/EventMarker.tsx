@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import type { Marker as LeafletMarker } from "leaflet";
+import { useEffect, useMemo, useRef } from "react";
+import { Icon, type Marker as LeafletMarker } from "leaflet";
 import { Marker } from "react-leaflet";
 
 import type { Event } from "../types/event-categories";
@@ -16,6 +16,17 @@ export default function EventMarker({ event, shouldOpenPopup = false }: Props) {
   const markerRef = useRef<LeafletMarker | null>(null);
   const currentUser = useAuthStore((s) => s.currentUser);
   const recordHistory = useDataStore((s) => s.recordHistory);
+  const eventIcon = useMemo(
+    () =>
+      new Icon({
+        iconUrl: event.image,
+        iconSize: [54, 54],
+        iconAnchor: [27, 54],
+        popupAnchor: [0, -54],
+        className: "event-map-marker",
+      }),
+    [event.image],
+  );
 
   useEffect(() => {
     if (shouldOpenPopup) {
@@ -31,6 +42,7 @@ export default function EventMarker({ event, shouldOpenPopup = false }: Props) {
 
   return (
     <Marker
+      icon={eventIcon}
       ref={markerRef}
       position={[event.latitude, event.longitude]}
       eventHandlers={{ click: handleMarkerClick }}
