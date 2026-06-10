@@ -33,7 +33,7 @@ import FormField from "../../../shared/components/ui/FormField";
 // FEEDBACK
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 
-import { createWelcomeNotification } from "../../notifications/services/notificationFactory";
+import { createWelcomeNotification } from "../../notification/services/notificationFactory";
 
 type RegisterFormProps = {
   mode?: "public" | "admin";

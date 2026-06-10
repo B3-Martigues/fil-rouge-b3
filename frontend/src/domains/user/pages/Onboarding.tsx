@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import type { EventCategoryName } from "../../events/types/event-categories";
+import type { EventCategoryName } from "../../event/types/event-categories";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import Button from "../../../shared/components/ui/Button";
 import { ROUTES } from "../../../shared/constants/routes";

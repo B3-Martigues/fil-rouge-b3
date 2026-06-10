@@ -1,5 +1,5 @@
-import { EVENT_CATEGORIES } from "../../events/types/event-categories";
-import type { EventCategory } from "../../events/types/event-categories";
+import { EVENT_CATEGORIES } from "../../event/types/event-categories";
+import type { EventCategory } from "../../event/types/event-categories";
 import PreferenceCard from "./PreferenceCard";
 
 type Props = {

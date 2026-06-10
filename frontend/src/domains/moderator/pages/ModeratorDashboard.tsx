@@ -10,10 +10,10 @@ import Select from "../../../shared/components/ui/Select";
 import StatusBadge from "../../../shared/components/ui/StatusBadge";
 import Textarea from "../../../shared/components/ui/Textarea";
 import useAuthStore from "../../auth/store/authStore";
-import type { Organization } from "../../organizations/types/organization";
-import type { Organizer } from "../../organizations/types/organizer";
-import type { Event } from "../../events/types/event";
-import { formatEventDateRange, isEventSuspended } from "../../events/utils/event";
+import type { Organization } from "../../organization/types/organization";
+import type { Organizer } from "../../organization/types/organizer";
+import type { Event } from "../../event/types/event";
+import { formatEventDateRange, isEventSuspended } from "../../event/utils/event";
 import {
   createAccountSuspendedNotification,
   createOrganizationApprovedNotification,
@@ -24,7 +24,7 @@ import {
   createEventRejectedNotification,
   createEventWithdrawnAfterReportNotification,
   createReportUsefulNotification,
-} from "../../notifications/services/notificationFactory";
+} from "../../notification/services/notificationFactory";
 import type { Account, AccountSummary, User } from "../../user/types/user";
 import { isAccountSuspended } from "../../user/types/user";
 import type {

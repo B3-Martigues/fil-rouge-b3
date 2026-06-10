@@ -15,10 +15,10 @@ import Textarea from "../../../shared/components/ui/Textarea";
 import { ROUTES } from "../../../shared/constants/routes";
 import useDataStore from "../../../shared/store/dataStore";
 import useAuthStore from "../../auth/store/authStore";
-import CategorySelect from "../../events/components/CategorySelect";
-import type { Event } from "../../events/types/event";
-import type { EventCategory } from "../../events/types/event-categories";
-import { formatDateTime, formatEventDateRange } from "../../events/utils/event";
+import CategorySelect from "../../event/components/CategorySelect";
+import type { Event } from "../../event/types/event";
+import type { EventCategory } from "../../event/types/event-categories";
+import { formatDateTime, formatEventDateRange } from "../../event/utils/event";
 import { OrganizationFields } from "./OrganizationSetup";
 import {
   createNextId,

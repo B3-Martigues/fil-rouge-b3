@@ -1,7 +1,7 @@
 import type { StatusBadgeVariant } from "../../../shared/components/ui/StatusBadge";
-import type { Event } from "../../events/types/event";
-import type { EventCategory } from "../../events/types/event-categories";
-import { isEventSuspended, toDateTimeLocalValue } from "../../events/utils/event";
+import type { Event } from "../../event/types/event";
+import type { EventCategory } from "../../event/types/event-categories";
+import { isEventSuspended, toDateTimeLocalValue } from "../../event/utils/event";
 import type { Organization } from "../types/organization";
 import {
   CATEGORIES,

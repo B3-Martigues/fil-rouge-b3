@@ -10,7 +10,7 @@ import {
   changePasswordSchema,
   type ChangePasswordFormData,
 } from "../validations/changePassword.schema";
-import { createPasswordChangedNotification } from "../../notifications/services/notificationFactory";
+import { createPasswordChangedNotification } from "../../notification/services/notificationFactory";
 
 import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";

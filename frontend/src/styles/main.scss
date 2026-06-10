@@ -2,8 +2,8 @@
 
 @use "../domains/auth/styles/auth";
 @use "../domains/user/styles/user";
-@use "../domains/events/styles/events";
+@use "../domains/event/styles/event";
 @use "../domains/admin/styles/admin";
-@use "../domains/organizations/styles/organizations";
+@use "../domains/organization/styles/organization";
 @use "../domains/moderator/styles/moderator";
-@use "../domains/notifications/styles/notifications";
+@use "../domains/notification/styles/notification";

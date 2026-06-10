@@ -3,7 +3,7 @@ import { toast } from "react-toastify";
 
 import OrganizationRegisterForm from "../../auth/components/OrganizationRegisterForm";
 import RegisterForm from "../../auth/components/RegisterForm";
-import CategorySelect from "../../events/components/CategorySelect";
+import CategorySelect from "../../event/components/CategorySelect";
 import EmptyState from "../../../shared/components/feedback/EmptyState";
 import FormModal from "../../../shared/components/forms/FormModal";
 import ActionRow from "../../../shared/components/layout/ActionRow";
@@ -20,9 +20,9 @@ import { ROUTES } from "../../../shared/constants/routes";
 import {
   EVENT_CATEGORIES,
   type EventCategory,
-} from "../../events/types/event-categories";
-import type { Event } from "../../events/types/event";
-import type { Organization } from "../../organizations/types/organization";
+} from "../../event/types/event-categories";
+import type { Event } from "../../event/types/event";
+import type { Organization } from "../../organization/types/organization";
 import {
   type Account,
   type AccountSummary,
@@ -41,7 +41,7 @@ import {
   formatEventDateRange,
   isEventSuspended,
   toDateTimeLocalValue,
-} from "../../events/utils/event";
+} from "../../event/utils/event";
 
 type UserDraft = {
   display_name: string;

@@ -3,12 +3,12 @@ import { persist } from "zustand/middleware";
 
 import { accountsMock } from "../../domains/auth/mocks/accounts.mock";
 import type { PasswordResetToken } from "../../domains/auth/types/passwordReset";
-import { organizersMock } from "../../domains/organizations/mocks/organizers.mock";
-import { organizationsMock } from "../../domains/organizations/mocks/organizations.mock";
-import type { Organization } from "../../domains/organizations/types/organization";
-import type { Organizer } from "../../domains/organizations/types/organizer";
-import { eventsMock } from "../../domains/events/mocks/events.mock";
-import type { Event } from "../../domains/events/types/event";
+import { organizersMock } from "../../domains/organization/mocks/organizers.mock";
+import { organizationsMock } from "../../domains/organization/mocks/organizations.mock";
+import type { Organization } from "../../domains/organization/types/organization";
+import type { Organizer } from "../../domains/organization/types/organizer";
+import { eventsMock } from "../../domains/event/mocks/events.mock";
+import type { Event } from "../../domains/event/types/event";
 import {
   moderationDecisionsMock,
   moderationReportsMock,
@@ -19,22 +19,22 @@ import type {
   ModerationReportPriority,
   ModerationTargetType,
 } from "../../domains/moderator/types/moderation";
-import { notificationTypesMock } from "../../domains/notifications/mocks/notification-types.mock";
-import { getNotificationTypeConfig } from "../../domains/notifications/mocks/notification-types.mock";
+import { notificationTypesMock } from "../../domains/notification/mocks/notification-types.mock";
+import { getNotificationTypeConfig } from "../../domains/notification/mocks/notification-types.mock";
 import {
   sendNotificationEmail,
   type EmailDeliveryResult,
-} from "../../domains/notifications/services/emailProviders";
+} from "../../domains/notification/services/emailProviders";
 import {
   createFavoriteEventTodayNotification,
   createPasswordChangedNotification,
   createPasswordResetNotification as buildPasswordResetNotification,
-} from "../../domains/notifications/services/notificationFactory";
+} from "../../domains/notification/services/notificationFactory";
 import type {
   Notification,
   NotificationDraft,
   NotificationType,
-} from "../../domains/notifications/types/notification";
+} from "../../domains/notification/types/notification";
 import { favoritesMock } from "../../domains/user/mocks/favorites.mock";
 import { historiesMock } from "../../domains/user/mocks/history.mock";
 import {
@@ -53,7 +53,7 @@ import { ROLE_IDS } from "../../domains/user/types/user";
 import {
   getEventCategoryId,
   type EventCategoryName,
-} from "../../domains/events/types/event-categories";
+} from "../../domains/event/types/event-categories";
 
 type PasswordResetResult = {
   ok: boolean;

@@ -10,7 +10,7 @@ import {
 } from "react-router-dom";
 
 import useAuthStore from "../domains/auth/store/authStore";
-import { getEventCategoryById } from "../domains/events/types/event-categories";
+import { getEventCategoryById } from "../domains/event/types/event-categories";
 import { isAccountSuspended, type Role } from "../domains/user/types/user";
 import AdminLayout from "../shared/layouts/AdminLayout";
 import OrganizationLayout from "../shared/layouts/OrganizationLayout";
@@ -21,7 +21,7 @@ import FormModal from "../shared/components/forms/FormModal";
 import { ROUTES } from "../shared/constants/routes";
 import useDataStore from "../shared/store/dataStore";
 
-const Home = lazy(() => import("../domains/events/pages/Home"));
+const Home = lazy(() => import("../domains/event/pages/Home"));
 const Register = lazy(() => import("../domains/auth/pages/Register"));
 const UserRegister = lazy(() => import("../domains/auth/pages/UserRegister"));
 const OrganizationRegister = lazy(
@@ -43,22 +43,22 @@ const ModeratorDashboard = lazy(
   () => import("../domains/moderator/pages/ModeratorDashboard"),
 );
 const OrganizationDashboard = lazy(
-  () => import("../domains/organizations/pages/OrganizationDashboard"),
+  () => import("../domains/organization/pages/OrganizationDashboard"),
 );
 const OrganizationsPage = lazy(
-  () => import("../domains/organizations/pages/OrganizationsPage"),
+  () => import("../domains/organization/pages/OrganizationsPage"),
 );
 const OrganizationDetailPage = lazy(
-  () => import("../domains/organizations/pages/OrganizationDetailPage"),
+  () => import("../domains/organization/pages/OrganizationDetailPage"),
 );
 const OrganizationSetup = lazy(
-  () => import("../domains/organizations/pages/OrganizationSetup"),
+  () => import("../domains/organization/pages/OrganizationSetup"),
 );
 const OrganizationEvents = lazy(
-  () => import("../domains/organizations/pages/OrganizationEvents"),
+  () => import("../domains/organization/pages/OrganizationEvents"),
 );
 const OrganizationProfile = lazy(
-  () => import("../domains/organizations/pages/OrganizationProfile"),
+  () => import("../domains/organization/pages/OrganizationProfile"),
 );
 const Favorites = lazy(() => import("../domains/user/pages/Favorites"));
 const History = lazy(() => import("../domains/user/pages/History"));

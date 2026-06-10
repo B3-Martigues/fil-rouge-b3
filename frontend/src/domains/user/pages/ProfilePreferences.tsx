@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 import {
   getEventCategorySlug,
   type EventCategoryName,
-} from "../../events/types/event-categories";
+} from "../../event/types/event-categories";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import Button from "../../../shared/components/ui/Button";
 import { ROUTES } from "../../../shared/constants/routes";

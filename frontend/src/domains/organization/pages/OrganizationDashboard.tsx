@@ -2,10 +2,10 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
-import CategorySelect from "../../events/components/CategorySelect";
+import CategorySelect from "../../event/components/CategorySelect";
 import useAuthStore from "../../auth/store/authStore";
-import type { EventCategory } from "../../events/types/event-categories";
-import type { Event } from "../../events/types/event";
+import type { EventCategory } from "../../event/types/event-categories";
+import type { Event } from "../../event/types/event";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
 import Input from "../../../shared/components/ui/Input";

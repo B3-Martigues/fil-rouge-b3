@@ -1,4 +1,4 @@
-import type { Organization } from "../../organizations/types/organization";
+import type { Organization } from "../../organization/types/organization";
 import type { Event } from "../types/event";
 import type { EventCategoryName } from "../types/event-categories";
 

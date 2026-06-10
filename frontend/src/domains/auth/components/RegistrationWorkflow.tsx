@@ -11,9 +11,9 @@ import FormField from "../../../shared/components/ui/FormField";
 import Input from "../../../shared/components/ui/Input";
 import { ROUTES } from "../../../shared/constants/routes";
 import useDataStore from "../../../shared/store/dataStore";
-import type { Organization } from "../../organizations/types/organization";
-import type { Organizer } from "../../organizations/types/organizer";
-import { OrganizationFields } from "../../organizations/pages/OrganizationSetup";
+import type { Organization } from "../../organization/types/organization";
+import type { Organizer } from "../../organization/types/organizer";
+import { OrganizationFields } from "../../organization/pages/OrganizationSetup";
 import {
   createNextId,
   emptyOrganizationForm,
@@ -26,8 +26,8 @@ import {
   type OrganizationFormErrors,
   type OrganizerProfileErrors,
   type OrganizerProfileForm,
-} from "../../organizations/utils/organizationWorkflow";
-import { createWelcomeNotification } from "../../notifications/services/notificationFactory";
+} from "../../organization/utils/organizationWorkflow";
+import { createWelcomeNotification } from "../../notification/services/notificationFactory";
 import PreferencesGrid from "../../user/components/PreferencesGrid";
 import { useUserPreferences } from "../../user/hooks/useUserPreferences";
 import type { Account, User } from "../../user/types/user";

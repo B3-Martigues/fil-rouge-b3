@@ -1,5 +1,5 @@
 import useAuthStore from "../../auth/store/authStore";
-import { formatDateTime, formatEventDateRange } from "../../events/utils/event";
+import { formatDateTime, formatEventDateRange } from "../../event/utils/event";
 import useDataStore from "../../../shared/store/dataStore";
 import type { History as HistoryEntry } from "../types/history";
 

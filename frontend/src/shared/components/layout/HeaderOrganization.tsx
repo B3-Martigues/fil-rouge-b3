@@ -1,8 +1,8 @@
 import { NavLink } from "react-router-dom";
 
 import LogoutButton from "../../../domains/auth/components/LogoutButton";
-import { useOrganizationAccess } from "../../../domains/organizations/hooks/useOrganizationAccess";
-import NotificationCenter from "../../../domains/notifications/components/NotificationCenter";
+import { useOrganizationAccess } from "../../../domains/organization/hooks/useOrganizationAccess";
+import NotificationCenter from "../../../domains/notification/components/NotificationCenter";
 import { FormModalNavLink } from "../forms/FormModalLink";
 import { ROUTES } from "../../constants/routes";
 import ThemeToggle from "./ThemeToggle";

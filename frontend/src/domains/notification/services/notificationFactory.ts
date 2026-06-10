@@ -1,7 +1,7 @@
 import { ROUTES } from "../../../shared/constants/routes";
-import type { Organization } from "../../organizations/types/organization";
-import type { Event } from "../../events/types/event";
-import { formatDateTime } from "../../events/utils/event";
+import type { Organization } from "../../organization/types/organization";
+import type { Event } from "../../event/types/event";
+import { formatDateTime } from "../../event/utils/event";
 import type { Account, User } from "../../user/types/user";
 import { getNotificationTypeBySlug } from "../mocks/notification-types.mock";
 import type { NotificationDraft } from "../types/notification";

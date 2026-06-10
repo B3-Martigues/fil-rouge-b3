@@ -1,4 +1,4 @@
-import type { Organization } from "../../organizations/types/organization";
+import type { Organization } from "../../organization/types/organization";
 import type {
   Account,
   AuthenticatedUser,

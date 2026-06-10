@@ -14,9 +14,9 @@ import {
   ROLE_IDS,
   toAuthenticatedOrganization,
 } from "../../user/types/user";
-import type { Organization } from "../../organizations/types/organization";
-import type { Organizer } from "../../organizations/types/organizer";
-import { CATEGORIES } from "../../organizations/types/organization-categories";
+import type { Organization } from "../../organization/types/organization";
+import type { Organizer } from "../../organization/types/organizer";
+import { CATEGORIES } from "../../organization/types/organization-categories";
 import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
@@ -27,7 +27,7 @@ import CheckboxGroup from "../../../shared/components/ui/CheckboxGroup";
 import FormField from "../../../shared/components/ui/FormField";
 import Textarea from "../../../shared/components/ui/Textarea";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
-import { createWelcomeNotification } from "../../notifications/services/notificationFactory";
+import { createWelcomeNotification } from "../../notification/services/notificationFactory";
 
 type OrganizationRegisterFormProps = {
   mode?: "public" | "admin";

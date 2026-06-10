@@ -1,4 +1,4 @@
-import FavoriteButton from "../../events/components/FavoriteButton";
+import FavoriteButton from "../../event/components/FavoriteButton";
 import useFavorites from "../hooks/useFavorites";
 import useDataStore from "../../../shared/store/dataStore";
 

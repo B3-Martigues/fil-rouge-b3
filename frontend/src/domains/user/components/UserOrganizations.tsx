@@ -1,20 +1,20 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { toast } from "react-toastify";
 
-import CategorySelect from "../../events/components/CategorySelect";
+import CategorySelect from "../../event/components/CategorySelect";
 import {
   CATEGORIES,
   type CategoryName,
-} from "../../organizations/types/organization-categories";
-import type { Organization } from "../../organizations/types/organization";
-import type { Event } from "../../events/types/event";
-import type { EventCategory } from "../../events/types/event-categories";
+} from "../../organization/types/organization-categories";
+import type { Organization } from "../../organization/types/organization";
+import type { Event } from "../../event/types/event";
+import type { EventCategory } from "../../event/types/event-categories";
 import {
   formatDateTime,
   formatEventDateRange,
   isEventSuspended,
   toDateTimeLocalValue,
-} from "../../events/utils/event";
+} from "../../event/utils/event";
 import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
 import ActionRow from "../../../shared/components/layout/ActionRow";

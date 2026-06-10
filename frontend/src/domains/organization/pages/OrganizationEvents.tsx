@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "react-toastify";
 
-import CategorySelect from "../../events/components/CategorySelect";
+import CategorySelect from "../../event/components/CategorySelect";
 import EmptyState from "../../../shared/components/feedback/EmptyState";
 import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
 import FormModal from "../../../shared/components/forms/FormModal";
@@ -15,8 +15,8 @@ import Select from "../../../shared/components/ui/Select";
 import StatusBadge from "../../../shared/components/ui/StatusBadge";
 import Textarea from "../../../shared/components/ui/Textarea";
 import useAuthStore from "../../auth/store/authStore";
-import type { EventCategory } from "../../events/types/event-categories";
-import type { Event } from "../../events/types/event";
+import type { EventCategory } from "../../event/types/event-categories";
+import type { Event } from "../../event/types/event";
 import useDataStore from "../../../shared/store/dataStore";
 import { ROUTES } from "../../../shared/constants/routes";
 import { useOrganizationAccess } from "../hooks/useOrganizationAccess";
@@ -24,7 +24,7 @@ import {
   formatDateTime,
   formatEventDateRange,
   toDateTimeLocalValue,
-} from "../../events/utils/event";
+} from "../../event/utils/event";
 
 type EventSort =
   | "created-desc"

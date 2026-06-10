@@ -1,5 +1,5 @@
 import Button from "../../../shared/components/ui/Button";
-import type { EventCategory } from "../../events/types/event-categories";
+import type { EventCategory } from "../../event/types/event-categories";
 
 type Props = {
   category: EventCategory;
