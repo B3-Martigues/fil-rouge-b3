@@ -1,25 +1,58 @@
 @use "../../../shared/styles/tokens" as *;
 @use "../../../shared/styles/mixins" as *;
 
-.events-home {
-  display: grid;
-  gap: 24px;
-  padding: 24px;
-  text-align: left;
+/* =========================
+   EVENTS HOME — DESKTOP MAP
+   ========================= */
 
-  &__header {
+.events-home {
+  height: calc(100dvh - var(--header-height, 0px));
+  min-height: 620px;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  background: var(--bg);
+
+  &__layout {
+    position: relative;
     display: grid;
-    gap: 8px;
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
   }
 
-  @include respond-below($bp-sm) {
-    padding: 16px;
+  &__panel {
+    z-index: 20;
+    grid-column: 1;
+    grid-row: 1;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--bg);
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.12);
+  }
+
+  &__map {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
   }
 }
 
-.event-map {
+.event-map,
+.event-map .leaflet-container {
   width: 100%;
-  height: 500px;
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  border-radius: 0;
 }
 
 .event-map-marker {
@@ -33,49 +66,86 @@
 
 .events-map-controls {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
   align-items: end;
-  padding: 14px;
-
-  @include surface(var(--social-bg));
+  padding: 12px;
+  background: var(--bg);
 
   label {
     display: grid;
-    gap: 6px;
+    min-width: 0;
+    gap: 0;
+    color: transparent;
+    font-size: 0;
+  }
 
-    @include field-label;
+  input,
+  select {
+    width: 100%;
+    min-height: 34px;
+    padding-inline: 12px;
+    border-radius: 999px;
+    font-size: 12px;
+  }
+
+  &__search {
+    grid-column: 1 / -1;
+  }
+
+  &__period-mode,
+  &__period-value,
+  &__city {
+    display: none !important;
   }
 
   .btn {
-    min-height: 41px;
+    grid-column: 1 / -1;
+    min-height: 34px;
+    padding-inline: 12px;
+    border-radius: 999px;
+    font-size: 12px;
     white-space: nowrap;
-  }
-
-  @include respond-below($bp-sm) {
-    grid-template-columns: 1fr;
   }
 }
 
 .events-list {
   display: grid;
-  gap: 16px;
+  align-content: start;
+  gap: 0;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--bg);
+  -webkit-overflow-scrolling: touch;
 
-  &__count {
-    color: var(--text-p);
-    font-size: 14px;
+  &__handle {
+    display: none;
+  }
+
+  > h2,
+  &__count,
+  .events-status-section__header {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   &__grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 16px;
+    grid-template-columns: 1fr;
+    gap: 0;
   }
 }
 
 .events-status-section {
   display: grid;
-  gap: 12px;
+  gap: 0;
 
   &__header {
     display: flex;
@@ -109,6 +179,70 @@
 
       @include pill;
     }
+  }
+}
+
+.event-card {
+  display: grid;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--bg);
+  box-shadow: none;
+
+  &--interactive {
+    cursor: pointer;
+  }
+
+  &--selected {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  &__image {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1.9 / 1;
+    height: auto;
+    border-radius: 0;
+    object-fit: cover;
+    background: #b5b5b5;
+  }
+
+  &__content {
+    display: grid;
+    gap: 2px;
+    padding: 4px 6px 12px;
+  }
+
+  &__meta,
+  p,
+  &__details,
+  .event-favorite-button,
+  .event-report {
+    display: none;
+  }
+
+  h3 {
+    display: -webkit-box;
+    margin: 0;
+    overflow: hidden;
+    color: var(--text-h);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.15;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  h3::after {
+    content: "\A Prix\A Distance";
+    white-space: pre-line;
+    color: var(--text-h);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.15;
   }
 }
 
@@ -248,5 +382,183 @@
     span {
       overflow-wrap: anywhere;
     }
+  }
+}
+
+/* =========================
+   TABLETTE
+   ========================= */
+
+@include respond-below($bp-md) {
+  .events-home__layout {
+    grid-template-columns: 230px minmax(0, 1fr);
+  }
+}
+
+/* =========================
+   MOBILE — map + bottom sheet
+   ========================= */
+
+@include respond-below($bp-sm) {
+  .events-home {
+    height: 100dvh;
+    min-height: 100dvh;
+  }
+
+  .events-home__layout {
+    display: block;
+    height: 100dvh;
+  }
+
+  .events-home__map {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+  }
+
+  .events-home__panel {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: block;
+    height: 100%;
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
+    pointer-events: none;
+  }
+
+  .event-map,
+  .event-map .leaflet-container {
+    height: 100dvh;
+    min-height: 100dvh;
+  }
+
+  .events-map-controls {
+    position: absolute;
+    z-index: 500;
+    top: max(12px, env(safe-area-inset-top));
+    left: 12px;
+    right: 12px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 112px;
+    gap: 8px;
+    padding: 0;
+    background: transparent;
+    pointer-events: auto;
+  }
+
+  .events-map-controls input,
+  .events-map-controls select {
+    min-height: 38px;
+    border-color: rgba(0, 0, 0, 0.08);
+    background: var(--bg);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+  }
+
+  .events-map-controls__search {
+    grid-column: 1 / -1;
+  }
+
+  .events-map-controls__category {
+    grid-column: 1;
+  }
+
+  .events-map-controls__sort {
+    grid-column: 2;
+  }
+
+  .events-map-controls__period-mode,
+  .events-map-controls__period-value,
+  .events-map-controls__city {
+    display: none !important;
+  }
+
+  .events-map-controls .btn {
+    grid-column: 1 / -1;
+    justify-self: start;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+  }
+
+  .events-list {
+    position: absolute;
+    z-index: 40;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: grid;
+    gap: 10px;
+    max-height: 42dvh;
+    padding: 10px 12px max(18px, env(safe-area-inset-bottom));
+    overflow-y: auto;
+    border-radius: 28px 28px 0 0;
+    background: var(--bg);
+    box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.16);
+    pointer-events: auto;
+    transition: max-height 180ms ease;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .events-home__panel--expanded .events-list {
+    max-height: 78dvh;
+  }
+
+  .events-list__handle {
+    display: block;
+    justify-self: center;
+    width: 56px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .events-list__handle::before {
+    content: "";
+    display: block;
+    width: 44px;
+    height: 4px;
+    margin: 8px auto 0;
+    border-radius: 999px;
+    background: var(--border);
+  }
+
+  .events-list__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 8px;
+  }
+
+  .event-card__image {
+    aspect-ratio: 1.45 / 1;
+  }
+
+  .event-card__content {
+    padding: 4px 0 8px;
+  }
+
+  .event-card h3,
+  .event-card h3::after {
+    font-size: 11px;
+  }
+
+  .event-popup {
+    width: min(280px, 78vw);
+  }
+
+  .event-popup__image {
+    height: 160px;
+  }
+}
+
+@media (max-width: 360px) {
+  .events-map-controls {
+    left: 8px;
+    right: 8px;
+    grid-template-columns: minmax(0, 1fr) 104px;
+  }
+
+  .events-list {
+    padding-inline: 10px;
   }
 }

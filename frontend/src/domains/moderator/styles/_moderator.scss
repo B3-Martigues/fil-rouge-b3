@@ -236,3 +236,78 @@
     flex-direction: column;
   }
 }
+
+/* Responsive mobile-first */
+.moderator-queue-grid,
+.moderator-suspended-groups {
+  grid-template-columns: 1fr;
+  gap: var(--gap-section);
+
+  @include respond-above($bp-lg) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.moderator-panel {
+  .admin-table--accounts .admin-table__row,
+  .moderator-account-table .admin-table__row,
+  .admin-table--suspended .admin-table__row,
+  .admin-table--organizers .admin-table__row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.moderator-split-actions,
+.moderator-split-actions--event,
+.moderator-event-suspension {
+  grid-template-columns: 1fr;
+}
+
+.moderator-decision {
+  flex-direction: column;
+  padding: var(--space-card);
+}
+
+@include respond-above($bp-lg) {
+  .moderator-panel {
+    .admin-table--accounts .admin-table__row {
+      grid-template-columns:
+        minmax(150px, 1fr) minmax(140px, 0.9fr) minmax(100px, 0.6fr)
+        minmax(120px, 0.65fr) minmax(220px, 1.2fr);
+    }
+
+    .moderator-account-table .admin-table__row {
+      grid-template-columns:
+        minmax(170px, 1.15fr) minmax(110px, 0.55fr) minmax(92px, 0.45fr)
+        minmax(220px, 1.25fr) minmax(130px, 0.65fr);
+    }
+
+    .admin-table--suspended .admin-table__row {
+      grid-template-columns:
+        minmax(170px, 1.1fr) minmax(120px, 0.6fr) minmax(130px, 0.65fr)
+        minmax(190px, 1fr);
+    }
+
+    .admin-table--organizers .admin-table__row {
+      grid-template-columns:
+        minmax(150px, 1fr) minmax(180px, 1.1fr) minmax(150px, 1fr)
+        minmax(150px, 0.9fr) minmax(120px, 0.65fr);
+    }
+  }
+
+  .moderator-split-actions {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .moderator-split-actions--event {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+
+  .moderator-event-suspension {
+    grid-template-columns: 92px minmax(0, 1fr) auto;
+  }
+
+  .moderator-decision {
+    flex-direction: row;
+  }
+}

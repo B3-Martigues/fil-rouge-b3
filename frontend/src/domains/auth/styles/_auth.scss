@@ -65,3 +65,27 @@
   background: var(--accent-bg);
   font-size: 14px;
 }
+
+/* Responsive mobile-first */
+.auth-page {
+  gap: var(--gap-section);
+  padding: var(--space-page);
+}
+
+.auth-choice,
+.auth-form-section,
+.auth-register-choice {
+  padding: var(--space-card);
+}
+
+.auth-register-choice {
+  grid-template-columns: 1fr;
+
+  @include respond-above($bp-md) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.auth-page--wide {
+  max-width: min(100%, 820px);
+}

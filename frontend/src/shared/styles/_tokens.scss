@@ -1,6 +1,16 @@
-$bp-sm: 760px;
-$bp-md: 900px;
+// Breakpoints conventionnels
+// xs: mobile compact, sm: mobile large, md: tablette, lg: desktop, xl: grand écran.
+$bp-xs: 480px;
+$bp-sm: 640px;
+$bp-md: 768px;
 $bp-lg: 1024px;
+$bp-xl: 1280px;
+
+$container-sm: 100%;
+$container-md: 720px;
+$container-lg: 960px;
+$container-xl: 1126px;
+
 
 $radius-sm: 6px;
 $radius-md: 8px;
@@ -78,7 +88,27 @@ $radius-pill: 999px;
   --heading: system-ui, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
-  font: 18px/145% var(--sans);
+  // Mesures responsive globales
+  --container-page: 1126px;
+
+  --space-page: 16px;
+  --space-section: 16px;
+  --space-card: 14px;
+  --space-field: 10px;
+  --gap-page: 16px;
+  --gap-section: 14px;
+  --gap-card: 12px;
+
+  --control-height: 42px;
+  --control-height-sm: 34px;
+  --icon-button-size: 38px;
+
+  --map-height: 360px;
+  --popup-width: min(280px, 84vw);
+  --popup-image-height: 160px;
+
+
+  font: 16px/145% var(--sans);
   letter-spacing: 0.18px;
   color-scheme: light;
   color: var(--text);
@@ -88,8 +118,27 @@ $radius-pill: 999px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  @media (max-width: $bp-lg) {
-    font-size: 16px;
+  @media (min-width: $bp-md) {
+    --space-page: 20px;
+    --space-section: 20px;
+    --space-card: 16px;
+    --gap-page: 20px;
+    --gap-section: 16px;
+    --map-height: 420px;
+    --popup-width: min(300px, 76vw);
+    --popup-image-height: 190px;
+  }
+
+  @media (min-width: $bp-lg) {
+    --space-page: 24px;
+    --space-section: 24px;
+    --space-card: 18px;
+    --gap-page: 24px;
+    --gap-section: 18px;
+    --map-height: 500px;
+    --popup-width: min(300px, 72vw);
+    --popup-image-height: 220px;
+    font-size: 18px;
   }
 }
 

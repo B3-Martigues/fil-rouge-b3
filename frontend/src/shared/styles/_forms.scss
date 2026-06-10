@@ -252,3 +252,52 @@ textarea.input {
     gap: 8px;
   }
 }
+
+/* Responsive mobile-first */
+.form-modal {
+  padding: 12px;
+
+  &__dialog {
+    max-height: calc(100svh - 24px);
+  }
+
+  &__body {
+    padding: var(--space-card);
+  }
+
+  @include respond-above($bp-md) {
+    padding: 32px 16px;
+
+    &__dialog {
+      max-height: calc(100svh - 64px);
+    }
+  }
+}
+
+.form-stepper {
+  grid-template-columns: 1fr;
+
+  @include respond-above($bp-md) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.categories-select,
+.checkbox-group__options {
+  grid-template-columns: 1fr;
+
+  @include respond-above($bp-sm) {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+}
+
+.confirm-dialog__actions,
+.form-step-actions {
+  .btn {
+    width: 100%;
+
+    @include respond-above($bp-sm) {
+      width: auto;
+    }
+  }
+}

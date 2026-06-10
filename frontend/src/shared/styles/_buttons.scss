@@ -102,3 +102,30 @@
     transform: rotate(360deg);
   }
 }
+
+/* Responsive mobile-first */
+.btn {
+  min-height: var(--control-height);
+  padding: 10px 14px;
+
+  @media (pointer: coarse) {
+    min-height: 44px;
+  }
+
+  @include respond-above(1024px) {
+    padding-inline: 16px;
+  }
+
+  &--sm {
+    min-height: var(--control-height-sm);
+    padding: 6px 10px;
+  }
+
+  &--icon,
+  &--icon-only {
+    width: var(--icon-button-size);
+    min-width: var(--icon-button-size);
+    height: var(--icon-button-size);
+    min-height: var(--icon-button-size);
+  }
+}
