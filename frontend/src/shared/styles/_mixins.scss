@@ -6,30 +6,6 @@
   }
 }
 
-@mixin respond-above($breakpoint) {
-  @media (min-width: $breakpoint) {
-    @content;
-  }
-}
-
-@mixin respond-between($min, $max) {
-  @media (min-width: $min) and (max-width: $max) {
-    @content;
-  }
-}
-
-@mixin mobile-stack($gap: var(--gap-section)) {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: $gap;
-}
-
-@mixin responsive-grid($min: 260px, $gap: var(--gap-section)) {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, $min), 1fr));
-  gap: $gap;
-}
-
 @mixin focus-ring {
   &:focus-visible {
     outline: 3px solid var(--accent-border);

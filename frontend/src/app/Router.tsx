@@ -23,10 +23,6 @@ import useDataStore from "../shared/store/dataStore";
 
 const Home = lazy(() => import("../domains/event/pages/Home"));
 const Register = lazy(() => import("../domains/auth/pages/Register"));
-const UserRegister = lazy(() => import("../domains/auth/pages/UserRegister"));
-const OrganizationRegister = lazy(
-  () => import("../domains/auth/pages/OrganizationRegister"),
-);
 const Login = lazy(() => import("../domains/auth/pages/Login"));
 const ForgotPassword = lazy(
   () => import("../domains/auth/pages/ForgotPassword"),
@@ -66,6 +62,7 @@ const Onboarding = lazy(() => import("../domains/user/pages/Onboarding"));
 const ProfilePreferences = lazy(
   () => import("../domains/user/pages/ProfilePreferences"),
 );
+const NotFound = lazy(() => import("../shared/pages/NotFound"));
 
 type Props = {
   children: ReactNode;
@@ -77,18 +74,12 @@ type FormModalLocationState = {
 };
 
 const formModalRoutes = [
-  { path: ROUTES.PUBLIC.LOGIN, label: "Connexion" },
-  { path: ROUTES.PUBLIC.REGISTER, label: "Inscription" },
-  { path: ROUTES.PUBLIC.REGISTER_USER, label: "Inscription utilisateur" },
-  { path: ROUTES.PUBLIC.REGISTER_ORGANIZATION, label: "Inscription organization" },
   { path: ROUTES.PUBLIC.FORGOT_PASSWORD, label: "Mot de passe oublie" },
   { path: ROUTES.PUBLIC.RESET_PASSWORD, label: "Reinitialisation du mot de passe" },
-  { path: ROUTES.USER.PROFILE, label: "Profil utilisateur" },
   { path: ROUTES.USER.CHANGE_PASSWORD, label: "Changement de mot de passe" },
   { path: ROUTES.USER.PREFERENCES, label: "Preferences utilisateur" },
   { path: ROUTES.USER.BECOME_ORGANIZER, label: "Devenir organisateur" },
   { path: ROUTES.USER.CREATE_ORGANIZATION, label: "Nouvelle organisation" },
-  { path: ROUTES.ORGANIZATION.PROFILE, label: "Profil organization" },
   { path: ROUTES.ORGANIZATION.CREATE, label: "Nouvel evenement" },
 ] as const;
 
@@ -189,11 +180,14 @@ const Router = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const locationState = location.state as FormModalLocationState | null;
-  const backgroundLocation = locationState?.formModal
-    ? locationState.backgroundLocation
+  const requestedFormModalLabel = locationState?.formModal
+    ? getFormModalLabel(location.pathname)
+    : null;
+  const backgroundLocation = requestedFormModalLabel
+    ? locationState?.backgroundLocation
     : undefined;
   const formModalLabel = backgroundLocation
-    ? getFormModalLabel(location.pathname)
+    ? requestedFormModalLabel
     : null;
   const closeFormModal = () => {
     navigate(
@@ -216,11 +210,6 @@ const Router = () => {
             }
           />
           <Route path={ROUTES.PUBLIC.REGISTER} element={<Register />} />
-          <Route path={ROUTES.PUBLIC.REGISTER_USER} element={<UserRegister />} />
-          <Route
-            path={ROUTES.PUBLIC.REGISTER_ORGANIZATION}
-            element={<OrganizationRegister />}
-          />
           <Route path={ROUTES.PUBLIC.LOGIN} element={<Login />} />
           <Route
             path={ROUTES.PUBLIC.FORGOT_PASSWORD}
@@ -367,13 +356,16 @@ const Router = () => {
             </PrivateRoute>
           }
         >
-          <Route path={ROUTES.ORGANIZATION.DASHBOARD} element={<OrganizationDashboard />} />
+          <Route
+            path={ROUTES.ORGANIZATION.DASHBOARD}
+            element={<Navigate to={ROUTES.ORGANIZATION.EVENTS} replace />}
+          />
           <Route path={ROUTES.ORGANIZATION.PROFILE} element={<OrganizationProfile />} />
           <Route path={ROUTES.ORGANIZATION.EVENTS} element={<OrganizationEvents />} />
           <Route path={ROUTES.ORGANIZATION.CREATE} element={<OrganizationDashboard />} />
         </Route>
 
-          <Route path="*" element={<Navigate to={ROUTES.PUBLIC.HOME} replace />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
 
@@ -386,13 +378,6 @@ const Router = () => {
         >
           <Suspense fallback={routeFallback}>
             <Routes location={location}>
-              <Route path={ROUTES.PUBLIC.REGISTER} element={<Register />} />
-              <Route path={ROUTES.PUBLIC.REGISTER_USER} element={<UserRegister />} />
-              <Route
-                path={ROUTES.PUBLIC.REGISTER_ORGANIZATION}
-                element={<OrganizationRegister />}
-              />
-              <Route path={ROUTES.PUBLIC.LOGIN} element={<Login />} />
               <Route
                 path={ROUTES.PUBLIC.FORGOT_PASSWORD}
                 element={<ForgotPassword />}
@@ -400,18 +385,6 @@ const Router = () => {
               <Route
                 path={ROUTES.PUBLIC.RESET_PASSWORD}
                 element={<ResetPassword />}
-              />
-              <Route
-                path={ROUTES.USER.PROFILE}
-                element={
-                  <PrivateRoute>
-                    <RoleRoute role="user">
-                      <RequireUserPreferences>
-                        <Profile />
-                      </RequireUserPreferences>
-                    </RoleRoute>
-                  </PrivateRoute>
-                }
               />
               <Route
                 path={ROUTES.USER.CHANGE_PASSWORD}
@@ -451,16 +424,6 @@ const Router = () => {
                   <PrivateRoute>
                     <RoleRoute role="user">
                       <OrganizationSetup mode="create" />
-                    </RoleRoute>
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path={ROUTES.ORGANIZATION.PROFILE}
-                element={
-                  <PrivateRoute>
-                    <RoleRoute role="organization">
-                      <OrganizationProfile />
                     </RoleRoute>
                   </PrivateRoute>
                 }

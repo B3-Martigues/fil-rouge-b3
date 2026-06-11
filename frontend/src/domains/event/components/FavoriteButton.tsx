@@ -1,4 +1,5 @@
 import { Heart } from "lucide-react";
+import type { KeyboardEvent, MouseEvent } from "react";
 
 import Button from "../../../shared/components/ui/Button";
 import useAuthStore from "../../auth/store/authStore";
@@ -21,6 +22,9 @@ export default function FavoriteButton({ event }: Props) {
   if (!canUseFavorites) return null;
 
   const active = isFavorite(event.id);
+  const stopCardActivation = (interactionEvent: MouseEvent | KeyboardEvent) => {
+    interactionEvent.stopPropagation();
+  };
 
   return (
     <Button
@@ -31,7 +35,15 @@ export default function FavoriteButton({ event }: Props) {
       size="icon"
       type="button"
       variant="secondary"
-      onClick={() => toggleFavorite(event.id)}
+      onClick={(clickEvent) => {
+        stopCardActivation(clickEvent);
+        toggleFavorite(event.id);
+      }}
+      onKeyDown={(keyboardEvent) => {
+        if (keyboardEvent.key === "Enter" || keyboardEvent.key === " ") {
+          stopCardActivation(keyboardEvent);
+        }
+      }}
     >
       Favori
     </Button>

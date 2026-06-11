@@ -1,5 +1,5 @@
-@use "tokens" as *;
-@use "mixins" as *;
+@use "../../../shared/styles/tokens" as *;
+@use "../../../shared/styles/mixins" as *;
 
 .admin-section {
   min-width: 0;
@@ -116,7 +116,8 @@
   &--events &__row {
     grid-template-columns:
       minmax(150px, 1.1fr) minmax(140px, 0.9fr) minmax(90px, 0.6fr)
-      minmax(160px, 1fr) minmax(150px, 0.9fr) minmax(220px, 1.1fr);
+      minmax(110px, 0.65fr) minmax(160px, 1fr) minmax(150px, 0.9fr)
+      minmax(220px, 1.1fr);
   }
 }
 
@@ -164,6 +165,12 @@
 .admin-status-cell {
   display: grid;
   gap: 6px;
+  justify-items: start;
+}
+
+.admin-event-price-cell {
+  display: grid;
+  gap: 4px;
   justify-items: start;
 }
 
@@ -251,54 +258,5 @@
   .admin-inline-editor,
   .admin-toolbar {
     grid-template-columns: 1fr;
-  }
-}
-
-/* Responsive mobile-first */
-.admin-toolbar {
-  grid-template-columns: 1fr;
-  gap: var(--gap-card);
-  padding: var(--space-card);
-
-  @include respond-above($bp-md) {
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  }
-}
-
-.admin-table__row {
-  grid-template-columns: 1fr;
-  gap: var(--gap-card);
-  padding: var(--space-card);
-}
-
-.admin-table__row--head {
-  display: none;
-}
-
-.admin-form-grid,
-.admin-inline-editor {
-  grid-template-columns: 1fr;
-}
-
-@include respond-above($bp-lg) {
-  .admin-table__row--head {
-    display: grid;
-  }
-
-  .admin-table__row {
-    grid-template-columns:
-      minmax(140px, 1fr) minmax(180px, 1.25fr) minmax(90px, 0.65fr)
-      minmax(150px, 0.9fr) minmax(220px, 1.1fr);
-  }
-
-  .admin-table--events .admin-table__row {
-    grid-template-columns:
-      minmax(150px, 1.1fr) minmax(140px, 0.9fr) minmax(90px, 0.6fr)
-      minmax(160px, 1fr) minmax(150px, 0.9fr) minmax(220px, 1.1fr);
-  }
-
-  .admin-form-grid,
-  .admin-inline-editor {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

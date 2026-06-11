@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, useMap } from "react-leaflet";
 
 import EventMarker from "./EventMarker";
 import UserLocationMarker from "./UserLocationMarker";
-import useUserLocation from "../hooks/useUserLocation";
+import type { UserPosition } from "../hooks/useUserLocation";
 import MapFitBounds from "./MapFitBounds";
 import { hasEventCoordinates } from "../utils/event";
 import useDataStore from "../../../shared/store/dataStore";
@@ -13,6 +13,7 @@ type EventMapProps = {
   events: Event[];
   selectedEventId?: number | null;
   selectedEventRequestId?: number;
+  userPosition?: UserPosition | null;
 };
 
 type MappableEvent = Event & { latitude: number; longitude: number };
@@ -69,8 +70,8 @@ export default function EventMap({
   events,
   selectedEventId = null,
   selectedEventRequestId = 0,
+  userPosition = null,
 }: EventMapProps) {
-  const { position } = useUserLocation();
   const organizations = useDataStore((s) => s.organizations);
   const [openPopupEventId, setOpenPopupEventId] = useState<number | null>(null);
   const activeOrganizationsById = useMemo(
@@ -121,9 +122,9 @@ export default function EventMap({
         latitude: event.latitude,
         longitude: event.longitude,
       })),
-      ...(position ? [position] : []),
+      ...(userPosition ? [userPosition] : []),
     ],
-    [mappableEvents, position],
+    [mappableEvents, userPosition],
   );
   const handleFocusStart = useCallback(() => {
     setOpenPopupEventId(null);
@@ -159,10 +160,10 @@ export default function EventMap({
           shouldOpenPopup={activeOpenPopupEventId === event.id}
         />
       ))}
-      {position && (
+      {userPosition && (
         <UserLocationMarker
-          latitude={position.latitude}
-          longitude={position.longitude}
+          latitude={userPosition.latitude}
+          longitude={userPosition.longitude}
         />
       )}
     </MapContainer>

@@ -2,11 +2,16 @@ import type { StatusBadgeVariant } from "../../../shared/components/ui/StatusBad
 import type { Event } from "../../event/types/event";
 import type { EventCategory } from "../../event/types/event-categories";
 import { isEventSuspended, toDateTimeLocalValue } from "../../event/utils/event";
+import {
+  eventFormSchema,
+  getZodFieldErrors,
+} from "../../event/validations/event.schema";
 import type { Organization } from "../types/organization";
 import {
   CATEGORIES,
   type OrganizationCategoryName,
 } from "../types/organization-categories";
+import { organizationFormSchema } from "../validations/organization.schema";
 
 export type OrganizerProfileForm = {
   job_role: string;
@@ -44,6 +49,8 @@ export type EventForm = {
   longitude: string;
   categories: EventCategory[];
   image: string;
+  price: string;
+  ticketing_link: string;
   source: string;
 };
 
@@ -92,6 +99,8 @@ export const emptyEventForm = (): EventForm => ({
   longitude: "",
   categories: ["culture"],
   image: "",
+  price: "0",
+  ticketing_link: "",
   source: "",
 });
 
@@ -126,24 +135,10 @@ export const toEventForm = (event: Event): EventForm => ({
   longitude: event.longitude?.toString() ?? "",
   categories: event.category_slugs,
   image: event.image,
+  price: event.price.toString(),
+  ticketing_link: event.ticketing_link,
   source: event.source ?? "",
 });
-
-const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-
-const isValidOptionalUrl = (value: string) => {
-  const trimmedValue = value.trim();
-
-  return trimmedValue === "" || URL.canParse(trimmedValue);
-};
-
-const isValidOptionalCoordinate = (value: string, min: number, max: number) => {
-  if (value.trim() === "") return true;
-
-  const numberValue = Number(value);
-
-  return !Number.isNaN(numberValue) && numberValue >= min && numberValue <= max;
-};
 
 export const validateOrganizerProfileForm = (
   form: OrganizerProfileForm,
@@ -162,64 +157,12 @@ export const validateOrganizationForm = (
   organizations: Organization[],
   currentOrganizationId?: number,
 ): OrganizationFormErrors => {
-  const errors: OrganizationFormErrors = {};
+  const errors: OrganizationFormErrors =
+    getZodFieldErrors<keyof OrganizationForm>(
+      organizationFormSchema.safeParse(form),
+    );
   const contactEmail = form.contact_email.trim();
   const siret = form.siret.trim();
-
-  if (form.name.trim().length < 2) {
-    errors.name = "Le nom de l'organisation est requis";
-  }
-
-  if (!isValidEmail(contactEmail)) {
-    errors.contact_email = "Email de contact invalide";
-  }
-
-  if (form.description.trim().length < 10) {
-    errors.description = "La description doit contenir au moins 10 caracteres";
-  }
-
-  if (!isValidOptionalUrl(form.website)) {
-    errors.website = "URL du site invalide";
-  }
-
-  if (!isValidOptionalUrl(form.logo)) {
-    errors.logo = "URL du logo invalide";
-  }
-
-  if (!isValidOptionalCoordinate(form.latitude, -90, 90)) {
-    errors.latitude = "La latitude doit etre comprise entre -90 et 90";
-  }
-
-  if (!isValidOptionalCoordinate(form.longitude, -180, 180)) {
-    errors.longitude = "La longitude doit etre comprise entre -180 et 180";
-  }
-
-  if (form.address.trim().length < 5) {
-    errors.address = "Adresse requise";
-  }
-
-  if (form.city.trim().length < 2) {
-    errors.city = "Ville requise";
-  }
-
-  if (!/^\d{5}$/.test(form.postal_code.trim())) {
-    errors.postal_code = "Le code postal doit contenir 5 chiffres";
-  }
-
-  if (
-    form.contact_phone_number.trim() &&
-    !/^\d{10}$/.test(form.contact_phone_number.trim())
-  ) {
-    errors.contact_phone_number = "Le telephone doit contenir 10 chiffres";
-  }
-
-  if (siret && !/^\d{14}$/.test(siret)) {
-    errors.siret = "Le SIRET doit contenir 14 chiffres";
-  }
-
-  if (form.categories.length === 0) {
-    errors.categories = "Selectionnez au moins une categorie";
-  }
 
   const duplicatedEmail = organizations.some(
     (organization) =>
@@ -250,63 +193,7 @@ export const validateOrganizationForm = (
 };
 
 export const validateEventForm = (form: EventForm): EventFormErrors => {
-  const errors: EventFormErrors = {};
-
-  if (form.title.trim().length < 3) {
-    errors.title = "Le titre doit contenir au moins 3 caracteres";
-  }
-
-  if (form.description.trim().length < 10) {
-    errors.description = "La description doit contenir au moins 10 caracteres";
-  }
-
-  if (!form.start_date) {
-    errors.start_date = "La date de debut est requise";
-  }
-
-  if (!form.end_date) {
-    errors.end_date = "La date de fin est requise";
-  }
-
-  if (
-    form.start_date &&
-    form.end_date &&
-    new Date(form.end_date) < new Date(form.start_date)
-  ) {
-    errors.end_date = "La date de fin doit etre apres la date de debut";
-  }
-
-  if (form.categories.length === 0) {
-    errors.categories = "Selectionnez au moins une categorie";
-  }
-
-  if (form.address.trim().length < 5) {
-    errors.address = "L'adresse est requise";
-  }
-
-  if (form.city.trim().length < 2) {
-    errors.city = "La ville est requise";
-  }
-
-  if (!/^\d{5}$/.test(form.postal_code.trim())) {
-    errors.postal_code = "Le code postal doit contenir 5 chiffres";
-  }
-
-  if (!isValidOptionalCoordinate(form.latitude, -90, 90)) {
-    errors.latitude = "La latitude doit etre comprise entre -90 et 90";
-  }
-
-  if (!isValidOptionalCoordinate(form.longitude, -180, 180)) {
-    errors.longitude = "La longitude doit etre comprise entre -180 et 180";
-  }
-
-  if (!form.image.trim()) {
-    errors.image = "L'image est requise";
-  } else if (!URL.canParse(form.image.trim())) {
-    errors.image = "L'URL de l'image est invalide";
-  }
-
-  return errors;
+  return getZodFieldErrors<keyof EventForm>(eventFormSchema.safeParse(form));
 };
 
 export const getOrganizationStatus = (organization: Organization) => {

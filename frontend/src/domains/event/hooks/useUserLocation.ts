@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 /**Type repésentant la location GPS utilisateur */
-type UserPosition = {
+export type UserPosition = {
   latitude: number;
   longitude: number;
 };

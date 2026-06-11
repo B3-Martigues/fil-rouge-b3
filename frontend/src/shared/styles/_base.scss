@@ -2,16 +2,12 @@
 @use "mixins" as *;
 
 #root {
-  width: var(--container-page);
-  min-width: 100%;
   max-width: 100%;
   min-height: 100svh;
-  margin: 0;
-  border-inline: 1px solid var(--border);
+  margin: 0 auto;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  text-align: center;
 }
 
 body {
@@ -26,17 +22,25 @@ h2 {
 }
 
 h1 {
-  margin: clamp(20px, 4vw, 32px) 0;
-  font-size: clamp(32px, 6vw, 56px);
-  line-height: 1.05;
-  letter-spacing: clamp(-1.68px, -0.2vw, -0.96px);
+  margin: 32px 0;
+  font-size: 56px;
+  letter-spacing: 0;
+
+  @include respond-below($bp-lg) {
+    margin: 20px 0;
+    font-size: 36px;
+  }
 }
 
 h2 {
   margin: 0 0 8px;
-  font-size: clamp(20px, 3vw, 24px);
+  font-size: 24px;
   line-height: 118%;
-  letter-spacing: -0.24px;
+  letter-spacing: 0;
+
+  @include respond-below($bp-lg) {
+    font-size: 20px;
+  }
 }
 
 p {
@@ -64,4 +68,13 @@ code {
   place-items: center;
   color: var(--text-h);
   font-weight: 700;
+}
+
+.not-found {
+  display: grid;
+  min-height: 60svh;
+  place-items: center;
+  gap: 16px;
+  padding: 48px 20px;
+  text-align: center;
 }

@@ -168,11 +168,14 @@ CREATE TABLE events (
     city VARCHAR(50) NOT NULL,
     postal_code VARCHAR(10) NOT NULL,
     image VARCHAR(255) NOT NULL,
+    price DECIMAL(10,2) NOT NULL DEFAULT 0,
+    ticketing_link TEXT NOT NULL DEFAULT '',
     source TEXT,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP,
+    CHECK (price >= 0),
     CHECK (end_date >= start_date)
 );
 

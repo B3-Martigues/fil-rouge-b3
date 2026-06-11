@@ -5,8 +5,17 @@ const dateTimeFormatOptions: Intl.DateTimeFormatOptions = {
   timeStyle: "short",
 };
 
+const priceFormatter = new Intl.NumberFormat("fr-FR", {
+  style: "currency",
+  currency: "EUR",
+});
+
 export type EventStatus = "past" | "current" | "upcoming";
 export type EventPeriodMode = "day" | "week" | "month" | "year";
+export type GeoPoint = {
+  latitude: number;
+  longitude: number;
+};
 
 export function isUpcomingEvent(endDate: string): boolean {
   return new Date(endDate) >= new Date();
@@ -44,6 +53,54 @@ export function hasEventCoordinates(
   event: Event,
 ): event is Event & { latitude: number; longitude: number } {
   return event.latitude != null && event.longitude != null;
+}
+
+export function getDistanceInKilometers(
+  firstPoint: GeoPoint,
+  secondPoint: GeoPoint,
+): number {
+  const earthRadiusInKilometers = 6371;
+  const latitudeDelta = toRadians(secondPoint.latitude - firstPoint.latitude);
+  const longitudeDelta = toRadians(secondPoint.longitude - firstPoint.longitude);
+  const firstLatitude = toRadians(firstPoint.latitude);
+  const secondLatitude = toRadians(secondPoint.latitude);
+  const haversine =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(firstLatitude) *
+      Math.cos(secondLatitude) *
+      Math.sin(longitudeDelta / 2) ** 2;
+
+  return (
+    earthRadiusInKilometers *
+    2 *
+    Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+  );
+}
+
+export function formatDistance(distanceInKilometers: number): string {
+  if (distanceInKilometers < 1) {
+    return `${Math.round(distanceInKilometers * 1000)} m`;
+  }
+
+  return `${distanceInKilometers.toFixed(distanceInKilometers < 10 ? 1 : 0)} km`;
+}
+
+export function formatEventPrice(price: number): string {
+  return price > 0 ? priceFormatter.format(price) : "Gratuit";
+}
+
+export function getTicketingHref(ticketingLink: string): string | null {
+  const value = ticketingLink.trim();
+  if (!value || /\s/.test(value)) return null;
+
+  if (URL.canParse(value)) return value;
+
+  const valueWithProtocol = `https://${value}`;
+  return URL.canParse(valueWithProtocol) ? valueWithProtocol : null;
+}
+
+export function isValidOptionalUrl(value: string): boolean {
+  return value.trim() === "" || getTicketingHref(value) !== null;
 }
 
 export function isEventSuspended(
@@ -136,6 +193,10 @@ function formatDayInputValue(date: Date): string {
     2,
     "0",
   )}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function toRadians(value: number): number {
+  return (value * Math.PI) / 180;
 }
 
 export function formatWeekInputValue(date: Date): string {

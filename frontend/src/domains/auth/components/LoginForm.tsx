@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import { FormModalLink } from "../../../shared/components/forms/FormModalLink";
@@ -118,9 +118,9 @@ export default function LoginForm() {
 
         <br />
 
-        <FormModalLink to={ROUTES.PUBLIC.REGISTER}>
+        <Link to={ROUTES.PUBLIC.REGISTER}>
           <strong>Pas encore inscrit ?</strong>
-        </FormModalLink>
+        </Link>
         <br />
         <FormModalLink to={ROUTES.PUBLIC.FORGOT_PASSWORD}>
           <strong>Mot de passe oublie ?</strong>

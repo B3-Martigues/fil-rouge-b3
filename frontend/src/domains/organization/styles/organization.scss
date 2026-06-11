@@ -1,5 +1,6 @@
 @use "../../../shared/styles/tokens" as *;
 @use "../../../shared/styles/mixins" as *;
+@use "review";
 
 .organization-dashboard {
   display: grid;
@@ -480,50 +481,5 @@
     dl {
       grid-template-columns: 1fr;
     }
-  }
-}
-
-/* Responsive mobile-first */
-.organization-dashboard {
-  gap: var(--gap-page);
-  padding: var(--space-page);
-}
-
-.organization-event-form {
-  gap: var(--gap-section);
-  padding: var(--space-card);
-
-  &__grid {
-    grid-template-columns: 1fr;
-    gap: var(--gap-card);
-  }
-
-  @include respond-above($bp-md) {
-    &__grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-}
-
-.organization-event {
-  gap: var(--gap-section);
-  padding: var(--space-card);
-
-  dl {
-    grid-template-columns: 1fr;
-  }
-
-  @include respond-above($bp-md) {
-    dl {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-  }
-}
-
-.organization-event-editor {
-  grid-template-columns: 1fr;
-
-  @include respond-above($bp-md) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

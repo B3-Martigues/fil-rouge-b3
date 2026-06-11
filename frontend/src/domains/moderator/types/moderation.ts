@@ -9,13 +9,19 @@ export type ModerationReportStatus =
 export type ModerationReportPriority = "low" | "medium" | "high";
 
 export type ModerationAction =
+  | "account_deleted"
+  | "account_restored"
   | "event_approved"
+  | "event_admin_updated"
   | "event_rejected"
   | "event_hidden"
   | "event_deleted"
   | "event_restored"
   | "organization_approved"
+  | "organization_admin_updated"
+  | "organization_deleted"
   | "organization_rejected"
+  | "account_admin_updated"
   | "account_suspended"
   | "report_resolved"
   | "report_dismissed";

@@ -1,5 +1,6 @@
 @use "../../../shared/styles/tokens" as *;
 @use "../../../shared/styles/mixins" as *;
+@use "data";
 
 .admin-panel {
   padding: 24px;
@@ -88,35 +89,4 @@
 
 .admin-event-form {
   margin-bottom: 12px;
-}
-
-/* Responsive mobile-first */
-.admin-panel {
-  padding: var(--space-page);
-
-  &__header {
-    margin-bottom: var(--gap-page);
-  }
-
-  &__grid {
-    gap: var(--gap-page);
-  }
-}
-
-.admin-overview-grid {
-  grid-template-columns: 1fr;
-  gap: var(--gap-section);
-
-  @include respond-above($bp-lg) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-.admin-metric {
-  min-height: 44px;
-  padding: 10px 12px;
-
-  strong {
-    font-size: clamp(20px, 5vw, 24px);
-  }
 }

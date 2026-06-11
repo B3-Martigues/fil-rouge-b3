@@ -1,0 +1,109 @@
+@use "../../../shared/styles/tokens" as *;
+@use "../../../shared/styles/mixins" as *;
+
+.organization-review-list {
+  display: grid;
+  gap: 14px;
+}
+
+.organization-review {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: 18px;
+  padding: 16px;
+
+  @include surface(var(--social-bg));
+
+  &__media {
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 8px;
+    background: var(--code-bg);
+
+    img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  &__content {
+    min-width: 0;
+  }
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+
+    h3 {
+      margin: 0 0 6px;
+      color: var(--text-h);
+      font-size: 24px;
+      line-height: 1.15;
+    }
+  }
+
+  &__details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 16px;
+    margin: 0;
+
+    div {
+      min-width: 0;
+    }
+
+    dt {
+      color: var(--text-h);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    dd {
+      margin: 2px 0 0;
+      overflow-wrap: anywhere;
+    }
+
+    a {
+      color: var(--accent);
+    }
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  &__categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  @include respond-below($bp-sm) {
+    grid-template-columns: 1fr;
+
+    &__media {
+      max-width: 220px;
+    }
+
+    &__header,
+    &__footer {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    &__details {
+      grid-template-columns: 1fr;
+    }
+  }
+}

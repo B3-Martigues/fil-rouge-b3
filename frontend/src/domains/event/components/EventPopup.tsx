@@ -4,7 +4,11 @@ import type { Event } from "../types/event-categories";
 import FavoriteButton from "./FavoriteButton";
 import ReportEventButton from "./ReportEventButton";
 import WeatherBadge from "./WeatherBadge";
-import { formatEventDateRange } from "../utils/event";
+import {
+  formatEventDateRange,
+  formatEventPrice,
+  getTicketingHref,
+} from "../utils/event";
 
 type Props = {
   event: Event & { latitude: number; longitude: number };
@@ -23,6 +27,7 @@ const getSourceHref = (source?: string | null) => {
 export default function EventPopup({ event }: Props) {
   const sourceLabel = event.source?.trim();
   const sourceHref = getSourceHref(sourceLabel);
+  const ticketingHref = getTicketingHref(event.ticketing_link);
 
   return (
     <Popup>
@@ -49,7 +54,20 @@ export default function EventPopup({ event }: Props) {
           <strong>Lieu :</strong> {event.address}, {event.city}{" "}
           {event.postal_code}
         </p>
+        <p>
+          <strong>Prix :</strong> {formatEventPrice(event.price)}
+        </p>
         <p>{event.description}</p>
+        {ticketingHref && (
+          <a
+            className="btn btn--secondary"
+            href={ticketingHref}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Billetterie
+          </a>
+        )}
         {sourceLabel && sourceHref ? (
           <a
             href={sourceHref}

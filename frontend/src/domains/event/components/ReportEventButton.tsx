@@ -1,24 +1,13 @@
-import { useState, type KeyboardEvent, type MouseEvent } from "react";
+import { useId, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { Flag } from "lucide-react";
 import { toast } from "react-toastify";
 
 import useAuthStore from "../../auth/store/authStore";
-import ActionRow from "../../../shared/components/layout/ActionRow";
+import FormModal from "../../../shared/components/forms/FormModal";
 import Button from "../../../shared/components/ui/Button";
-import FormField from "../../../shared/components/ui/FormField";
-import Select from "../../../shared/components/ui/Select";
 import Textarea from "../../../shared/components/ui/Textarea";
 import useDataStore from "../../../shared/store/dataStore";
 import type { Event } from "../types/event";
-
-const REPORT_REASONS = [
-  "Contenu inapproprie",
-  "Informations incorrectes",
-  "Evenement frauduleux",
-  "Autre",
-] as const;
-
-type ReportReason = (typeof REPORT_REASONS)[number];
 
 type Props = {
   event: Event;
@@ -28,10 +17,14 @@ export default function ReportEventButton({ event }: Props) {
   const currentUser = useAuthStore((s) => s.currentUser);
   const moderationReports = useDataStore((s) => s.moderationReports);
   const addModerationReport = useDataStore((s) => s.addModerationReport);
+  const statusId = useId();
   const [isOpen, setIsOpen] = useState(false);
-  const [reason, setReason] = useState<ReportReason>("Informations incorrectes");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [details, setDetails] = useState("");
-  const userId = currentUser?.role === "user" ? currentUser.user_id : undefined;
+  const userId =
+    currentUser?.role === "user" && currentUser.is_active
+      ? currentUser.user_id
+      : undefined;
   const existingReport = userId
     ? moderationReports.find(
         (report) =>
@@ -41,8 +34,16 @@ export default function ReportEventButton({ event }: Props) {
           (report.status === "open" || report.status === "reviewing"),
       )
     : null;
-
-  if (!userId) return null;
+  const unavailableMessage = !currentUser
+    ? "Connectez-vous avec un compte utilisateur pour signaler cet evenement."
+    : currentUser.role !== "user"
+      ? "Seuls les comptes utilisateur peuvent signaler un evenement."
+      : !currentUser.is_active
+        ? "Votre compte doit etre actif pour signaler un evenement."
+        : existingReport
+          ? "Vous avez deja un signalement en cours pour cet evenement."
+          : null;
+  const isReportUnavailable = !!unavailableMessage;
 
   const stopCardActivation = (mouseEvent: MouseEvent) => {
     mouseEvent.stopPropagation();
@@ -52,7 +53,18 @@ export default function ReportEventButton({ event }: Props) {
     keyboardEvent.stopPropagation();
   };
 
+  const toggleReportForm = () => {
+    if (unavailableMessage) {
+      toast.info(unavailableMessage);
+      return;
+    }
+
+    setIsOpen((value) => !value);
+  };
+
   const submitReport = () => {
+    if (!userId || isSubmitting) return;
+
     const trimmedDetails = details.trim();
 
     if (trimmedDetails.length < 10) {
@@ -60,26 +72,25 @@ export default function ReportEventButton({ event }: Props) {
       return;
     }
 
+    setIsSubmitting(true);
     const report = addModerationReport({
       target_type: "event",
       target_id: event.id,
       reporter_user_id: userId,
-      reason,
+      reason: "Signalement utilisateur",
       details: trimmedDetails,
-      priority:
-        reason === "Evenement frauduleux" || reason === "Contenu inapproprie"
-          ? "high"
-          : "medium",
+      priority: "medium",
     });
 
     if (!report) {
-      toast.info("Un signalement est deja en cours pour cet evenement");
+      setIsSubmitting(false);
+      toast.info("Signalement impossible ou deja en cours pour cet evenement");
       return;
     }
 
     setDetails("");
-    setReason("Informations incorrectes");
     setIsOpen(false);
+    setIsSubmitting(false);
     toast.success("Signalement transmis a la moderation");
   };
 
@@ -95,52 +106,66 @@ export default function ReportEventButton({ event }: Props) {
         size="sm"
         variant="secondary"
         icon={<Flag size={16} aria-hidden="true" />}
-        disabled={!!existingReport}
+        disabled={isSubmitting || isReportUnavailable}
+        loading={isSubmitting}
+        loadingLabel="Envoi..."
+        aria-describedby={unavailableMessage ? statusId : undefined}
         aria-expanded={isOpen}
-        onClick={() => setIsOpen((value) => !value)}
+        title={unavailableMessage ?? "Signaler cet evenement"}
+        onClick={toggleReportForm}
       >
-        {existingReport ? "Signale" : "Signaler"}
+        {existingReport ? "Deja signale" : "Signaler"}
       </Button>
+      {unavailableMessage && (
+        <p className="event-report__status" id={statusId}>
+          {unavailableMessage}
+        </p>
+      )}
 
-      {isOpen && !existingReport && (
-        <div className="event-report__form">
-          <FormField label="Motif" htmlFor={`report-reason-${event.id}`}>
-            <Select
-              id={`report-reason-${event.id}`}
-              value={reason}
-              onChange={(eventChange) =>
-                setReason(eventChange.target.value as ReportReason)
-              }
-            >
-              {REPORT_REASONS.map((reportReason) => (
-                <option key={reportReason} value={reportReason}>
-                  {reportReason}
-                </option>
-              ))}
-            </Select>
-          </FormField>
-          <FormField label="Details" htmlFor={`report-details-${event.id}`}>
-            <Textarea
-              id={`report-details-${event.id}`}
-              rows={3}
-              value={details}
-              placeholder="Precisez le probleme"
-              onChange={(eventChange) => setDetails(eventChange.target.value)}
-            />
-          </FormField>
-          <ActionRow className="event-report__actions">
-            <Button type="button" onClick={submitReport}>
-              Envoyer
-            </Button>
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={() => setIsOpen(false)}
-            >
-              Annuler
-            </Button>
-          </ActionRow>
-        </div>
+      {isOpen && !isReportUnavailable && (
+        <FormModal
+          ariaLabel={`Signaler ${event.title}`}
+          open={isOpen}
+          size="sm"
+          onClose={() => setIsOpen(false)}
+        >
+          <form
+            className="event-report__modal"
+            onSubmit={(submitEvent) => {
+              submitEvent.preventDefault();
+              submitReport();
+            }}
+          >
+            <h2>Signaler un evenement</h2>
+            <label htmlFor={`report-details-${event.id}`}>
+              Details du signalement
+              <Textarea
+                id={`report-details-${event.id}`}
+                required
+                rows={5}
+                value={details}
+                placeholder="Precisez le probleme"
+                onChange={(eventChange) => setDetails(eventChange.target.value)}
+              />
+            </label>
+            <div className="event-report__actions">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setIsOpen(false)}
+              >
+                Annuler
+              </Button>
+              <Button
+                type="submit"
+                loading={isSubmitting}
+                loadingLabel="Envoi..."
+              >
+                Confirmer le signalement
+              </Button>
+            </div>
+          </form>
+        </FormModal>
       )}
     </div>
   );
