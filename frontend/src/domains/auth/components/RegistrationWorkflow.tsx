@@ -13,7 +13,7 @@ import { ROUTES } from "../../../shared/constants/routes";
 import useDataStore from "../../../shared/store/dataStore";
 import type { Organization } from "../../organization/types/organization";
 import type { Organizer } from "../../organization/types/organizer";
-import { OrganizationFields } from "../../organization/pages/OrganizationSetup";
+import { OrganizationFields } from "../../organization/components/OrganizationSetupFlow";
 import {
   createNextId,
   emptyOrganizationForm,
@@ -77,6 +77,7 @@ export default function RegistrationWorkflow() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [preferencesError, setPreferencesError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const showWorkflowProgress = step === "organizer" || step === "organization";
 
   const {
     register,
@@ -305,14 +306,16 @@ export default function RegistrationWorkflow() {
     <div className="auth-page auth-page--wide">
       <h1>Inscription</h1>
 
-      <ol className="form-stepper" aria-label="Progression du formulaire">
-        {workflowSteps.map((item, index) => (
-          <li className={isActiveStep(step, item.key) ? "is-active" : ""} key={item.key}>
-            <span>{index + 1}</span>
-            {item.label}
-          </li>
-        ))}
-      </ol>
+      {showWorkflowProgress && (
+        <ol className="form-stepper" aria-label="Progression du formulaire">
+          {workflowSteps.map((item, index) => (
+            <li className={isActiveStep(step, item.key) ? "is-active" : ""} key={item.key}>
+              <span>{index + 1}</span>
+              {item.label}
+            </li>
+          ))}
+        </ol>
+      )}
 
       {step === "user" && (
         <form onSubmit={handleSubmit(onUserStepSubmit)} noValidate>

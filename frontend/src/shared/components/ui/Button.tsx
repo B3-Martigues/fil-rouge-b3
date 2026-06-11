@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 type ButtonSize = "sm" | "md" | "icon";
@@ -17,7 +17,7 @@ function ButtonSpinner() {
   return <span className="spinner" aria-hidden="true" />;
 }
 
-export default function Button({
+const Button = forwardRef<HTMLButtonElement, Props>(function Button({
   loading,
   loadingLabel = "Chargement...",
   disabled,
@@ -29,7 +29,7 @@ export default function Button({
   size = "md",
   variant = "primary",
   ...props
-}: Props) {
+}: Props, ref) {
   const buttonClassName = [
     "btn",
     `btn--${variant}`,
@@ -45,6 +45,7 @@ export default function Button({
   return (
     <button
       {...props}
+      ref={ref}
       disabled={loading || disabled}
       aria-busy={loading || undefined}
       className={buttonClassName}
@@ -62,4 +63,6 @@ export default function Button({
       )}
     </button>
   );
-}
+});
+
+export default Button;

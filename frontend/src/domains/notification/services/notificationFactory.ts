@@ -30,6 +30,24 @@ const withReason = (message: string, reason: string) =>
 const withModeratorMessage = (message: string, moderatorMessage: string) =>
   `${message} Message du moderateur: ${moderatorMessage.trim()}`;
 
+const formatDecisionDate = (value: string) =>
+  new Date(value).toLocaleString("fr-FR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+
+const withDecisionDetails = (params: {
+  operation: string;
+  reason: string;
+  decidedAt?: string;
+  message?: string;
+}) => {
+  const decidedAt = params.decidedAt ?? new Date().toISOString();
+  const details = `Operation effectuee: ${params.operation}. Raison de la decision: ${params.reason.trim()}. Date de la decision: ${formatDecisionDate(decidedAt)}.`;
+
+  return params.message ? `${params.message} ${details}` : details;
+};
+
 export function createFavoriteEventTodayNotification(params: {
   user: User;
   event: Event;
@@ -115,7 +133,7 @@ export function createOrganizationApprovedNotification(params: {
     event_id: null,
     organization_id: params.organization.id,
     notification_type_id: getNotificationTypeBySlug("organization_approved").id,
-    title: "Votre compte organization est valide",
+    title: "Votre compte organisation est valide",
     message: `${params.organization.name} a ete validee. Vous pouvez maintenant gerer vos événements.`,
     action_url: getAppUrl(
       getOrganizationManagementPath(params.organization, params.user),
@@ -133,7 +151,7 @@ export function createOrganizationRejectedNotification(params: {
     event_id: null,
     organization_id: params.organization.id,
     notification_type_id: getNotificationTypeBySlug("organization_rejected").id,
-    title: "Votre compte organization est refuse",
+    title: "Votre compte organisation est refuse",
     message: withReason(
       `${params.organization.name} n'a pas ete validee par la moderation.`,
       params.reason,
@@ -204,10 +222,11 @@ export function createEventHiddenNotification(params: {
     organization_id: params.organization.id,
     notification_type_id: getNotificationTypeBySlug("event_hidden").id,
     title: "Votre evenement a ete masque",
-    message: withReason(
-      `${params.event.title} n'est plus visible publiquement.`,
-      params.reason,
-    ),
+    message: withDecisionDetails({
+      operation: "Suspension de l'evenement",
+      reason: params.reason,
+      message: `${params.event.title} n'est plus visible publiquement.`,
+    }),
     action_url: getAppUrl(
       getOrganizationManagementPath(
         params.organization,
@@ -230,10 +249,11 @@ export function createEventDeletedNotification(params: {
     organization_id: params.organization.id,
     notification_type_id: getNotificationTypeBySlug("event_deleted").id,
     title: "Votre evenement a ete supprime",
-    message: withReason(
-      `${params.event.title} a ete retire par la moderation.`,
-      params.reason,
-    ),
+    message: withDecisionDetails({
+      operation: "Suppression de l'evenement",
+      reason: params.reason,
+      message: `${params.event.title} a ete retire par la moderation.`,
+    }),
     action_url: getAppUrl(
       getOrganizationManagementPath(
         params.organization,
@@ -256,13 +276,95 @@ export function createAccountSuspendedNotification(params: {
     organization_id: params.organization?.id ?? null,
     notification_type_id: getNotificationTypeBySlug("account_suspended").id,
     title: "Votre compte est temporairement suspendu",
-    message: withReason(
-      `Votre compte est suspendu jusqu'au ${new Date(
+    message: withDecisionDetails({
+      operation: "Suspension du compte",
+      reason: params.reason,
+      message: `Votre compte est suspendu jusqu'au ${new Date(
         params.suspendedUntil,
       ).toLocaleDateString("fr-FR")}.`,
-      params.reason,
-    ),
+    }),
     action_url: null,
+  };
+}
+
+export function createAdministrativeAccountNotification(params: {
+  user: User;
+  organization?: Organization | null;
+  operation: string;
+  reason: string;
+  decidedAt?: string;
+}): NotificationDraft {
+  return {
+    user_id: params.user.id,
+    event_id: null,
+    organization_id: params.organization?.id ?? null,
+    notification_type_id: getNotificationTypeBySlug("moderation_decision").id,
+    title: "Decision administrative sur votre compte",
+    message: withDecisionDetails({
+      operation: params.operation,
+      reason: params.reason,
+      decidedAt: params.decidedAt,
+    }),
+    action_url: getAppUrl(
+      params.organization
+        ? getOrganizationManagementPath(params.organization, params.user)
+        : ROUTES.USER.PROFILE,
+    ),
+  };
+}
+
+export function createAdministrativeOrganizationNotification(params: {
+  organization: Organization;
+  user: User;
+  operation: string;
+  reason: string;
+  decidedAt?: string;
+}): NotificationDraft {
+  return {
+    user_id: params.user.id,
+    event_id: null,
+    organization_id: params.organization.id,
+    notification_type_id: getNotificationTypeBySlug("moderation_decision").id,
+    title: "Decision administrative sur votre organization",
+    message: withDecisionDetails({
+      operation: params.operation,
+      reason: params.reason,
+      decidedAt: params.decidedAt,
+      message: `${params.organization.name} est concernee par une decision administrative.`,
+    }),
+    action_url: getAppUrl(
+      getOrganizationManagementPath(params.organization, params.user),
+    ),
+  };
+}
+
+export function createAdministrativeEventNotification(params: {
+  organization: Organization;
+  event: Event;
+  user: User;
+  operation: string;
+  reason: string;
+  decidedAt?: string;
+}): NotificationDraft {
+  return {
+    user_id: params.user.id,
+    event_id: params.event.id,
+    organization_id: params.organization.id,
+    notification_type_id: getNotificationTypeBySlug("moderation_decision").id,
+    title: "Decision administrative sur votre evenement",
+    message: withDecisionDetails({
+      operation: params.operation,
+      reason: params.reason,
+      decidedAt: params.decidedAt,
+      message: `${params.event.title} est concerne par une decision administrative.`,
+    }),
+    action_url: getAppUrl(
+      getOrganizationManagementPath(
+        params.organization,
+        params.user,
+        ROUTES.ORGANIZATION.EVENTS,
+      ),
+    ),
   };
 }
 

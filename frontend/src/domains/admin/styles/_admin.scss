@@ -1,5 +1,6 @@
 @use "../../../shared/styles/tokens" as *;
 @use "../../../shared/styles/mixins" as *;
+@use "data";
 
 .admin-panel {
   padding: 24px;

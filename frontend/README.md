@@ -1,222 +1,254 @@
 # Frontend - Plateforme d'événements géolocalisés
 
+> Application React dédiée à la découverte, la consultation, la personnalisation et la gestion d'événements locaux.
+
 ## Description
 
-Frontend de l'application de gestion et découverte d'événements géolocalisés
+Ce dossier contient le frontend de la plateforme d'événements géolocalisés. Il regroupe les interfaces publiques, les espaces privés et les tableaux de bord nécessaires aux différents rôles de l'application.
 
-L'application permet:
+Le frontend permet notamment :
 
-- la consultation d'événements sur une carte
-- la recherche et le filtrage des événements par catégorie, ville et code postal
-- l'authentification utilisateur
-- la gestion des favoris et de l'historique
-- la gestion d'événements par les organizations
-- la validation des comptes organization par l'administration
-- la validation des événements par l'administration avant affichage public
-- l'administration de la plateforme
+- La consultation d'événements sur une carte interactive
+- La recherche, le tri et le filtrage des événements
+- L'authentification utilisateur
+- La gestion du profil, des préférences, des favoris et de l'historique
+- La consultation des organisations
+- La création et la gestion d'événements par les organisations validées
+- La validation et la modération des comptes, événements et signalements
+- L'administration de la plateforme
 
-Version actuelle :
+**Version actuelle :** le frontend fonctionne avec des données mockées et une persistance locale. Aucune connexion backend réelle n'est encore implémentée.
 
-Le frontend fonctionne actuellement avec des données mockées (mocks frontend)
-Aucune connexion backend réelle n'est encore implémentée.
+Les données temporaires sont principalement stockées dans les dossiers `mocks` des domaines :
 
-Les données temporaires sont stockées dans:
+- `src/domains/auth/mocks`
+- `src/domains/event/mocks`
+- `src/domains/user/mocks`
+- `src/domains/organization/mocks`
+- `src/domains/moderator/mocks`
+- `src/domains/notification/mocks`
 
-- domains/auth/mocks
-- domains/events/mocks
-- domains/user/mocks
-
-Cette structure permettra de remplacer facilement les mocks par les futures API backend.
+Cette organisation permet de remplacer progressivement les mocks par les futures API backend.
 
 ## Stack technique
 
-- React
-- Type Script
-- React Router
-- Zustand
-- React Hook Form
-- Zod
-- React Toastify
+| Technologie | Usage |
+| --- | --- |
+| React | Construction de l'interface |
+| TypeScript | Typage du code frontend |
+| Vite | Serveur de développement et build |
+| React Router | Routage, layouts et routes protégées |
+| Zustand | Stores applicatifs et persistance locale |
+| React Hook Form | Gestion des formulaires |
+| Zod | Validation des schémas |
+| React Toastify | Notifications applicatives |
+| Leaflet / React-Leaflet | Carte interactive |
+| Sass | Styles modulaires |
+| Lucide React | Icônes |
+| ESLint | Analyse statique du code |
 
 ## Architecture Frontend
 
-Le frontend suit une architecture par domaines (feature-based architecture)
+Le frontend suit une architecture par domaines fonctionnels, aussi appelée feature-based architecture.
 
-Exemple:
-
+```text
 src/
-|--app/ # Configuration globale et Router
-|--domains/ # Modules métier
-|--shared/ # Eléments réutilisables
-|--styles/ # Styles globaux
-|--main.tsx # Point d'entrée React
+|-- app/       # Configuration globale et Router
+|-- domains/   # Modules métier
+|-- shared/    # Éléments réutilisables
+|-- styles/    # Point d'entrée des styles globaux
+|-- main.tsx   # Point d'entrée React
+```
+
+Cette structure limite les dépendances inutiles entre fonctionnalités, facilite le travail en équipe et prépare l'intégration progressive des futures API.
 
 ## Organisation des domaines
 
-Chaque domaine contient sa propre logique métier afin de garder une architecture modulaire et scalable
+Chaque domaine contient sa propre logique métier afin de garder une architecture modulaire et maintenable.
 
-auth/
-Contient:
+| Domaine | Contenu principal |
+| --- | --- |
+| `auth` | Pages de connexion et d'inscription, formulaires, store d'authentification, validations, mocks et types |
+| `user` | Profil, préférences, onboarding, favoris, historique, changement de mot de passe, hooks et validations |
+| `event` | Accueil, carte, marqueurs, popup, météo, favoris, signalements, hooks, mocks, types et styles |
+| `organization` | Pages organisation, profil, dashboard, gestion des événements, composants, hooks, mocks et types |
+| `admin` | Tableau de bord d'administration, validations, statistiques, composants et styles |
+| `moderator` | Tableau de bord modérateur, comptes, organisations, événements, signalements et suspensions |
+| `notification` | Centre de notifications, types, mocks, factory et modèles de messages |
+| `shared` | Composants UI, layouts, stores, constantes, styles, hooks, services et utilitaires |
 
-- pages # pages liées à l'authentification
-- components # formulaires login/register
-- hooks # logique d'authentification
-- store # store Zustand d'authentification
-- validations # schémas de validation des formulaires
-- api # futurs appels API auth
-- mocks # utilisateurs mockés temporaires
-- styles # styles liés à l'authentification
-- types # types liés à l'authentification
+### Dossier `shared`
 
-user/
-Contient:
+Le dossier `shared` contient les briques réutilisées dans toute l'application :
 
-- pages # pages liées à l'utilisateur (profil, historique)
-- components # composants spécifiques à l'utilisateur
-- hooks # logique métier liée aux utilisateurs
-- api # futurs appels API backend pour les utilisateurs
-- mocks # données temporaires utilisateur (favoris, historique)
-- validations # schèmas de validation des formulaires
-- styles # styles liés à l'utilisateur
-- types # types liés à l'utilisateur
-
-organization/
-Contient:
-
-- pages # pages liées à l'espace organization (dashboard, profil, gestion des événements)
-- components # composants spécifiques à l'organization
-- hooks # logique métier liée aux organizations (ex. accès, is_active)
-- api # futurs appels API backend pour les organizations
-- mocks # données temporaires pour les comptes organization
-- validations # schèmas de validation des formulaires
-- styles # styles liés aux organizations
-- types # types liés aux organizations
-
-admin/
-Contient:
-
-- pages # pages d'administration (dashboard, gestion utilisateurs, gestion événements, validations)
-- components # composants spécifiques à l'administration
-- api # futurs appels API backend pour l'administration
-- styles # styles liés à l'espace administrateur
-
-events/
-Contient:
-
-- pages # pages liées aux événements
-- components # composants réutilisables liés aux événements
-- hooks # logique métier des événements
-- api # futurs appels API backend
-- mocks # données temporaires utilisées pendant le développement frontend
-- validations # schèmas de validation des formulaires
-- styles # styles liés aux événements
-- types # types liés aux événements
-
-Le dossier shared contient les éléments réutilisables dans toute l'application
-shared/
-Contient:
-
-- UI components # Button, Input, FormField
-- feedback components # Loader, ErrorMessage, SuccessMessage, EmptyState
-- layouts # Public, Privat, Admin, Organization - facilitent la scalabilité du projet
-- constants # routes globales, constantes métier
-- hooks # hooks réutilisables
-- utils # fonctions utilitaires
+- Composants UI : `Button`, `Input`, `Select`, `Textarea`, `Checkbox`, `StatusBadge`
+- Composants de feedback : `Loader`, `ErrorMessage`, `SuccessMessage`, `EmptyState`
+- Layouts : public, privé, administrateur, modérateur et organisation
+- Composants de structure : headers, pages, cards, toolbars, panels
+- Constantes de routes et stores partagés
+- Services et utilitaires, notamment la météo
+- Styles globaux, tokens, mixins, formulaires, cartes et layouts
 
 ## Gestion des rôles
 
-L'application gère actuellement plusieurs rôles:
+L'application gère actuellement plusieurs rôles :
 
-- user # compte utilisateur classique avèc accès immédiat
-- organization # compte organization avec accès limité tant que la validation administrateur est en attente
-- admin # accès à l'administration de la plateforme
+| Rôle | Accès |
+| --- | --- |
+| `user` | Profil, préférences, favoris, historique, organisations et consultation publique |
+| `organization` | Accueil organisation, profil, création et gestion des événements selon validation |
+| `admin` | Gestion des comptes, organisations, événements et validations |
+| `moderator` | Modération des comptes, organisations, événements, signalements et suspensions |
 
-Les accès sont protégés via:
+Les accès sont protégés via :
 
-- des routes privées
-- des guards de rôles
-- des conditions métier (is_active pour les organizations)
+- Des routes privées
+- Des guards de rôles
+- Des conditions métier liées à l'état des comptes
+- Des redirections selon le rôle et les préférences utilisateur
 
-Règles métier actuelles:
+Règles métier actuelles :
 
-- un compte organization en attente conserve uniquement les onglets Accueil et Profil
-- un compte organization validé accède à la création et à la gestion de ses événements
-- une connexion organization redirige vers /organization/events
-- un événement créé ou modifié par une organization repasse en attente de validation
-- la date de création d'un événement est conservée lors des modifications
-- la liste des événements organization reprend l'affichage des cartes de validation admin
-- seuls les événements validés sont affichés dans le listing public
-- l'administration affiche les statistiques des organizations et événements en attente
-- l'administration peut modifier, supprimer ou valider les organizations et événements en attente
+- Un compte organisation en attente conserve uniquement l'accès à l'accueil et au profil.
+- Un compte organisation validé accède à la création et à la gestion de ses événements.
+- Un événement créé ou modifié par une organisation repasse en attente de validation.
+- La date de création d'un événement est conservée lors des modifications.
+- Seuls les événements validés sont affichés dans le listing public.
+- L'administration et la modération affichent les statistiques et les éléments en attente.
+- Les comptes ou événements suspendus peuvent afficher un motif.
 
 ## Authentification
 
-Le frontend utilise actuellement:
+Le frontend utilise actuellement :
 
-- Zustand pour le state global
-- persist middleware pour le localStorage
-- React Hook Form + Zod pour la validation des formulaires
+- Zustand pour l'état global d'authentification
+- La persistance locale pour conserver la session côté navigateur
+- React Hook Form et Zod pour la validation des formulaires
+- Des routes protégées pour limiter l'accès aux espaces privés
+
+Les parcours disponibles incluent :
+
+- Connexion
+- Déconnexion
+- Création de compte utilisateur
+- Création de compte organisation
+- Mot de passe oublié
+- Réinitialisation du mot de passe
+- Changement de mot de passe depuis le profil
 
 ## Lancement du projet
 
-Installation:
-npm install (à lancer dans le dossier frontend)
+Depuis le dossier `frontend` :
 
-Démarage du frontend:
+```bash
+npm install
 npm run dev
+```
+
+Commandes utiles :
+
+| Commande | Description |
+| --- | --- |
+| `npm run dev` | Lance le serveur de développement Vite |
+| `npm run build` | Compile TypeScript et génère le build de production |
+| `npm run lint` | Lance ESLint |
+| `npm run preview` | Prévisualise le build de production |
 
 ## Convention Git
 
-Chaque nouvelle fonctionnalité doit être développée dans une branche dédiée
-examples:
+Chaque nouvelle fonctionnalité doit être développée dans une branche dédiée.
 
-- feature/auth
-- feature/events
-- feature/organization-dashboard
+Exemples :
+
+- `feature/auth`
+- `feature/events`
+- `feature/organization-dashboard`
+- `feature/moderation`
 
 ## Objectif de l'architecture
 
-Cette architecture a été pensée pour:
+Cette architecture a été pensée pour :
 
-- faciliter le travail en équipe
-- limiter les conflits Git
-- améliorer la maintenabilité
-- simplifier la scalabilité du frontend
-- préparer l'intégration future avec le backend
+- Faciliter le travail en équipe
+- Limiter les conflits Git
+- Améliorer la maintenabilité
+- Simplifier la scalabilité du frontend
+- Isoler les responsabilités métier
+- Préparer l'intégration future avec le backend
 
-## Fonctionalités implémentées
+## Fonctionnalités implémentées
 
-# Carte interactive des événements
+### Carte interactive des événements
 
-L'application affiche une carte interactive basée sur Leaflet et React-Leaflet
+L'application affiche une carte interactive basée sur Leaflet et React-Leaflet.
 
-Fonctionnalités disponibles:
+Fonctionnalités disponibles :
 
-- affichage dynamique des événements sur la carte
-- géolocalisation utilisateur
-- recentrage automatique de la carte
-- popup détaillé pour chaque événement
-- filtrage des événements passés
+- Affichage dynamique des événements sur la carte
+- Pins personnalisés avec image d'événement
+- Géolocalisation utilisateur
+- Recentrage automatique de la carte
+- Popup détaillée pour chaque événement
+- Filtrage des événements passés
 
-# Gestion des favoris
+### Recherche, filtres et tri
 
-Les utilisateurs connectés peuvent:
+La page d'accueil événementielle permet :
 
-- ajouter un événement aux favoris
-- retirer un événement des favoris
-- consulter une page dédiée aux événements favoris
+- La recherche par titre, description, adresse, ville ou code postal
+- Le filtrage par catégorie et par ville
+- Le tri par date, titre ou ville
+- L'affichage synchronisé entre la liste et la carte
+
+### Gestion des favoris
+
+Les utilisateurs connectés peuvent :
+
+- Ajouter un événement aux favoris
+- Retirer un événement des favoris
+- Consulter une page dédiée aux événements favoris
 
 Les favoris sont actuellement sauvegardés dans le localStorage avec une clé unique par utilisateur.
 
-# Intégration météo (Open-Meteo API)
+### Historique et préférences
 
-L'application récupère les données météo via l'API OPEN-METEO
+Les utilisateurs disposent :
 
-Informations affichées:
+- D'un historique de consultation
+- D'un parcours d'onboarding
+- D'une page de gestion des préférences
+- De recommandations basées sur les catégories choisies
 
-- température
-- vent
-- conditions météo
-- icônes météo dynamiques
+### Organisations
 
-La météo est affichée uniquement pour les événements à venir dans le 7 prochains jours
+Les organisations peuvent :
+
+- Créer un compte organisation
+- Attendre une validation administrateur
+- Compléter leur profil
+- Créer et modifier leurs événements après validation
+- Suivre l'état de validation de leurs événements
+
+### Administration et modération
+
+Les espaces administrateur et modérateur permettent :
+
+- La consultation de statistiques
+- La validation des organisations
+- La validation des événements
+- Le suivi des signalements
+- La suspension temporaire de comptes ou d'événements
+- L'affichage des motifs de décision
+
+### Intégration météo Open-Meteo
+
+L'application récupère les données météo via l'API Open-Meteo.
+
+Informations affichées :
+
+- Température
+- Vent
+- Conditions météo
+- Icônes météo dynamiques
+
+La météo est affichée uniquement pour les événements à venir dans les 7 prochains jours.

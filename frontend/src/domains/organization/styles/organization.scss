@@ -1,5 +1,6 @@
 @use "../../../shared/styles/tokens" as *;
 @use "../../../shared/styles/mixins" as *;
+@use "review";
 
 .organization-dashboard {
   display: grid;

@@ -7,8 +7,6 @@ export const ROUTES = {
     FORGOT_PASSWORD: "/forgot-password",
     RESET_PASSWORD: "/reset-password/:token",
     REGISTER: "/register",
-    REGISTER_USER: "/register/user",
-    REGISTER_ORGANIZATION: "/register/organization",
   },
 
   USER: {

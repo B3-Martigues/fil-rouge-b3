@@ -947,6 +947,34 @@ const useDataStore = create<DataState>()(
         })),
 
       addModerationReport: (report) => {
+        const reporter = get().users.find(
+          (user) =>
+            user.id === report.reporter_user_id &&
+            user.role === "user" &&
+            !user.deleted_at,
+        );
+        const reporterAccount = reporter
+          ? get().accounts.find(
+              (account) =>
+                account.id === reporter.account_id &&
+                account.is_active &&
+                !account.deleted_at,
+            )
+          : undefined;
+
+        if (!reporter || !reporterAccount) return null;
+
+        if (report.target_type === "event") {
+          const targetEvent = get().events.find(
+            (event) =>
+              event.id === report.target_id &&
+              event.is_active &&
+              !event.deleted_at,
+          );
+
+          if (!targetEvent) return null;
+        }
+
         const duplicateReport = get().moderationReports.find(
           (item) =>
             item.target_type === report.target_type &&

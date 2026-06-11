@@ -290,6 +290,32 @@
   flex: 0 0 auto;
 }
 
+.header-weather {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-h);
+  background: var(--bg);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+
+  svg {
+    flex: 0 0 auto;
+  }
+
+  &--muted {
+    color: var(--text-p);
+    background: var(--social-bg);
+  }
+}
+
 @media (max-width: 760px) {
   .panel-tabs {
     gap: 6px;

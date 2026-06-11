@@ -2,15 +2,12 @@
 @use "mixins" as *;
 
 #root {
-  width: 1126px;
   max-width: 100%;
   min-height: 100svh;
   margin: 0 auto;
-  border-inline: 1px solid var(--border);
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  text-align: center;
 }
 
 body {
@@ -27,7 +24,7 @@ h2 {
 h1 {
   margin: 32px 0;
   font-size: 56px;
-  letter-spacing: -1.68px;
+  letter-spacing: 0;
 
   @include respond-below($bp-lg) {
     margin: 20px 0;
@@ -39,7 +36,7 @@ h2 {
   margin: 0 0 8px;
   font-size: 24px;
   line-height: 118%;
-  letter-spacing: -0.24px;
+  letter-spacing: 0;
 
   @include respond-below($bp-lg) {
     font-size: 20px;
@@ -71,4 +68,13 @@ code {
   place-items: center;
   color: var(--text-h);
   font-weight: 700;
+}
+
+.not-found {
+  display: grid;
+  min-height: 60svh;
+  place-items: center;
+  gap: 16px;
+  padding: 48px 20px;
+  text-align: center;
 }

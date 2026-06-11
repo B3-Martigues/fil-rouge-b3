@@ -1,120 +1,141 @@
-Plateforme d'événements géolocalisés
+# Plateforme d'événements géolocalisés
 
-Description du projet
+> Application web de découverte, consultation et gestion d'événements locaux, pensée pour les utilisateurs, les organisations, les modérateurs et les administrateurs.
 
-Ce projet consiste à développer une application web permettant aux utilisateurs de découvrir des événements autour d'eux de manière simple et rapide.
+## Description du projet
 
-L'application centralise des événements provenant de différentes sources et les affiche dans une interface de consultation filtrable. L'objectif est de faciliter l'accès à l'information locale, souvent dispersée sur plusieurs plateformes.
+Ce projet consiste à développer une application web permettant aux utilisateurs de découvrir des événements autour d'eux de manière simple, rapide et personnalisée.
 
-Objectifs
+L'application centralise des événements locaux, les affiche sur une carte interactive et les présente dans une interface de consultation filtrable. L'objectif est de faciliter l'accès à l'information locale, souvent dispersée sur plusieurs plateformes, tout en proposant des espaces dédiés aux utilisateurs, aux organisations, aux modérateurs et aux administrateurs.
 
-Centraliser les événements locaux
-Faciliter leur découverte grâce à une carte interactive et un listing filtrable
-Proposer une expérience personnalisée
-Améliorer l'accessibilité des informations
-Permettre aux organizations et organisateurs de proposer des événements
-Garantir une validation administrateur avant publication
+**État actuel :** le frontend fonctionne avec des données mockées et une persistance locale. Le backend REST, la base de données et les intégrations serveur restent prévus pour la suite du projet.
 
-Public cible
+La documentation détaillée du frontend est disponible dans [`frontend/README.md`](frontend/README.md).
 
-Habitants de la région
-Étudiants
-Touristes
-Jeunes actifs
-Associations et organisateurs d'événements
-Organizations locales
+## Objectifs
 
-Fonctionnalités principales
+- Centraliser les événements locaux
+- Faciliter leur découverte grâce à une carte interactive et un listing filtrable
+- Proposer une expérience personnalisée selon les préférences utilisateur
+- Améliorer l'accessibilité des informations liées aux événements
+- Permettre aux organisations et organisateurs de proposer des événements
+- Encadrer la publication avec une validation administrateur ou modérateur
+- Préparer une architecture maintenable pour l'intégration future du backend
 
-Consultation des événements sur une carte interactive
-Pins de carte personnalises avec les images des événements et details au clic
-Listing des événements disponibles dans l'application
-Recherche d'événements par titre, description, adresse, ville ou code postal
-Filtrage des événements par catégorie et par ville
-Tri des événements par date, titre ou ville
-Détail d'un événement (date, lieu, description, météo)
-Accueil unifie pour les comptes utilisateur, organization, moderateur et administrateur
-Mode clair/sombre activable depuis le header
-Création de compte utilisateur
-Gestion des favoris et historique
-Recommandations personnalisées
-Notifications (PWA)
-Inscription des comptes organization avec validation administrateur
-Ajout et gestion d'événements par les organizations validées
-Validation des événements par un administrateur avant affichage public
-Conservation de la date de création des événements lors des modifications
-Administration des comptes utilisateurs, organizations et événements
-Statistiques administrateur sur les comptes et événements en attente
-Statistiques moderateur avec totaux et elements en attente
-Suspension temporaire des comptes et des événements avec motif affiche dans les listes admin
+## Public cible
 
-Choix techniques
+- Habitants de la région
+- Étudiants
+- Touristes
+- Jeunes actifs
+- Associations et organisateurs d'événements
+- Organisations locales
+- Administrateurs et modérateurs de la plateforme
 
-Frontend
-React
-TypeScript
-React Router
-Zustand
-React Hook Form
-Zod
-Leaflet (carte interactive)
+## Fonctionnalités principales
 
-Backend
-Go (API REST)
-Architecture en couches (Controller / Service / Repository)
+- Découverte d'événements locaux sur une carte interactive
+- Recherche, filtrage et tri des événements
+- Consultation du détail d'un événement avec informations météo
+- Création de compte, connexion, récupération et réinitialisation de mot de passe
+- Profil utilisateur, préférences, favoris et historique
+- Recommandations personnalisées selon les préférences
+- Parcours d'inscription et de validation des organisations
+- Création et gestion d'événements par les organisations validées
+- Validation des événements avant publication publique
+- Signalement, modération et suspension temporaire avec motif
+- Tableaux de bord administrateur et modérateur
 
-Bases de données
-PostgreSQL (données principales)
-Redis (cache, sessions, performance)
+## Choix techniques
 
-Architecture
+### Frontend
+
+- React, TypeScript et Vite
+- Architecture par domaines fonctionnels
+- Interface cartographique avec Leaflet et React-Leaflet
+- Formulaires typés et validés avec React Hook Form et Zod
+- État applicatif avec Zustand
+
+Voir la documentation frontend : [`frontend/README.md`](frontend/README.md).
+
+### Backend
+
+- Go pour l'API REST prévue
+- Architecture en couches prévue : Controller / Service / Repository
+
+### Bases de données
+
+- PostgreSQL pour les données principales prévues
+- Redis pour le cache, les sessions et la performance prévue
+
+## Architecture
 
 L'application suit une architecture classique en plusieurs couches :
 
+```text
 Frontend -> API REST -> Middleware -> Controller -> Service -> Repository -> Base de données
+```
 
-Le frontend est organisé par domaines fonctionnels afin de séparer les responsabilités liées à l'authentification, aux utilisateurs, aux organizations, aux événements et à l'administration.
+Le projet est séparé en plusieurs espaces :
 
-Un système de scraping permet également de récupérer automatiquement des événements depuis des sources externes.
+| Espace | Rôle |
+| --- | --- |
+| `frontend` | Application web React, routes, interfaces, états locaux et mocks |
+| `backend` | API REST Go prévue pour exposer les données métier |
+| `docs` | Documents projet, architecture, cahier des charges et supports de suivi |
+| `tests` | Espace prévu pour les tests complémentaires |
 
-Gestion des rôles
+Un système de scraping est envisagé afin de récupérer automatiquement des événements depuis des sources externes.
+
+## Gestion des rôles
 
 L'application distingue plusieurs rôles :
 
-Utilisateur
-Compte classique avec accès au profil, aux favoris et à l'historique.
+### Utilisateur
 
-Organization
+Compte classique avec accès au profil, aux préférences, aux favoris, à l'historique et à la consultation des organisations.
+
+### Organisation
+
 Compte organisateur soumis à validation administrateur.
-Un compte organization en attente conserve uniquement l'accès à l'accueil et au profil.
-Un compte organization validé peut créer, modifier et gérer ses événements.
 
-Administrateur
-Compte disposant d'un accès à la gestion des utilisateurs, des organizations et des événements.
-L'administrateur valide les comptes organization et les événements avant leur publication.
+- Un compte organisation en attente conserve uniquement l'accès à l'accueil et au profil.
+- Un compte organisation validé peut créer, modifier et gérer ses événements.
 
-Moderateur
+### Administrateur
+
+Compte disposant d'un accès à la gestion des utilisateurs, des organisations et des événements.
+
+L'administrateur valide les comptes organisation et les événements avant leur publication.
+
+### Modérateur
+
 Compte disposant d'un accès à la validation des événements, au suivi des signalements et aux suspensions temporaires.
 
-Sécurité
+## Sécurité
 
-Authentification JWT
-Gestion des rôles (utilisateur / admin / moderateur / organization)
-Validation des données
-Validation administrateur des comptes organization
-Validation administrateur des événements avant publication
-Protection contre les abus (rate limiting)
+- Authentification JWT prévue côté backend
+- Gestion des rôles : utilisateur, administrateur, modérateur, organisation
+- Routes privées et guards de rôles côté frontend
+- Validation des données côté frontend et côté backend prévu
+- Validation administrateur des comptes organisation
+- Validation administrateur ou modérateur des événements avant publication
+- Gestion des comptes supprimés, désactivés ou suspendus
+- Protection contre les abus prévue côté backend avec rate limiting
 
-Planning
+## Planning
 
 Le projet est organisé en plusieurs étapes :
-Conception & cadrage
-Développement frontend
-Développement backend & données
-Déploiement & tests
 
-Équipe
+1. Conception & cadrage
+2. Développement frontend
+3. Intégration des données mockées et des parcours utilisateurs
+4. Développement backend & données
+5. Connexion frontend / API REST
+6. Déploiement & tests
+
+## Équipe
 
 Projet réalisé dans le cadre du titre RNCP Concepteur Développeur d'Applications (CDA).
 
-Ce projet est développé en groupe de 3 personnes, avec une répartition des tâches (frontend, backend, gestion de projet) et une organisation basée sur Git et un board de suivi.
+Ce projet est développé en groupe de 3 personnes, avec une répartition des tâches frontend, backend et gestion de projet, ainsi qu'une organisation basée sur Git et un board de suivi.

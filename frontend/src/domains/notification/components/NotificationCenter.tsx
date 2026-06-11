@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, CheckCheck, ExternalLink, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -26,6 +26,9 @@ export default function NotificationCenter() {
   );
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const centerRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const userId = currentUser?.user_id;
 
   useEffect(() => {
@@ -33,6 +36,59 @@ export default function NotificationCenter() {
       syncTodaysFavoriteEventNotifications(userId);
     }
   }, [syncTodaysFavoriteEventNotifications, userId]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const onMouseDown = (event: MouseEvent) => {
+      if (
+        event.target instanceof Node &&
+        !centerRef.current?.contains(event.target)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+        triggerRef.current?.focus();
+        return;
+      }
+
+      if (event.key !== "Tab" || !panelRef.current) return;
+
+      const focusableElements = panelRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (!firstElement || !lastElement) return;
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    document.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("keydown", onKeyDown);
+    requestAnimationFrame(() => {
+      panelRef.current
+        ?.querySelector<HTMLElement>(
+          'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+        )
+        ?.focus();
+    });
+
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isOpen]);
 
   const inAppNotifications = useMemo(
     () =>
@@ -108,9 +164,10 @@ export default function NotificationCenter() {
   };
 
   return (
-    <div className="notification-center">
+    <div className="notification-center" ref={centerRef}>
       <Button
         className="notification-center__trigger"
+        ref={triggerRef}
         type="button"
         aria-label={triggerLabel}
         aria-expanded={isOpen}
@@ -132,8 +189,10 @@ export default function NotificationCenter() {
         <div
           className="notification-center__panel"
           id={panelId}
+          ref={panelRef}
           role="dialog"
           aria-labelledby={titleId}
+          aria-modal="false"
         >
           <div className="notification-center__header">
             <strong id={titleId}>Notifications</strong>

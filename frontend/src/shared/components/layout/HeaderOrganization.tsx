@@ -5,6 +5,7 @@ import { useOrganizationAccess } from "../../../domains/organization/hooks/useOr
 import NotificationCenter from "../../../domains/notification/components/NotificationCenter";
 import { FormModalNavLink } from "../forms/FormModalLink";
 import { ROUTES } from "../../constants/routes";
+import HeaderWeather from "./HeaderWeather";
 import ThemeToggle from "./ThemeToggle";
 
 export default function HeaderOrganization() {
@@ -14,7 +15,7 @@ export default function HeaderOrganization() {
     <header className="role-header">
       <nav className="role-header__nav">
         <NavLink to={ROUTES.PUBLIC.HOME}>Accueil</NavLink>
-        <FormModalNavLink to={ROUTES.ORGANIZATION.PROFILE}>Profil</FormModalNavLink>
+        <NavLink to={ROUTES.ORGANIZATION.PROFILE}>Profil</NavLink>
         {canManageEvents && (
           <>
             <NavLink to={ROUTES.ORGANIZATION.EVENTS}>Mes evenements</NavLink>
@@ -24,6 +25,7 @@ export default function HeaderOrganization() {
           </>
         )}
         <NotificationCenter />
+        <HeaderWeather />
         <ThemeToggle />
         <LogoutButton />
       </nav>

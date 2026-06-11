@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import LogoutButton from "../../../domains/auth/components/LogoutButton";
 import NotificationCenter from "../../../domains/notification/components/NotificationCenter";
 import { ROUTES } from "../../constants/routes";
+import HeaderWeather from "./HeaderWeather";
 import ThemeToggle from "./ThemeToggle";
 
 export default function HeaderAdmin() {
@@ -13,6 +14,7 @@ export default function HeaderAdmin() {
         <NavLink to={ROUTES.ADMIN.DASHBOARD}>Admin</NavLink>
         <NavLink to={ROUTES.MODERATOR.DASHBOARD}>Moderation</NavLink>
         <NotificationCenter />
+        <HeaderWeather />
         <ThemeToggle />
         <LogoutButton />
       </nav>

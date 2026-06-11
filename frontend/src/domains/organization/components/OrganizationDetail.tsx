@@ -1,0 +1,675 @@
+import { useState, type FormEvent } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { toast } from "react-toastify";
+
+import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
+import EmptyState from "../../../shared/components/feedback/EmptyState";
+import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
+import FormModal from "../../../shared/components/forms/FormModal";
+import ActionRow from "../../../shared/components/layout/ActionRow";
+import Button from "../../../shared/components/ui/Button";
+import FormField from "../../../shared/components/ui/FormField";
+import Input from "../../../shared/components/ui/Input";
+import StatusBadge from "../../../shared/components/ui/StatusBadge";
+import Textarea from "../../../shared/components/ui/Textarea";
+import { ROUTES } from "../../../shared/constants/routes";
+import useDataStore from "../../../shared/store/dataStore";
+import useAuthStore from "../../auth/store/authStore";
+import CategorySelect from "../../event/components/CategorySelect";
+import type { Event } from "../../event/types/event";
+import type { EventCategory } from "../../event/types/event-categories";
+import { formatDateTime, formatEventDateRange } from "../../event/utils/event";
+import { OrganizationFields } from "./OrganizationSetupFlow";
+import {
+  createNextId,
+  emptyEventForm,
+  getManagedEventStatus,
+  getOrganizationStatus,
+  parseOptionalCoordinate,
+  toEventForm,
+  toOrganizationForm,
+  validateEventForm,
+  validateOrganizationForm,
+  type EventForm,
+  type EventFormErrors,
+  type OrganizationForm,
+  type OrganizationFormErrors,
+} from "../utils/organizationWorkflow";
+
+export default function OrganizationDetailPage() {
+  const navigate = useNavigate();
+  const { organizationId } = useParams();
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const organizations = useDataStore((s) => s.organizations);
+  const organizers = useDataStore((s) => s.organizers);
+  const events = useDataStore((s) => s.events);
+  const updateOrganization = useDataStore((s) => s.updateOrganization);
+  const deleteOrganization = useDataStore((s) => s.deleteOrganization);
+  const addEvent = useDataStore((s) => s.addEvent);
+  const updateEvent = useDataStore((s) => s.updateEvent);
+  const deleteEvent = useDataStore((s) => s.deleteEvent);
+  const parsedOrganizationId = Number(organizationId);
+  const currentUserId = currentUser?.user_id;
+  const organizerLink = organizers.find(
+    (organizer) =>
+      organizer.user_id === currentUserId &&
+      organizer.organization_id === parsedOrganizationId &&
+      !organizer.deleted_at,
+  );
+  const organization = organizations.find(
+    (item) =>
+      item.id === parsedOrganizationId && !!organizerLink && !item.deleted_at,
+  );
+  const organizationEvents = events
+    .filter((event) => event.organization_id === parsedOrganizationId)
+    .toSorted(
+      (firstEvent, secondEvent) =>
+        new Date(secondEvent.created_at ?? secondEvent.start_date).getTime() -
+        new Date(firstEvent.created_at ?? firstEvent.start_date).getTime(),
+    );
+  const organizationStatus = organization ? getOrganizationStatus(organization) : null;
+  const [organizationForm, setOrganizationForm] = useState<OrganizationForm | null>(
+    null,
+  );
+  const [organizationErrors, setOrganizationErrors] =
+    useState<OrganizationFormErrors>({});
+  const [eventForm, setEventForm] = useState<EventForm | null>(null);
+  const [eventErrors, setEventErrors] = useState<EventFormErrors>({});
+  const [editingEventId, setEditingEventId] = useState<number | null>(null);
+  const [pendingDeleteOrganization, setPendingDeleteOrganization] = useState(false);
+  const [pendingDeleteEventId, setPendingDeleteEventId] = useState<number | null>(
+    null,
+  );
+  const [modalError, setModalError] = useState<string | null>(null);
+
+  const closeOrganizationEditor = () => {
+    setOrganizationForm(null);
+    setOrganizationErrors({});
+    setModalError(null);
+  };
+
+  const closeEventEditor = () => {
+    setEventForm(null);
+    setEventErrors({});
+    setEditingEventId(null);
+    setModalError(null);
+  };
+
+  const updateOrganizationField = <Key extends keyof OrganizationForm>(
+    field: Key,
+    value: OrganizationForm[Key],
+  ) => {
+    setOrganizationForm((currentForm) =>
+      currentForm ? { ...currentForm, [field]: value } : currentForm,
+    );
+    setOrganizationErrors((currentErrors) => ({
+      ...currentErrors,
+      [field]: undefined,
+    }));
+    setModalError(null);
+  };
+
+  const toggleOrganizationCategory = (
+    category: OrganizationForm["categories"][number],
+  ) => {
+    if (!organizationForm) return;
+
+    updateOrganizationField(
+      "categories",
+      organizationForm.categories.includes(category)
+        ? organizationForm.categories.filter((item) => item !== category)
+        : [...organizationForm.categories, category],
+    );
+  };
+
+  const updateEventField = <Key extends keyof EventForm>(
+    field: Key,
+    value: EventForm[Key],
+  ) => {
+    setEventForm((currentForm) =>
+      currentForm ? { ...currentForm, [field]: value } : currentForm,
+    );
+    setEventErrors((currentErrors) => ({
+      ...currentErrors,
+      [field]: undefined,
+    }));
+    setModalError(null);
+  };
+
+  const toggleEventCategory = (category: EventCategory) => {
+    if (!eventForm) return;
+
+    updateEventField(
+      "categories",
+      eventForm.categories.includes(category)
+        ? eventForm.categories.filter((item) => item !== category)
+        : [...eventForm.categories, category],
+    );
+  };
+
+  const startOrganizationEdit = () => {
+    if (!organization) return;
+
+    setOrganizationForm(toOrganizationForm(organization));
+    setOrganizationErrors({});
+    setModalError(null);
+  };
+
+  const saveOrganization = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!organization || !organizationForm) return;
+
+    const errors = validateOrganizationForm(
+      organizationForm,
+      organizations,
+      organization.id,
+    );
+    setOrganizationErrors(errors);
+    setModalError(null);
+
+    if (Object.keys(errors).length > 0) return;
+
+    updateOrganization(organization.id, {
+      name: organizationForm.name.trim(),
+      contact_email: organizationForm.contact_email.trim(),
+      description: organizationForm.description.trim(),
+      website: organizationForm.website.trim() || null,
+      latitude: parseOptionalCoordinate(organizationForm.latitude),
+      longitude: parseOptionalCoordinate(organizationForm.longitude),
+      address: organizationForm.address.trim(),
+      city: organizationForm.city.trim(),
+      postal_code: organizationForm.postal_code.trim(),
+      logo: organizationForm.logo.trim() || null,
+      contact_phone_number: organizationForm.contact_phone_number.trim() || null,
+      siret: organizationForm.siret.trim() || null,
+      category_slugs: organizationForm.categories,
+    });
+
+    closeOrganizationEditor();
+    toast.success("Organisation mise a jour");
+  };
+
+  const confirmDeleteOrganization = () => {
+    if (!organization) return;
+
+    deleteOrganization(organization.id);
+    setPendingDeleteOrganization(false);
+    toast.success("Organisation supprimee");
+    navigate(ROUTES.USER.ORGANIZATIONS, { replace: true });
+  };
+
+  const startEventCreate = () => {
+    setEditingEventId(null);
+    setEventForm(emptyEventForm());
+    setEventErrors({});
+    setModalError(null);
+  };
+
+  const startEventEdit = (event: Event) => {
+    setEditingEventId(event.id);
+    setEventForm(toEventForm(event));
+    setEventErrors({});
+    setModalError(null);
+  };
+
+  const saveEvent = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!organization || !eventForm) return;
+
+    const errors = validateEventForm(eventForm);
+    setEventErrors(errors);
+    setModalError(null);
+
+    if (Object.keys(errors).length > 0) return;
+
+    const now = new Date().toISOString();
+    const eventPayload = {
+      organization_id: organization.id,
+      title: eventForm.title.trim(),
+      description: eventForm.description.trim(),
+      start_date: new Date(eventForm.start_date).toISOString(),
+      end_date: new Date(eventForm.end_date).toISOString(),
+      latitude: parseOptionalCoordinate(eventForm.latitude),
+      longitude: parseOptionalCoordinate(eventForm.longitude),
+      address: eventForm.address.trim(),
+      city: eventForm.city.trim(),
+      postal_code: eventForm.postal_code.trim(),
+      category_slugs: eventForm.categories,
+      image: eventForm.image.trim(),
+      source: eventForm.source.trim() || "Evenement cree par une organisation",
+      is_active: false,
+      suspended_until: null,
+      suspension_reason: null,
+      deleted_at: null,
+    };
+
+    if (editingEventId === null) {
+      addEvent({
+        id: createNextId(events),
+        ...eventPayload,
+        created_at: now,
+        updated_at: now,
+      });
+      toast.success("Evenement cree en attente de validation");
+    } else {
+      updateEvent(editingEventId, eventPayload);
+      toast.success("Evenement mis a jour en attente de validation");
+    }
+
+    closeEventEditor();
+  };
+
+  const confirmDeleteEvent = () => {
+    if (pendingDeleteEventId === null) return;
+
+    deleteEvent(pendingDeleteEventId);
+    setPendingDeleteEventId(null);
+    closeEventEditor();
+    toast.success("Evenement supprime");
+  };
+
+  const pendingDeleteEvent = events.find((event) => event.id === pendingDeleteEventId);
+
+  if (!organization || !organizationStatus) {
+    return (
+      <section className="organization-detail">
+        <ErrorMessage message="Organisation introuvable ou non rattachee a votre compte." />
+        <Link className="btn btn--secondary" to={ROUTES.USER.ORGANIZATIONS}>
+          Retour aux organisations
+        </Link>
+      </section>
+    );
+  }
+
+  return (
+    <section className="organization-detail">
+      <ConfirmDialog
+        confirmLabel="Supprimer"
+        message={`Supprimer l'organisation "${organization.name}" et masquer ses evenements ?`}
+        open={pendingDeleteOrganization}
+        title="Supprimer l'organisation"
+        onCancel={() => setPendingDeleteOrganization(false)}
+        onConfirm={confirmDeleteOrganization}
+      />
+
+      <ConfirmDialog
+        confirmLabel="Supprimer"
+        message={
+          pendingDeleteEvent
+            ? `Supprimer l'evenement "${pendingDeleteEvent.title}" ?`
+            : "Supprimer cet evenement ?"
+        }
+        open={pendingDeleteEventId !== null}
+        title="Supprimer l'evenement"
+        onCancel={() => setPendingDeleteEventId(null)}
+        onConfirm={confirmDeleteEvent}
+      />
+
+      <FormModal
+        ariaLabel="Modifier une organisation"
+        open={organizationForm !== null}
+        size="lg"
+        onClose={closeOrganizationEditor}
+      >
+        {organizationForm && (
+          <form className="organization-form" onSubmit={saveOrganization} noValidate>
+            <h2>Modifier l'organisation</h2>
+            <OrganizationFields
+              errors={organizationErrors}
+              form={organizationForm}
+              onCategoryToggle={toggleOrganizationCategory}
+              onFieldChange={updateOrganizationField}
+            />
+            {modalError && <ErrorMessage message={modalError} />}
+            <ActionRow className="form-step-actions" align="center">
+              <Button type="submit">Enregistrer</Button>
+              <Button type="button" variant="secondary" onClick={closeOrganizationEditor}>
+                Annuler
+              </Button>
+            </ActionRow>
+          </form>
+        )}
+      </FormModal>
+
+      <FormModal
+        ariaLabel={editingEventId === null ? "Creer un evenement" : "Modifier un evenement"}
+        open={eventForm !== null}
+        size="lg"
+        onClose={closeEventEditor}
+      >
+        {eventForm && (
+          <EventEditor
+            errors={eventErrors}
+            form={eventForm}
+            modalError={modalError}
+            title={editingEventId === null ? "Creer un evenement" : "Modifier un evenement"}
+            onCancel={closeEventEditor}
+            onCategoryToggle={toggleEventCategory}
+            onFieldChange={updateEventField}
+            onSubmit={saveEvent}
+          />
+        )}
+      </FormModal>
+
+      <div className="organization-detail__back">
+        <Link className="btn btn--secondary" to={ROUTES.USER.ORGANIZATIONS}>
+          Retour aux organisations
+        </Link>
+      </div>
+
+      <header className="organization-detail__header">
+        <div className="organization-detail__logo">
+          {organization.logo ? (
+            <img src={organization.logo} alt={`Logo ${organization.name}`} />
+          ) : (
+            <span>{organization.name.slice(0, 2).toUpperCase()}</span>
+          )}
+        </div>
+        <div>
+          <div className="organization-detail__title">
+            <h1>{organization.name}</h1>
+            <StatusBadge variant={organizationStatus.variant}>
+              {organizationStatus.label}
+            </StatusBadge>
+          </div>
+          <p>{organization.description}</p>
+          <ActionRow className="organization-detail__actions">
+            <Button type="button" variant="secondary" onClick={startOrganizationEdit}>
+              Modifier
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={() => setPendingDeleteOrganization(true)}
+            >
+              Supprimer
+            </Button>
+          </ActionRow>
+        </div>
+      </header>
+
+      <section className="organization-detail__section">
+        <h2>Informations</h2>
+        <dl className="organization-detail__info">
+          <div>
+            <dt>Email</dt>
+            <dd>{organization.contact_email}</dd>
+          </div>
+          <div>
+            <dt>Categories</dt>
+            <dd>{organization.category_slugs.join(", ")}</dd>
+          </div>
+          <div>
+            <dt>Fonction</dt>
+            <dd>{organizerLink?.job_role ?? "Organisateur"}</dd>
+          </div>
+          <div>
+            <dt>Adresse</dt>
+            <dd>
+              {organization.address}, {organization.city} {organization.postal_code}
+            </dd>
+          </div>
+          <div>
+            <dt>Site web</dt>
+            <dd>{organization.website || "Non renseigne"}</dd>
+          </div>
+          <div>
+            <dt>Telephone</dt>
+            <dd>{organization.contact_phone_number || "Non renseigne"}</dd>
+          </div>
+          <div>
+            <dt>SIRET</dt>
+            <dd>{organization.siret || "Non renseigne"}</dd>
+          </div>
+          <div>
+            <dt>Coordonnees</dt>
+            <dd>
+              {organization.latitude ?? "Non renseignee"},{" "}
+              {organization.longitude ?? "Non renseignee"}
+            </dd>
+          </div>
+          <div>
+            <dt>Creation</dt>
+            <dd>{formatDateTime(organization.created_at)}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="organization-detail__section organization-events-panel">
+        <div className="organization-events-panel__header">
+          <div>
+            <h2>Evenements</h2>
+            <p>Creation, modification et suppression des evenements de cette organisation.</p>
+          </div>
+          <Button type="button" onClick={startEventCreate}>
+            Creer un evenement
+          </Button>
+        </div>
+
+        {organizationEvents.length === 0 ? (
+          <EmptyState message="Aucun evenement rattache a cette organisation." />
+        ) : (
+          <div className="organization-event-list">
+            {organizationEvents.map((event) => {
+              const status = getManagedEventStatus(event);
+
+              return (
+                <article className="organization-event-card" key={event.id}>
+                  <img src={event.image} alt="" loading="lazy" />
+                  <div className="organization-event-card__body">
+                    <div className="organization-event-card__header">
+                      <h3>{event.title}</h3>
+                      <StatusBadge variant={status.variant}>{status.label}</StatusBadge>
+                    </div>
+                    <p>{event.description}</p>
+                    <dl>
+                      <div>
+                        <dt>Dates</dt>
+                        <dd>{formatEventDateRange(event)}</dd>
+                      </div>
+                      <div>
+                        <dt>Lieu</dt>
+                        <dd>
+                          {event.address}, {event.city} {event.postal_code}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Categories</dt>
+                        <dd>{event.category_slugs.join(", ")}</dd>
+                      </div>
+                    </dl>
+                    <ActionRow className="admin-actions">
+                      <Button
+                        disabled={!!event.deleted_at}
+                        type="button"
+                        variant="secondary"
+                        onClick={() => startEventEdit(event)}
+                      >
+                        Modifier
+                      </Button>
+                      <Button
+                        disabled={!!event.deleted_at}
+                        type="button"
+                        variant="danger"
+                        onClick={() => setPendingDeleteEventId(event.id)}
+                      >
+                        Supprimer
+                      </Button>
+                    </ActionRow>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </section>
+  );
+}
+
+function EventEditor({
+  errors,
+  form,
+  modalError,
+  title,
+  onCancel,
+  onCategoryToggle,
+  onFieldChange,
+  onSubmit,
+}: {
+  errors: EventFormErrors;
+  form: EventForm;
+  modalError: string | null;
+  title: string;
+  onCancel: () => void;
+  onCategoryToggle: (category: EventCategory) => void;
+  onFieldChange: <Key extends keyof EventForm>(
+    field: Key,
+    value: EventForm[Key],
+  ) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <form className="organization-form" onSubmit={onSubmit} noValidate>
+      <h2>{title}</h2>
+      <div className="organization-form__grid">
+        <FormField label="Titre" htmlFor="event-title" error={errors.title}>
+          <Input
+            id="event-title"
+            hasError={!!errors.title}
+            value={form.title}
+            onChange={(event) => onFieldChange("title", event.target.value)}
+          />
+        </FormField>
+
+        <div className="organization-form__wide">
+          <CategorySelect
+            error={errors.categories}
+            labelId="event-categories"
+            selected={form.categories}
+            onToggle={onCategoryToggle}
+          />
+        </div>
+
+        <FormField
+          className="organization-form__wide"
+          label="Description"
+          htmlFor="event-description"
+          error={errors.description}
+        >
+          <Textarea
+            id="event-description"
+            hasError={!!errors.description}
+            rows={4}
+            value={form.description}
+            onChange={(event) => onFieldChange("description", event.target.value)}
+          />
+        </FormField>
+
+        <FormField label="Date de debut" htmlFor="event-start" error={errors.start_date}>
+          <Input
+            id="event-start"
+            hasError={!!errors.start_date}
+            type="datetime-local"
+            value={form.start_date}
+            onChange={(event) => onFieldChange("start_date", event.target.value)}
+          />
+        </FormField>
+
+        <FormField label="Date de fin" htmlFor="event-end" error={errors.end_date}>
+          <Input
+            id="event-end"
+            hasError={!!errors.end_date}
+            type="datetime-local"
+            value={form.end_date}
+            onChange={(event) => onFieldChange("end_date", event.target.value)}
+          />
+        </FormField>
+
+        <FormField
+          className="organization-form__wide"
+          label="Adresse"
+          htmlFor="event-address"
+          error={errors.address}
+        >
+          <Input
+            id="event-address"
+            hasError={!!errors.address}
+            value={form.address}
+            onChange={(event) => onFieldChange("address", event.target.value)}
+          />
+        </FormField>
+
+        <FormField label="Ville" htmlFor="event-city" error={errors.city}>
+          <Input
+            id="event-city"
+            hasError={!!errors.city}
+            value={form.city}
+            onChange={(event) => onFieldChange("city", event.target.value)}
+          />
+        </FormField>
+
+        <FormField label="Code postal" htmlFor="event-postal-code" error={errors.postal_code}>
+          <Input
+            id="event-postal-code"
+            hasError={!!errors.postal_code}
+            inputMode="numeric"
+            value={form.postal_code}
+            onChange={(event) => onFieldChange("postal_code", event.target.value)}
+          />
+        </FormField>
+
+        <FormField label="Latitude" htmlFor="event-latitude" error={errors.latitude}>
+          <Input
+            id="event-latitude"
+            hasError={!!errors.latitude}
+            step="any"
+            type="number"
+            value={form.latitude}
+            onChange={(event) => onFieldChange("latitude", event.target.value)}
+          />
+        </FormField>
+
+        <FormField label="Longitude" htmlFor="event-longitude" error={errors.longitude}>
+          <Input
+            id="event-longitude"
+            hasError={!!errors.longitude}
+            step="any"
+            type="number"
+            value={form.longitude}
+            onChange={(event) => onFieldChange("longitude", event.target.value)}
+          />
+        </FormField>
+
+        <FormField label="Image" htmlFor="event-image" error={errors.image}>
+          <Input
+            id="event-image"
+            hasError={!!errors.image}
+            type="url"
+            value={form.image}
+            onChange={(event) => onFieldChange("image", event.target.value)}
+          />
+        </FormField>
+
+        <FormField label="Source" htmlFor="event-source">
+          <Input
+            id="event-source"
+            value={form.source}
+            onChange={(event) => onFieldChange("source", event.target.value)}
+          />
+        </FormField>
+      </div>
+
+      {modalError && <ErrorMessage message={modalError} />}
+
+      <ActionRow className="form-step-actions" align="center">
+        <Button type="submit">Enregistrer</Button>
+        <Button type="button" variant="secondary" onClick={onCancel}>
+          Annuler
+        </Button>
+      </ActionRow>
+    </form>
+  );
+}

@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 
-import { FormModalNavLink } from "../forms/FormModalLink";
 import { ROUTES } from "../../constants/routes";
+import HeaderWeather from "./HeaderWeather";
 import ThemeToggle from "./ThemeToggle";
 
 export default function HeaderPublic() {
@@ -9,7 +9,8 @@ export default function HeaderPublic() {
     <header className="role-header">
       <nav className="role-header__nav">
         <NavLink to={ROUTES.PUBLIC.HOME}>Accueil</NavLink>
-        <FormModalNavLink to={ROUTES.PUBLIC.LOGIN}>Connexion</FormModalNavLink>
+        <NavLink to={ROUTES.PUBLIC.LOGIN}>Connexion</NavLink>
+        <HeaderWeather />
         <ThemeToggle />
       </nav>
     </header>
