@@ -49,6 +49,8 @@ export type EventForm = {
   longitude: string;
   categories: EventCategory[];
   image: string;
+  price: string;
+  ticketing_link: string;
   source: string;
 };
 
@@ -97,6 +99,8 @@ export const emptyEventForm = (): EventForm => ({
   longitude: "",
   categories: ["culture"],
   image: "",
+  price: "0",
+  ticketing_link: "",
   source: "",
 });
 
@@ -131,6 +135,8 @@ export const toEventForm = (event: Event): EventForm => ({
   longitude: event.longitude?.toString() ?? "",
   categories: event.category_slugs,
   image: event.image,
+  price: event.price.toString(),
+  ticketing_link: event.ticketing_link,
   source: event.source ?? "",
 });
 

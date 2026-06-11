@@ -1,4 +1,5 @@
 import FavoriteButton from "../../event/components/FavoriteButton";
+import { formatEventPrice, getTicketingHref } from "../../event/utils/event";
 import useFavorites from "../hooks/useFavorites";
 import useDataStore from "../../../shared/store/dataStore";
 
@@ -32,7 +33,10 @@ export default function Favorites() {
       <h1>Mes favoris</h1>
       <h2>Mes événements favoris</h2>
       <div className="user-favorites__grid">
-        {favoriteEvents.map((event) => (
+        {favoriteEvents.map((event) => {
+          const ticketingHref = getTicketingHref(event.ticketing_link);
+
+          return (
           <article className="event-card" key={event.id}>
             {event.image && (
               <img
@@ -44,10 +48,27 @@ export default function Favorites() {
             <div className="event-card__content">
               <h3>{event.title}</h3>
               <p>{event.description}</p>
+              <dl className="event-card__details">
+                <div>
+                  <dt>Prix</dt>
+                  <dd>{formatEventPrice(event.price)}</dd>
+                </div>
+              </dl>
+              {ticketingHref && (
+                <a
+                  className="btn btn--secondary event-card__ticketing-link"
+                  href={ticketingHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Billetterie
+                </a>
+              )}
               <FavoriteButton event={event} />
             </div>
           </article>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

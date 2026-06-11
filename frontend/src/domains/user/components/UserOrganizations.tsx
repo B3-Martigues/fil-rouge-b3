@@ -12,6 +12,9 @@ import type { EventCategory } from "../../event/types/event-categories";
 import {
   formatDateTime,
   formatEventDateRange,
+  formatEventPrice,
+  getTicketingHref,
+  isValidOptionalUrl,
   isEventSuspended,
   toDateTimeLocalValue,
 } from "../../event/utils/event";
@@ -60,6 +63,8 @@ type EventForm = {
   longitude: string;
   categories: EventCategory[];
   image: string;
+  price: string;
+  ticketing_link: string;
   source: string;
 };
 
@@ -102,6 +107,8 @@ const toEventForm = (event: Event): EventForm => ({
   longitude: event.longitude?.toString() ?? "",
   categories: event.category_slugs,
   image: event.image,
+  price: event.price.toString(),
+  ticketing_link: event.ticketing_link,
   source: event.source ?? "",
 });
 
@@ -117,6 +124,8 @@ const emptyEventForm = (): EventForm => ({
   longitude: "",
   categories: ["culture"],
   image: "",
+  price: "0",
+  ticketing_link: "",
   source: "",
 });
 
@@ -277,6 +286,18 @@ const validateEventForm = (form: EventForm): EventFormErrors => {
     errors.image = "L'image est requise";
   } else if (!URL.canParse(form.image.trim())) {
     errors.image = "L'URL de l'image est invalide";
+  }
+
+  const price = Number(form.price.trim());
+
+  if (!form.price.trim()) {
+    errors.price = "Le prix est requis";
+  } else if (Number.isNaN(price) || price < 0) {
+    errors.price = "Le prix doit etre un nombre positif ou egal a 0";
+  }
+
+  if (!isValidOptionalUrl(form.ticketing_link)) {
+    errors.ticketing_link = "L'URL de billetterie est invalide";
   }
 
   return errors;
@@ -525,6 +546,8 @@ export default function UserOrganizations() {
       postal_code: eventForm.postal_code.trim(),
       category_slugs: eventForm.categories,
       image: eventForm.image.trim(),
+      price: Number(eventForm.price.trim()),
+      ticketing_link: eventForm.ticketing_link.trim(),
       source: eventForm.source.trim() || "Evenement cree par une organization",
       is_active: false,
     };
@@ -707,6 +730,7 @@ export default function UserOrganizations() {
                   <div className="user-organization-event-list">
                     {organizationEvents.map((event) => {
                       const eventStatus = getEventStatus(event);
+                      const ticketingHref = getTicketingHref(event.ticketing_link);
 
                       return (
                         <article className="user-organization-event" key={event.id}>
@@ -731,6 +755,24 @@ export default function UserOrganizations() {
                                   {event.postal_code}
                                 </dd>
                               </div>
+                              <div>
+                                <dt>Prix</dt>
+                                <dd>{formatEventPrice(event.price)}</dd>
+                              </div>
+                              {ticketingHref && (
+                                <div>
+                                  <dt>Billetterie</dt>
+                                  <dd>
+                                    <a
+                                      href={ticketingHref}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      Ouvrir la billetterie
+                                    </a>
+                                  </dd>
+                                </div>
+                              )}
                               <div>
                                 <dt>Creation</dt>
                                 <dd>
@@ -1131,6 +1173,32 @@ function EventEditor({
             value={form.image}
             hasError={!!errors.image}
             onChange={(event) => onFieldChange("image", event.target.value)}
+          />
+        </FormField>
+        <FormField label="Prix" htmlFor="member-event-price" error={errors.price}>
+          <Input
+            id="member-event-price"
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.price}
+            hasError={!!errors.price}
+            onChange={(event) => onFieldChange("price", event.target.value)}
+          />
+        </FormField>
+        <FormField
+          label="Lien de billetterie"
+          htmlFor="member-event-ticketing-link"
+          error={errors.ticketing_link}
+        >
+          <Input
+            id="member-event-ticketing-link"
+            type="url"
+            value={form.ticketing_link}
+            hasError={!!errors.ticketing_link}
+            onChange={(event) =>
+              onFieldChange("ticketing_link", event.target.value)
+            }
           />
         </FormField>
         <FormField label="Source" htmlFor="member-event-source">

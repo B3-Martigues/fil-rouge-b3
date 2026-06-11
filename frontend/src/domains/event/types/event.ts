@@ -14,6 +14,8 @@ export type Event = {
   postal_code: string;
   category_slugs: EventCategoryName[];
   image: string;
+  price: number;
+  ticketing_link: string;
   source?: string | null;
   is_active: boolean;
   suspended_until?: string | null;

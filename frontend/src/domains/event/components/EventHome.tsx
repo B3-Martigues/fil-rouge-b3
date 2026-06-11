@@ -19,7 +19,9 @@ import useUserLocation from "../hooks/useUserLocation";
 
 import {
   formatDistance,
+  formatEventPrice,
   formatEventDateRange,
+  getTicketingHref,
   getDistanceInKilometers,
   getDefaultPeriodValue,
   getEventStatus,
@@ -39,9 +41,12 @@ type SortValue =
   | "popularity-desc"
   | "title-asc"
   | "title-desc"
-  | "city-asc";
+  | "city-asc"
+  | "price-asc"
+  | "price-desc";
 
 type PersonalizedEventsView = "recommended" | "all";
+type PriceFilter = "all" | "free" | "paid";
 type MapEventSelection = {
   eventId: number;
   requestId: number;
@@ -105,6 +110,7 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<EventCategory | "all">("all");
   const [city, setCity] = useState("all");
+  const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
   const [sort, setSort] = useState<SortValue>(DEFAULT_SORT);
   const [personalizedEventsView, setPersonalizedEventsView] =
     useState<PersonalizedEventsView>("recommended");
@@ -233,6 +239,28 @@ export default function Home() {
           return firstEvent.city.localeCompare(secondEvent.city, "fr-FR");
         }
 
+        if (sort === "price-asc") {
+          if (firstEvent.price !== secondEvent.price) {
+            return firstEvent.price - secondEvent.price;
+          }
+
+          return (
+            new Date(firstEvent.start_date).getTime() -
+            new Date(secondEvent.start_date).getTime()
+          );
+        }
+
+        if (sort === "price-desc") {
+          if (firstEvent.price !== secondEvent.price) {
+            return secondEvent.price - firstEvent.price;
+          }
+
+          return (
+            new Date(firstEvent.start_date).getTime() -
+            new Date(secondEvent.start_date).getTime()
+          );
+        }
+
         return (
           new Date(firstEvent.start_date).getTime() -
           new Date(secondEvent.start_date).getTime()
@@ -310,6 +338,10 @@ export default function Home() {
         const matchesCategory =
           category === "all" || eventCategories.includes(category);
         const matchesCity = city === "all" || event.city === city;
+        const matchesPrice =
+          priceFilter === "all" ||
+          (priceFilter === "free" && event.price <= 0) ||
+          (priceFilter === "paid" && event.price > 0);
         const searchableContent = normalizeText(
           [
             event.title,
@@ -317,6 +349,8 @@ export default function Home() {
             event.address,
             event.city,
             event.postal_code,
+            formatEventPrice(event.price),
+            event.ticketing_link,
             eventCategories.join(" "),
             event.source ?? "",
           ].join(" "),
@@ -325,6 +359,7 @@ export default function Home() {
         return (
           matchesCategory &&
           matchesCity &&
+          matchesPrice &&
           searchableContent.includes(normalizedSearch)
         );
       }),
@@ -337,6 +372,7 @@ export default function Home() {
     getEventCoordinates,
     mapPeriod.end,
     mapPeriod.start,
+    priceFilter,
     search,
     sortEvents,
   ]);
@@ -394,6 +430,7 @@ export default function Home() {
     search.trim() !== "" ||
     category !== "all" ||
     city !== "all" ||
+    priceFilter !== "all" ||
     sort !== DEFAULT_SORT ||
     mapPeriodMode !== DEFAULT_PERIOD_MODE ||
     mapPeriodValue !== defaultMapPeriodValue;
@@ -420,6 +457,7 @@ export default function Home() {
 
   const renderEventCard = (event: Event) => {
     const eventDistance = getEventDistance(event);
+    const ticketingHref = getTicketingHref(event.ticketing_link);
 
     return (
       <article
@@ -466,6 +504,10 @@ export default function Home() {
               <dt>Ville</dt>
               <dd>{event.city}</dd>
             </div>
+            <div>
+              <dt>Prix</dt>
+              <dd>{formatEventPrice(event.price)}</dd>
+            </div>
             {eventDistance != null && (
               <div>
                 <dt>Distance</dt>
@@ -473,6 +515,18 @@ export default function Home() {
               </div>
             )}
           </dl>
+          {ticketingHref && (
+            <a
+              className="btn btn--secondary event-card__ticketing-link"
+              href={ticketingHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(clickEvent) => clickEvent.stopPropagation()}
+              onKeyDown={(keyboardEvent) => keyboardEvent.stopPropagation()}
+            >
+              Billetterie
+            </a>
+          )}
           <FavoriteButton event={event} />
           <ReportEventButton event={event} />
         </div>
@@ -567,6 +621,20 @@ export default function Home() {
           </label>
 
           <label>
+            Tarif
+            <Select
+              value={priceFilter}
+              onChange={(event) =>
+                setPriceFilter(event.target.value as PriceFilter)
+              }
+            >
+              <option value="all">Tous les tarifs</option>
+              <option value="free">Gratuit</option>
+              <option value="paid">Payant</option>
+            </Select>
+          </label>
+
+          <label>
             Trier par
             <Select
               value={sort}
@@ -579,6 +647,8 @@ export default function Home() {
               <option value="title-asc">Titre A-Z</option>
               <option value="title-desc">Titre Z-A</option>
               <option value="city-asc">Ville A-Z</option>
+              <option value="price-asc">Prix croissant</option>
+              <option value="price-desc">Prix decroissant</option>
             </Select>
           </label>
 
@@ -592,6 +662,7 @@ export default function Home() {
                 setSearch("");
                 setCategory("all");
                 setCity("all");
+                setPriceFilter("all");
                 setSort(DEFAULT_SORT);
               }}
             >

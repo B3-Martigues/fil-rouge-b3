@@ -173,6 +173,23 @@ const createSoftDeletePatch = () => ({
 const createNextId = (items: { id: number }[]) =>
   Math.max(0, ...items.map((item) => item.id)) + 1;
 
+const normalizeEvent = (event: Event): Event => {
+  const legacyEvent = event as Event & {
+    price?: unknown;
+    ticketing_link?: unknown;
+  };
+  const price = Number(legacyEvent.price ?? 0);
+
+  return {
+    ...event,
+    price: Number.isFinite(price) && price >= 0 ? price : 0,
+    ticketing_link:
+      typeof legacyEvent.ticketing_link === "string"
+        ? legacyEvent.ticketing_link
+        : "",
+  };
+};
+
 const createToken = () =>
   `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 
@@ -349,7 +366,7 @@ const useDataStore = create<DataState>()(
       users: usersMock,
       organizations: organizationsMock,
       organizers: organizersMock,
-      events: eventsMock,
+      events: eventsMock.map(normalizeEvent),
       favorites: favoritesMock,
       histories: historiesMock,
       userEventPreferences: userEventPreferencesMock,
@@ -1137,10 +1154,14 @@ const useDataStore = create<DataState>()(
         const persistedOrganizerIds = new Set(
           persistedOrganizers.map((member) => member.id),
         );
+        const events = (persistedData.events ?? currentState.events).map(
+          normalizeEvent,
+        );
 
         return {
           ...currentState,
           ...persistedData,
+          events,
           organizers: [
             ...persistedOrganizers,
             ...organizersMock.filter(

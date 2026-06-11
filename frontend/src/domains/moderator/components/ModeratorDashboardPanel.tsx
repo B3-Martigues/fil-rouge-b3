@@ -14,7 +14,12 @@ import useAuthStore from "../../auth/store/authStore";
 import type { Organization } from "../../organization/types/organization";
 import type { Organizer } from "../../organization/types/organizer";
 import type { Event } from "../../event/types/event";
-import { formatEventDateRange, isEventSuspended } from "../../event/utils/event";
+import {
+  formatEventDateRange,
+  formatEventPrice,
+  getTicketingHref,
+  isEventSuspended,
+} from "../../event/utils/event";
 import {
   createAdministrativeAccountNotification,
   createAdministrativeEventNotification,
@@ -966,6 +971,8 @@ export default function ModeratorDashboard({
             event.city,
             event.postal_code,
             event.address,
+            formatEventPrice(event.price),
+            event.ticketing_link,
             event.suspension_reason ?? "",
             activeOrganizations.find((organization) => organization.id === event.organization_id)
               ?.name ?? "",
@@ -1733,6 +1740,8 @@ function EventModerationCard({
   onApprove: () => void;
   onReject: () => void;
 }) {
+  const ticketingHref = getTicketingHref(event.ticketing_link);
+
   return (
     <article className="organization-review">
       <div className="organization-review__media">
@@ -1761,6 +1770,24 @@ function EventModerationCard({
               {event.address}, {event.city} {event.postal_code}
             </dd>
           </div>
+          <div>
+            <dt>Prix</dt>
+            <dd>{formatEventPrice(event.price)}</dd>
+          </div>
+          {ticketingHref && (
+            <div>
+              <dt>Billetterie</dt>
+              <dd>
+                <a
+                  href={ticketingHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Ouvrir la billetterie
+                </a>
+              </dd>
+            </div>
+          )}
         </dl>
         <div className="admin-actions">
           <Button type="button" onClick={onApprove}>
@@ -1790,6 +1817,8 @@ function PublishedEventModerationCard({
   onSuspend: () => void;
   onDelete: () => void;
 }) {
+  const ticketingHref = getTicketingHref(event.ticketing_link);
+
   return (
     <article className="organization-review">
       <div className="organization-review__media">
@@ -1812,6 +1841,24 @@ function PublishedEventModerationCard({
             <dt>Debut / fin</dt>
             <dd>{formatEventDateRange(event)}</dd>
           </div>
+          <div>
+            <dt>Prix</dt>
+            <dd>{formatEventPrice(event.price)}</dd>
+          </div>
+          {ticketingHref && (
+            <div>
+              <dt>Billetterie</dt>
+              <dd>
+                <a
+                  href={ticketingHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Ouvrir la billetterie
+                </a>
+              </dd>
+            </div>
+          )}
         </dl>
         <div className="moderator-split-actions moderator-split-actions--event">
           <div className="moderator-event-suspension">
@@ -1849,6 +1896,8 @@ function SuspendedEventModerationCard({
   organizationName: string;
   onLift: () => void;
 }) {
+  const ticketingHref = getTicketingHref(event.ticketing_link);
+
   return (
     <article className="organization-review">
       <div className="organization-review__media">
@@ -1875,6 +1924,24 @@ function SuspendedEventModerationCard({
             <dt>Motif</dt>
             <dd>{event.suspension_reason ?? "Motif non renseigne"}</dd>
           </div>
+          <div>
+            <dt>Prix</dt>
+            <dd>{formatEventPrice(event.price)}</dd>
+          </div>
+          {ticketingHref && (
+            <div>
+              <dt>Billetterie</dt>
+              <dd>
+                <a
+                  href={ticketingHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Ouvrir la billetterie
+                </a>
+              </dd>
+            </div>
+          )}
         </dl>
         <div className="admin-actions">
           <Button type="button" onClick={onLift}>

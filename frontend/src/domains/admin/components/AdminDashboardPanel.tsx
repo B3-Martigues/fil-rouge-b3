@@ -49,7 +49,10 @@ import useDataStore, {
   buildAccountSummaries,
 } from "../../../shared/store/dataStore";
 import {
+  formatEventPrice,
   formatEventDateRange,
+  getTicketingHref,
+  isValidOptionalUrl,
   isEventSuspended,
   toDateTimeLocalValue,
 } from "../../event/utils/event";
@@ -69,6 +72,8 @@ type EventDraft = Omit<
   | "longitude"
   | "organization_id"
   | "postal_code"
+  | "price"
+  | "ticketing_link"
   | "created_at"
   | "updated_at"
   | "category_slugs"
@@ -77,6 +82,8 @@ type EventDraft = Omit<
   longitude: string;
   organization_id: string;
   postal_code: string;
+  price: string;
+  ticketing_link: string;
   category_slugs: EventCategory[];
 };
 
@@ -186,6 +193,8 @@ const toEventDraft = (event: Event): EventDraft => ({
   city: event.city,
   postal_code: event.postal_code,
   image: event.image,
+  price: event.price.toString(),
+  ticketing_link: event.ticketing_link,
   source: event.source ?? "",
   organization_id: event.organization_id.toString(),
   is_active: event.is_active,
@@ -203,6 +212,8 @@ const emptyEventDraft = (organizationId?: number): EventDraft => ({
   city: "",
   postal_code: "",
   image: "",
+  price: "0",
+  ticketing_link: "",
   source: "",
   organization_id: organizationId?.toString() ?? "",
   is_active: true,
@@ -562,6 +573,8 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
           event.address,
           event.city,
           event.postal_code,
+          formatEventPrice(event.price),
+          event.ticketing_link,
           event.source ?? "",
           getOrganizationName(event.organization_id),
           eventStatus.label,
@@ -921,6 +934,23 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       return false;
     }
 
+    const price = Number(eventDraft.price.trim());
+
+    if (!eventDraft.price.trim()) {
+      toast.error("Le prix est obligatoire");
+      return false;
+    }
+
+    if (Number.isNaN(price) || price < 0) {
+      toast.error("Le prix doit etre un nombre positif ou egal a 0");
+      return false;
+    }
+
+    if (!isValidOptionalUrl(eventDraft.ticketing_link)) {
+      toast.error("L'URL de billetterie est invalide");
+      return false;
+    }
+
     const now = new Date().toISOString();
     const payload: Omit<Event, "id"> = {
       title: eventDraft.title.trim(),
@@ -934,6 +964,8 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       city: eventDraft.city.trim(),
       postal_code: eventDraft.postal_code.trim(),
       image: eventDraft.image.trim(),
+      price,
+      ticketing_link: eventDraft.ticketing_link.trim(),
       source: eventDraft.source?.trim() || null,
       organization_id: selectedOrganizationId,
       is_active: eventDraft.is_active,
@@ -959,6 +991,8 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         city: payload.city,
         postal_code: payload.postal_code,
         image: payload.image,
+        price: payload.price,
+        ticketing_link: payload.ticketing_link,
         source: payload.source,
         organization_id: payload.organization_id,
         is_active: payload.is_active,
@@ -1286,6 +1320,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                   <span role="columnheader">Titre</span>
                   <span role="columnheader">Categories</span>
                   <span role="columnheader">Ville</span>
+                  <span role="columnheader">Prix</span>
                   <span role="columnheader">Dates</span>
                   <span role="columnheader">Statut</span>
                   <span role="columnheader">Actions</span>
@@ -1293,12 +1328,25 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                 <div role="rowgroup">
                   {filteredEvents.map((event) => {
                     const eventStatus = getEventAdminStatus(event);
+                    const ticketingHref = getTicketingHref(event.ticketing_link);
 
                     return (
                       <div className="admin-table__row" role="row" key={event.id}>
                         <span role="cell">{event.title}</span>
                         <span role="cell">{getEventCategories(event).join(", ")}</span>
                         <span role="cell">{event.city}</span>
+                        <span className="admin-event-price-cell" role="cell">
+                          {formatEventPrice(event.price)}
+                          {ticketingHref && (
+                            <a
+                              href={ticketingHref}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Billetterie
+                            </a>
+                          )}
+                        </span>
                         <span role="cell">{formatEventDateRange(event)}</span>
                         <div className="admin-status-cell" role="cell">
                           <StatusBadge variant={eventStatus.variant}>
@@ -1673,6 +1721,26 @@ function EventEditor({
           id="admin-event-image"
           value={draft.image}
           onChange={(event) => setDraft({ ...draft, image: event.target.value })}
+        />
+      </FormField>
+      <FormField label="Prix" htmlFor="admin-event-price">
+        <Input
+          id="admin-event-price"
+          min="0"
+          step="0.01"
+          type="number"
+          value={draft.price}
+          onChange={(event) => setDraft({ ...draft, price: event.target.value })}
+        />
+      </FormField>
+      <FormField label="Lien de billetterie" htmlFor="admin-event-ticketing-link">
+        <Input
+          id="admin-event-ticketing-link"
+          type="url"
+          value={draft.ticketing_link}
+          onChange={(event) =>
+            setDraft({ ...draft, ticketing_link: event.target.value })
+          }
         />
       </FormField>
       <FormField label="Source" htmlFor="admin-event-source">

@@ -5,6 +5,11 @@ const dateTimeFormatOptions: Intl.DateTimeFormatOptions = {
   timeStyle: "short",
 };
 
+const priceFormatter = new Intl.NumberFormat("fr-FR", {
+  style: "currency",
+  currency: "EUR",
+});
+
 export type EventStatus = "past" | "current" | "upcoming";
 export type EventPeriodMode = "day" | "week" | "month" | "year";
 export type GeoPoint = {
@@ -78,6 +83,24 @@ export function formatDistance(distanceInKilometers: number): string {
   }
 
   return `${distanceInKilometers.toFixed(distanceInKilometers < 10 ? 1 : 0)} km`;
+}
+
+export function formatEventPrice(price: number): string {
+  return price > 0 ? priceFormatter.format(price) : "Gratuit";
+}
+
+export function getTicketingHref(ticketingLink: string): string | null {
+  const value = ticketingLink.trim();
+  if (!value || /\s/.test(value)) return null;
+
+  if (URL.canParse(value)) return value;
+
+  const valueWithProtocol = `https://${value}`;
+  return URL.canParse(valueWithProtocol) ? valueWithProtocol : null;
+}
+
+export function isValidOptionalUrl(value: string): boolean {
+  return value.trim() === "" || getTicketingHref(value) !== null;
 }
 
 export function isEventSuspended(

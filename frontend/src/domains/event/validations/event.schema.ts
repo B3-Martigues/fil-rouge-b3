@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { EVENT_CATEGORIES } from "../types/event-categories";
+import { isValidOptionalUrl } from "../utils/event";
 
 const optionalCoordinateSchema = (min: number, max: number, label: string) =>
   z
@@ -38,6 +39,18 @@ export const eventFormSchema = z
       .trim()
       .min(1, "L'image est requise")
       .refine((value) => URL.canParse(value), "L'URL de l'image est invalide"),
+    price: z
+      .string()
+      .trim()
+      .min(1, "Le prix est requis")
+      .refine((value) => {
+        const numberValue = Number(value);
+        return !Number.isNaN(numberValue) && numberValue >= 0;
+      }, "Le prix doit etre un nombre positif ou egal a 0"),
+    ticketing_link: z
+      .string()
+      .trim()
+      .refine(isValidOptionalUrl, "L'URL de billetterie est invalide"),
     source: z.string().optional(),
   })
   .refine(

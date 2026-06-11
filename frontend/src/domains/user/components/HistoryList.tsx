@@ -1,5 +1,10 @@
 import useAuthStore from "../../auth/store/authStore";
-import { formatDateTime, formatEventDateRange } from "../../event/utils/event";
+import {
+  formatDateTime,
+  formatEventDateRange,
+  formatEventPrice,
+  getTicketingHref,
+} from "../../event/utils/event";
 import useDataStore from "../../../shared/store/dataStore";
 import type { History as HistoryEntry } from "../types/history";
 
@@ -82,7 +87,21 @@ export default function History() {
                       <dt>Ville</dt>
                       <dd>{event.city}</dd>
                     </div>
+                    <div>
+                      <dt>Prix</dt>
+                      <dd>{formatEventPrice(event.price)}</dd>
+                    </div>
                   </dl>
+                  {getTicketingHref(event.ticketing_link) && (
+                    <a
+                      className="btn btn--secondary event-card__ticketing-link"
+                      href={getTicketingHref(event.ticketing_link) ?? undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Billetterie
+                    </a>
+                  )}
                 </div>
               </article>
             ) : null,

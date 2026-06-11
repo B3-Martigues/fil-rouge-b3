@@ -21,8 +21,10 @@ import useDataStore from "../../../shared/store/dataStore";
 import { ROUTES } from "../../../shared/constants/routes";
 import { useOrganizationAccess } from "../hooks/useOrganizationAccess";
 import {
+  formatEventPrice,
   formatDateTime,
   formatEventDateRange,
+  getTicketingHref,
   toDateTimeLocalValue,
 } from "../../event/utils/event";
 import { validateEventForm } from "../utils/organizationWorkflow";
@@ -41,6 +43,8 @@ type EventDraft = Omit<
   | "longitude"
   | "organization_id"
   | "postal_code"
+  | "price"
+  | "ticketing_link"
   | "created_at"
   | "updated_at"
   | "category_slugs"
@@ -48,6 +52,8 @@ type EventDraft = Omit<
   latitude: string;
   longitude: string;
   postal_code: string;
+  price: string;
+  ticketing_link: string;
   category_slugs: EventCategory[];
 };
 
@@ -63,6 +69,8 @@ const toEventDraft = (event: Event): EventDraft => ({
   postal_code: event.postal_code,
   category_slugs: event.category_slugs,
   image: event.image,
+  price: event.price.toString(),
+  ticketing_link: event.ticketing_link,
   source:
     event.source === "organization" || event.source === "Organization"
       ? "Evenement cree par une organization"
@@ -120,6 +128,8 @@ export default function OrganizationEvents() {
         event.address,
         event.city,
         event.postal_code,
+        formatEventPrice(event.price),
+        event.ticketing_link,
         getEventCategories(event).join(" "),
       ]
         .join(" ")
@@ -201,6 +211,8 @@ export default function OrganizationEvents() {
       postal_code: eventDraft.postal_code.trim(),
       category_slugs: eventDraft.category_slugs,
       image: eventDraft.image.trim(),
+      price: Number(eventDraft.price.trim()),
+      ticketing_link: eventDraft.ticketing_link.trim(),
       source: eventDraft.source?.trim() || "Evenement cree par une organisation",
       organization_id: currentUser.organization_id,
       is_active: false,
@@ -326,7 +338,10 @@ export default function OrganizationEvents() {
           <EmptyState message="Aucun evenement ne correspond aux filtres." />
         ) : (
           <div className="organization-review-list">
-            {filteredOrganizationEvents.map((event) => (
+            {filteredOrganizationEvents.map((event) => {
+              const ticketingHref = getTicketingHref(event.ticketing_link);
+
+              return (
               <article className="organization-review" key={event.id}>
                 <div className="organization-review__media">
                   <img src={event.image} alt={`Visuel ${event.title}`} />
@@ -370,6 +385,24 @@ export default function OrganizationEvents() {
                           <dd>{event.postal_code}</dd>
                         </div>
                         <div>
+                          <dt>Prix</dt>
+                          <dd>{formatEventPrice(event.price)}</dd>
+                        </div>
+                        {ticketingHref && (
+                          <div>
+                            <dt>Billetterie</dt>
+                            <dd>
+                              <a
+                                href={ticketingHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                Ouvrir la billetterie
+                              </a>
+                            </dd>
+                          </div>
+                        )}
+                        <div>
                           <dt>Date de creation</dt>
                           <dd>
                             {event.created_at
@@ -408,7 +441,8 @@ export default function OrganizationEvents() {
 
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
         )}
         <FormModalLink className="btn" to={ROUTES.ORGANIZATION.CREATE}>
@@ -550,6 +584,33 @@ function OrganizationEventEditor({
             value={draft.image}
             onChange={(event) =>
               setDraft({ ...draft, image: event.target.value })
+            }
+          />
+        </FormField>
+
+        <FormField label="Prix" htmlFor="organization-event-price">
+          <Input
+            id="organization-event-price"
+            min="0"
+            step="0.01"
+            type="number"
+            value={draft.price}
+            onChange={(event) =>
+              setDraft({ ...draft, price: event.target.value })
+            }
+          />
+        </FormField>
+
+        <FormField
+          label="Lien de billetterie"
+          htmlFor="organization-event-ticketing-link"
+        >
+          <Input
+            id="organization-event-ticketing-link"
+            type="url"
+            value={draft.ticketing_link}
+            onChange={(event) =>
+              setDraft({ ...draft, ticketing_link: event.target.value })
             }
           />
         </FormField>

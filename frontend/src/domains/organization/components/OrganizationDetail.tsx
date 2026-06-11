@@ -18,7 +18,12 @@ import useAuthStore from "../../auth/store/authStore";
 import CategorySelect from "../../event/components/CategorySelect";
 import type { Event } from "../../event/types/event";
 import type { EventCategory } from "../../event/types/event-categories";
-import { formatDateTime, formatEventDateRange } from "../../event/utils/event";
+import {
+  formatDateTime,
+  formatEventDateRange,
+  formatEventPrice,
+  getTicketingHref,
+} from "../../event/utils/event";
 import { OrganizationFields } from "./OrganizationSetupFlow";
 import {
   createNextId,
@@ -238,6 +243,8 @@ export default function OrganizationDetailPage() {
       postal_code: eventForm.postal_code.trim(),
       category_slugs: eventForm.categories,
       image: eventForm.image.trim(),
+      price: Number(eventForm.price.trim()),
+      ticketing_link: eventForm.ticketing_link.trim(),
       source: eventForm.source.trim() || "Evenement cree par une organisation",
       is_active: false,
       suspended_until: null,
@@ -454,6 +461,7 @@ export default function OrganizationDetailPage() {
           <div className="organization-event-list">
             {organizationEvents.map((event) => {
               const status = getManagedEventStatus(event);
+              const ticketingHref = getTicketingHref(event.ticketing_link);
 
               return (
                 <article className="organization-event-card" key={event.id}>
@@ -479,6 +487,24 @@ export default function OrganizationDetailPage() {
                         <dt>Categories</dt>
                         <dd>{event.category_slugs.join(", ")}</dd>
                       </div>
+                      <div>
+                        <dt>Prix</dt>
+                        <dd>{formatEventPrice(event.price)}</dd>
+                      </div>
+                      {ticketingHref && (
+                        <div>
+                          <dt>Billetterie</dt>
+                          <dd>
+                            <a
+                              href={ticketingHref}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Ouvrir la billetterie
+                            </a>
+                          </dd>
+                        </div>
+                      )}
                     </dl>
                     <ActionRow className="admin-actions">
                       <Button
@@ -650,6 +676,34 @@ function EventEditor({
             type="url"
             value={form.image}
             onChange={(event) => onFieldChange("image", event.target.value)}
+          />
+        </FormField>
+
+        <FormField label="Prix" htmlFor="event-price" error={errors.price}>
+          <Input
+            id="event-price"
+            hasError={!!errors.price}
+            min="0"
+            step="0.01"
+            type="number"
+            value={form.price}
+            onChange={(event) => onFieldChange("price", event.target.value)}
+          />
+        </FormField>
+
+        <FormField
+          label="Lien de billetterie"
+          htmlFor="event-ticketing-link"
+          error={errors.ticketing_link}
+        >
+          <Input
+            id="event-ticketing-link"
+            hasError={!!errors.ticketing_link}
+            type="url"
+            value={form.ticketing_link}
+            onChange={(event) =>
+              onFieldChange("ticketing_link", event.target.value)
+            }
           />
         </FormField>
 

@@ -81,6 +81,8 @@ export default function OrganizationDashboard() {
       postal_code: form.postal_code.trim(),
       category_slugs: form.categories,
       image: form.image.trim(),
+      price: Number(form.price.trim()),
+      ticketing_link: form.ticketing_link.trim(),
       source: "Evenement cree par une organisation",
       is_active: false,
       created_at: now,
@@ -322,6 +324,38 @@ export default function OrganizationDashboard() {
                 )}
               </div>
             </div>
+
+            <FormField label="Prix" htmlFor="event-price" error={errors.price}>
+              <Input
+                id="event-price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.price}
+                hasError={!!errors.price}
+                aria-describedby={errors.price ? "event-price-error" : undefined}
+                onChange={(event) => updateField("price", event.target.value)}
+              />
+            </FormField>
+
+            <FormField
+              label="Lien de billetterie"
+              htmlFor="event-ticketing-link"
+              error={errors.ticketing_link}
+            >
+              <Input
+                id="event-ticketing-link"
+                type="url"
+                value={form.ticketing_link}
+                hasError={!!errors.ticketing_link}
+                aria-describedby={
+                  errors.ticketing_link ? "event-ticketing-link-error" : undefined
+                }
+                onChange={(event) =>
+                  updateField("ticketing_link", event.target.value)
+                }
+              />
+            </FormField>
           </div>
 
           {serverError && <ErrorMessage message={serverError} />}
