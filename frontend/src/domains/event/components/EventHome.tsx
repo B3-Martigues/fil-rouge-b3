@@ -1,9 +1,34 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type TouchEvent,
+} from "react";
+import { Link } from "react-router-dom";
+import {
+  ArrowLeft,
+  CalendarDays,
+  ChevronDown,
+  MapPin,
+  Navigation,
+  Search,
+  SlidersHorizontal,
+  Ticket,
+  UserRound,
+  X,
+} from "lucide-react";
 
 import EmptyState from "../../../shared/components/feedback/EmptyState";
+import FormModal from "../../../shared/components/forms/FormModal";
+import HeaderWeather from "../../../shared/components/layout/HeaderWeather";
 import Button from "../../../shared/components/ui/Button";
 import Input from "../../../shared/components/ui/Input";
 import Select from "../../../shared/components/ui/Select";
+import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
 import {
@@ -15,6 +40,7 @@ import {
 import EventMap from "../components/EventMap";
 import FavoriteButton from "../components/FavoriteButton";
 import ReportEventButton from "../components/ReportEventButton";
+import WeatherBadge from "../components/WeatherBadge";
 import useUserLocation from "../hooks/useUserLocation";
 
 import {
@@ -51,6 +77,7 @@ type MapEventSelection = {
   eventId: number;
   requestId: number;
 };
+type MobileSheetState = "preview" | "expanded";
 
 const DEFAULT_PERIOD_MODE: EventPeriodMode = "month";
 const DEFAULT_SORT: SortValue = "date-asc";
@@ -74,6 +101,11 @@ const getPreferenceMatchCount = (
     preferredCategorySet.has(eventCategory),
   ).length;
 
+const getEventsGridClassName = (eventsToDisplay: Event[]) =>
+  `events-list__grid${
+    eventsToDisplay.length === 1 ? " events-list__grid--single" : ""
+  }`;
+
 const statusSections: {
   status: ReturnType<typeof getEventStatus>;
   title: string;
@@ -82,11 +114,11 @@ const statusSections: {
   {
     status: "current",
     title: "Événements en cours",
-    empty: "Aucun evenement en cours ne correspond a votre recherche.",
+    empty: "Aucun evenement en cours.",
   },
   {
     status: "upcoming",
-    title: "Événements prochains",
+    title: "Les prochains événements",
     empty: "Aucun evenement prochain ne correspond a votre recherche.",
   },
   {
@@ -108,21 +140,43 @@ export default function Home() {
   const recordHistory = useDataStore((s) => s.recordHistory);
   const { position: userPosition } = useUserLocation();
   const [search, setSearch] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [mobileSheetState, setMobileSheetState] =
+    useState<MobileSheetState>("preview");
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const [category, setCategory] = useState<EventCategory | "all">("all");
   const [city, setCity] = useState("all");
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
   const [sort, setSort] = useState<SortValue>(DEFAULT_SORT);
   const [personalizedEventsView, setPersonalizedEventsView] =
     useState<PersonalizedEventsView>("recommended");
+  const [showPastEvents, setShowPastEvents] = useState(false);
   const [mapEventSelection, setMapEventSelection] =
     useState<MapEventSelection | null>(null);
   const mapSectionRef = useRef<HTMLElement | null>(null);
+  const mobileSheetTouchStartY = useRef<number | null>(null);
   const [mapPeriodMode, setMapPeriodMode] =
     useState<EventPeriodMode>(DEFAULT_PERIOD_MODE);
   const [defaultMapPeriodValue] = useState(() =>
     getDefaultPeriodValue(DEFAULT_PERIOD_MODE),
   );
   const [mapPeriodValue, setMapPeriodValue] = useState(defaultMapPeriodValue);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 760px)");
+    const updateMobileState = () => setIsMobile(mediaQuery.matches);
+
+    updateMobileState();
+    mediaQuery.addEventListener("change", updateMobileState);
+    document.body.classList.add("events-home-route");
+
+    return () => {
+      mediaQuery.removeEventListener("change", updateMobileState);
+      document.body.classList.remove("events-home-route");
+    };
+  }, []);
   const activeOrganizationsById = useMemo(
     () =>
       new Map(
@@ -312,8 +366,9 @@ export default function Home() {
   );
   const shouldUsePreferredEvents =
     isUserAccount && preferredCategorySet.size > 0;
+  const shouldShowPersonalizedEvents = shouldUsePreferredEvents && !isMobile;
   const showRecommendedEvents =
-    shouldUsePreferredEvents && personalizedEventsView === "recommended";
+    shouldShowPersonalizedEvents && personalizedEventsView === "recommended";
   const mapPeriod = useMemo(
     () => getPeriodRange(mapPeriodMode, mapPeriodValue),
     [mapPeriodMode, mapPeriodValue],
@@ -386,6 +441,8 @@ export default function Home() {
         ),
     [filteredEvents, preferredCategorySet],
   );
+  const shouldShowMobileRecommendedEvents =
+    shouldUsePreferredEvents && isMobile && recommendedEvents.length > 0;
 
   const displayedEvents = useMemo(
     () => {
@@ -409,6 +466,38 @@ export default function Home() {
         : null,
     [mapEvents, mapEventSelection],
   );
+  const selectedEvent = useMemo(
+    () =>
+      selectedEventId == null
+        ? null
+        : displayedEvents.find((event) => event.id === selectedEventId) ?? null,
+    [displayedEvents, selectedEventId],
+  );
+  const selectedEventCoordinates = selectedEvent
+    ? getEventCoordinates(selectedEvent)
+    : null;
+  const selectedEventOrganization = selectedEvent
+    ? activeOrganizationsById.get(selectedEvent.organization_id)
+    : null;
+  const selectedEventDistance = selectedEvent
+    ? getEventDistance(selectedEvent)
+    : null;
+  const selectedEventTicketingHref = selectedEvent
+    ? getTicketingHref(selectedEvent.ticketing_link)
+    : null;
+  const selectedEventGoogleMapsHref = selectedEventCoordinates
+    ? `https://www.google.com/maps/search/?api=1&query=${selectedEventCoordinates.latitude},${selectedEventCoordinates.longitude}`
+    : null;
+  const mobileSheetMode = selectedEvent ? "detail" : mobileSheetState;
+  const profileHref = !currentUser
+    ? ROUTES.PUBLIC.LOGIN
+    : currentUser.role === "user"
+      ? ROUTES.USER.PROFILE
+      : currentUser.role === "organization"
+        ? ROUTES.ORGANIZATION.PROFILE
+        : currentUser.role === "admin"
+          ? ROUTES.ADMIN.DASHBOARD
+          : ROUTES.MODERATOR.DASHBOARD;
 
   const groupedEvents = useMemo(
     () =>
@@ -434,13 +523,82 @@ export default function Home() {
     sort !== DEFAULT_SORT ||
     mapPeriodMode !== DEFAULT_PERIOD_MODE ||
     mapPeriodValue !== defaultMapPeriodValue;
+  const shouldShowMobileFilterButton =
+    isSearchFocused || search.trim().length > 0 || hasFilters;
 
   const handleMapPeriodModeChange = (mode: EventPeriodMode) => {
     setMapPeriodMode(mode);
     setMapPeriodValue(getDefaultPeriodValue(mode));
   };
 
+  const resetFilters = () => {
+    setMapPeriodMode(DEFAULT_PERIOD_MODE);
+    setMapPeriodValue(defaultMapPeriodValue);
+    setSearch("");
+    setCategory("all");
+    setCity("all");
+    setPriceFilter("all");
+    setSort(DEFAULT_SORT);
+    setSelectedEventId(null);
+    setMobileSheetState("preview");
+    setShowPastEvents(false);
+  };
+
+  const selectMobileEvent = (eventId: number, shouldRecordHistory = true) => {
+    if (shouldRecordHistory && currentUser?.role === "user" && currentUser.user_id) {
+      recordHistory(currentUser.user_id, eventId);
+    }
+
+    setSelectedEventId(eventId);
+    setMobileSheetState("expanded");
+    setMapEventSelection((currentSelection) => ({
+      eventId,
+      requestId: (currentSelection?.requestId ?? 0) + 1,
+    }));
+  };
+
+  const handleMobileSearchSubmit = (submitEvent: FormEvent<HTMLFormElement>) => {
+    submitEvent.preventDefault();
+    setSelectedEventId(null);
+    setMobileSheetState("expanded");
+  };
+
+  const openFilterModal = useCallback(() => {
+    setIsFilterModalOpen(true);
+  }, []);
+
+  const closeFilterModal = useCallback(() => {
+    setIsFilterModalOpen(false);
+  }, []);
+
+  const handleMobileSheetTouchStart = (touchEvent: TouchEvent<HTMLElement>) => {
+    mobileSheetTouchStartY.current = touchEvent.touches[0]?.clientY ?? null;
+  };
+
+  const handleMobileSheetTouchEnd = (touchEvent: TouchEvent<HTMLElement>) => {
+    const startY = mobileSheetTouchStartY.current;
+    const endY = touchEvent.changedTouches[0]?.clientY ?? null;
+
+    mobileSheetTouchStartY.current = null;
+    if (startY == null || endY == null) return;
+
+    const deltaY = endY - startY;
+    if (deltaY < -36) {
+      setMobileSheetState("expanded");
+      return;
+    }
+
+    if (deltaY > 36 && !selectedEvent) {
+      setMobileSheetState("preview");
+    }
+  };
+
   const handleEventCardActivation = (eventId: number) => {
+    if (isMobile) {
+      selectMobileEvent(eventId);
+      return;
+    }
+
     if (currentUser?.role === "user" && currentUser.user_id) {
       recordHistory(currentUser.user_id, eventId);
     }
@@ -497,23 +655,17 @@ export default function Home() {
 
           <dl className="event-card__details">
             <div>
-              <dt>Adresse</dt>
-              <dd>{event.address}</dd>
-            </div>
-            <div>
-              <dt>Ville</dt>
-              <dd>{event.city}</dd>
+              <dt>Distance</dt>
+              <dd>
+                {eventDistance != null
+                  ? formatDistance(eventDistance)
+                  : "Distance indisponible"}
+              </dd>
             </div>
             <div>
               <dt>Prix</dt>
               <dd>{formatEventPrice(event.price)}</dd>
             </div>
-            {eventDistance != null && (
-              <div>
-                <dt>Distance</dt>
-                <dd>{formatDistance(eventDistance)}</dd>
-              </div>
-            )}
           </dl>
           {ticketingHref && (
             <a
@@ -537,6 +689,79 @@ export default function Home() {
   return (
     <div className="events-home">
       <section className="events-home__header" ref={mapSectionRef}>
+        <div
+          className={`events-mobile-topbar${
+            shouldShowMobileFilterButton ? " events-mobile-topbar--has-filter" : ""
+          }`}
+          aria-label="Actions carte mobile"
+        >
+          <Link
+            className="events-mobile-topbar__profile"
+            to={profileHref}
+            aria-label={currentUser ? "Ouvrir le profil" : "Connexion"}
+          >
+            <UserRound size={20} aria-hidden="true" />
+          </Link>
+
+          <form
+            className="events-mobile-search"
+            role="search"
+            onSubmit={handleMobileSearchSubmit}
+          >
+            <Search size={16} aria-hidden="true" />
+            <Input
+              type="search"
+              value={search}
+              placeholder="Rechercher un evenement..."
+              aria-label="Rechercher un evenement"
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+            {search && (
+              <Button
+                aria-label="Effacer la recherche"
+                className="events-mobile-search__clear"
+                icon={<X size={16} aria-hidden="true" />}
+                iconOnly
+                size="icon"
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setSearch("");
+                  setSelectedEventId(null);
+                }}
+              >
+                Effacer
+              </Button>
+            )}
+          </form>
+
+          {shouldShowMobileFilterButton ? (
+            <Button
+              aria-label="Filtres et tri"
+              className="events-mobile-topbar__filter"
+              icon={<SlidersHorizontal size={19} aria-hidden="true" />}
+              iconOnly
+              size="icon"
+              type="button"
+              variant="secondary"
+              onClick={openFilterModal}
+              onPointerDown={(event) => {
+                event.preventDefault();
+              }}
+              onPointerUp={(event) => {
+                event.preventDefault();
+                openFilterModal();
+              }}
+            >
+              Filtres
+            </Button>
+          ) : (
+              <HeaderWeather />
+          )}
+        </div>
+
         <h1>Mappening</h1>
         <p>Explorez les événements disponibles autour de vous.</p>
 
@@ -656,15 +881,7 @@ export default function Home() {
             <Button
               variant="secondary"
               type="button"
-              onClick={() => {
-                setMapPeriodMode(DEFAULT_PERIOD_MODE);
-                setMapPeriodValue(defaultMapPeriodValue);
-                setSearch("");
-                setCategory("all");
-                setCity("all");
-                setPriceFilter("all");
-                setSort(DEFAULT_SORT);
-              }}
+              onClick={resetFilters}
             >
               Reinitialiser
             </Button>
@@ -676,16 +893,141 @@ export default function Home() {
           selectedEventId={activeMapEventSelection?.eventId ?? null}
           selectedEventRequestId={activeMapEventSelection?.requestId ?? 0}
           userPosition={userPosition}
+          showPopups={!isMobile}
+          onEventSelect={
+            isMobile ? (eventId) => selectMobileEvent(eventId, false) : undefined
+          }
         />
       </section>
 
-      <section className="events-list" aria-labelledby="events-list-title">
-        <h2 id="events-list-title">Événements</h2>
+      <section
+        className={`events-list events-list--${mobileSheetMode}`}
+        aria-labelledby="events-list-title"
+        onTouchStart={handleMobileSheetTouchStart}
+        onTouchEnd={handleMobileSheetTouchEnd}
+      >
+        <button
+          className="events-list__sheet-handle"
+          type="button"
+          aria-label={
+            mobileSheetMode === "preview"
+              ? "Afficher les evenements"
+              : "Reduire la liste des evenements"
+          }
+          onClick={() => {
+            if (selectedEvent) return;
+            setMobileSheetState((state) =>
+              state === "preview" ? "expanded" : "preview",
+            );
+          }}
+        />
+        {selectedEvent ? (
+          <div className="event-mobile-detail" aria-label={selectedEvent.title}>
+            <div className="event-mobile-detail__actions">
+              <Button
+                aria-label="Retour a la liste des evenements"
+                className="event-mobile-detail__back"
+                icon={<ArrowLeft size={18} aria-hidden="true" />}
+                iconOnly
+                size="icon"
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setSelectedEventId(null);
+                  setMobileSheetState("expanded");
+                }}
+              >
+                Retour
+              </Button>
+              <div className="event-mobile-detail__quick-actions">
+                <ReportEventButton event={selectedEvent} />
+                <FavoriteButton event={selectedEvent} />
+              </div>
+            </div>
 
-        <p className="events-list__count">
-          {displayedEvents.length} evenement
-          {displayedEvents.length > 1 ? "s" : ""}
-        </p>
+            <div className="event-mobile-detail__heading">
+              <p>{selectedEventOrganization?.name ?? "Organisateur"}</p>
+              <h2>{selectedEvent.title}</h2>
+            </div>
+
+            <img
+              className="event-mobile-detail__image"
+              src={selectedEvent.image}
+              alt=""
+            />
+
+            <div className="event-mobile-detail__info-grid">
+              <span>
+                <MapPin size={17} aria-hidden="true" />
+                {selectedEvent.address}, {selectedEvent.postal_code}{" "}
+                {selectedEvent.city}
+              </span>
+              <span>
+                <CalendarDays size={17} aria-hidden="true" />
+                {formatEventDateRange(selectedEvent)}
+              </span>
+
+              {selectedEventDistance != null && (
+                <span>
+                  <Navigation size={17} aria-hidden="true" />
+                  {formatDistance(selectedEventDistance)}
+                </span>
+              )}
+              <span>
+                <Ticket size={17} aria-hidden="true" />
+                {formatEventPrice(selectedEvent.price)}
+              </span>
+            </div>
+
+            <div className="event-mobile-detail__categories">
+              {getEventCategories(selectedEvent).map((eventCategory) => (
+                <span key={eventCategory}>{eventCategory}</span>
+              ))}
+            </div>
+
+            <p className="event-mobile-detail__description">
+              {selectedEvent.description}
+            </p>
+
+            {selectedEvent.source && (
+              <p className="event-mobile-detail__source">
+                Source: {selectedEvent.source}
+              </p>
+            )}
+
+            {selectedEventTicketingHref && (
+              <a
+                className="btn btn--secondary event-mobile-detail__link"
+                href={selectedEventTicketingHref}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Lien billetterie
+              </a>
+            )}
+
+            {selectedEventCoordinates && (
+              <>
+                <WeatherBadge
+                  latitude={selectedEventCoordinates.latitude}
+                  longitude={selectedEventCoordinates.longitude}
+                  startDate={selectedEvent.start_date}
+                />
+                {selectedEventGoogleMapsHref && (
+                  <a
+                    className="btn btn--primary event-mobile-detail__maps"
+                    href={selectedEventGoogleMapsHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Ouvrir dans Google Maps
+                  </a>
+                )}
+              </>
+            )}
+          </div>
+        ) : (
+          <>
 
         {showRecommendedEvents ? (
           <section
@@ -694,7 +1036,7 @@ export default function Home() {
           >
             <div className="events-status-section__header">
               <div className="events-status-section__title-actions">
-                <h3 id="events-recommended-title">Evenements recommandes</h3>
+                <h3 id="events-recommended-title">Mes recommandations</h3>
                 <Button
                   variant="secondary"
                   type="button"
@@ -711,14 +1053,14 @@ export default function Home() {
             {displayedEvents.length === 0 ? (
               <EmptyState message="Aucun evenement ne correspond a vos preferences." />
             ) : (
-              <div className="events-list__grid">
+              <div className={getEventsGridClassName(displayedEvents)}>
                 {displayedEvents.map(renderEventCard)}
               </div>
             )}
           </section>
         ) : (
           <>
-            {shouldUsePreferredEvents && (
+            {shouldShowPersonalizedEvents && (
               <section
                 className="events-status-section"
                 aria-labelledby="events-all-title"
@@ -741,14 +1083,40 @@ export default function Home() {
               </section>
             )}
 
-            {statusSections.map((section) => {
+            {statusSections
+              .filter((section) => section.status !== "past")
+              .map((section) => {
               const sectionEvents = groupedEvents[section.status];
+              const shouldRenderMobileRecommendations =
+                section.status === "upcoming" && shouldShowMobileRecommendedEvents;
+
+              if (section.status === "current" && sectionEvents.length === 0) {
+                return null;
+              }
 
               return (
+                <Fragment key={section.status}>
+                  {shouldRenderMobileRecommendations && (
+                    <section
+                      className="events-status-section"
+                      aria-labelledby="events-mobile-recommended-title"
+                    >
+                      <div className="events-status-section__header">
+                        <h3 id="events-mobile-recommended-title">
+                          Mes recommandations
+                        </h3>
+                        <span>{recommendedEvents.length}</span>
+                      </div>
+
+                      <div className={getEventsGridClassName(recommendedEvents)}>
+                        {recommendedEvents.map(renderEventCard)}
+                      </div>
+                    </section>
+                  )}
+
                 <section
                   className="events-status-section"
                   aria-labelledby={`events-${section.status}-title`}
-                  key={section.status}
                 >
                   <div className="events-status-section__header">
                     <h3 id={`events-${section.status}-title`}>
@@ -760,16 +1128,209 @@ export default function Home() {
                   {sectionEvents.length === 0 ? (
                     <EmptyState message={section.empty} />
                   ) : (
-                    <div className="events-list__grid">
+                    <div className={getEventsGridClassName(sectionEvents)}>
                       {sectionEvents.map(renderEventCard)}
                     </div>
                   )}
                 </section>
+                </Fragment>
               );
             })}
+
+            <section
+              className={`events-status-section events-status-section--collapsible${
+                showPastEvents ? " is-open" : ""
+              }`}
+              aria-labelledby="events-past-title"
+            >
+              <div className="events-status-section__header">
+                <h3 id="events-past-title">
+                  <button
+                    aria-controls="events-past-panel"
+                    aria-expanded={showPastEvents}
+                    className="events-status-section__toggle"
+                    type="button"
+                    onClick={() => setShowPastEvents((value) => !value)}
+                  >
+                    <span>Voir les evenements passes</span>
+                      <ChevronDown
+                        size={18}
+                        aria-hidden="true"
+                        className="events-status-section__toggle-icon"
+                      />
+                  </button>
+                </h3>
+              </div>
+
+              <div
+                className="events-status-section__collapsible"
+                id="events-past-panel"
+                aria-hidden={!showPastEvents}
+                inert={!showPastEvents ? true : undefined}
+              >
+                <div className="events-status-section__collapsible-inner">
+                  {groupedEvents.past.length === 0 ? (
+                    <EmptyState message="Aucun evenement passe ne correspond a votre recherche." />
+                  ) : (
+                    <div className={getEventsGridClassName(groupedEvents.past)}>
+                      {groupedEvents.past.map(renderEventCard)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+          </>
+        )}
           </>
         )}
       </section>
+
+      <FormModal
+        ariaLabel="Filtres et tri des evenements"
+        open={isFilterModalOpen}
+        size="lg"
+        onClose={closeFilterModal}
+      >
+        <form
+          className="events-filter-modal"
+          onSubmit={(submitEvent) => {
+            submitEvent.preventDefault();
+            closeFilterModal();
+            setSelectedEventId(null);
+            setMobileSheetState("expanded");
+          }}
+        >
+          <div className="events-filter-modal__header">
+            <h2>Filtres et tri</h2>
+          </div>
+
+          <section
+            className="events-filter-modal__section"
+            aria-labelledby="filter-period-title"
+          >
+            <h3 id="filter-period-title">Periode</h3>
+            <div className="events-filter-modal__field-grid">
+              <label className="events-filter-modal__field">
+                <span>Afficher</span>
+                <Select
+                  value={mapPeriodMode}
+                  onChange={(event) =>
+                    handleMapPeriodModeChange(event.target.value as EventPeriodMode)
+                  }
+                >
+                  <option value="day">Journee</option>
+                  <option value="week">Semaine</option>
+                  <option value="month">Mois</option>
+                  <option value="year">Annee</option>
+                </Select>
+              </label>
+
+              <label className="events-filter-modal__field">
+                <span>Selection</span>
+                <Input
+                  type={
+                    mapPeriodMode === "day"
+                      ? "date"
+                      : mapPeriodMode === "week"
+                        ? "week"
+                        : mapPeriodMode === "month"
+                          ? "month"
+                          : "number"
+                  }
+                  min={mapPeriodMode === "year" ? "1900" : undefined}
+                  max={mapPeriodMode === "year" ? "2100" : undefined}
+                  value={mapPeriodValue}
+                  onChange={(event) => setMapPeriodValue(event.target.value)}
+                />
+              </label>
+            </div>
+          </section>
+
+          <section
+            className="events-filter-modal__section"
+            aria-labelledby="filter-refine-title"
+          >
+            <h3 id="filter-refine-title">Filtres</h3>
+            <div className="events-filter-modal__field-grid">
+              <label className="events-filter-modal__field">
+                <span>Categorie</span>
+                <Select
+                  value={category}
+                  onChange={(event) =>
+                    setCategory(event.target.value as EventCategory | "all")
+                  }
+                >
+                  <option value="all">Toutes les categories</option>
+                  {EVENT_CATEGORIES.map((eventCategory) => (
+                    <option key={eventCategory} value={eventCategory}>
+                      {eventCategory}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+
+              <label className="events-filter-modal__field">
+                <span>Ville</span>
+                <Select value={city} onChange={(event) => setCity(event.target.value)}>
+                  <option value="all">Toutes les villes</option>
+                  {availableCities.map((eventCity) => (
+                    <option key={eventCity} value={eventCity}>
+                      {eventCity}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+
+              <label className="events-filter-modal__field">
+                <span>Tarif</span>
+                <Select
+                  value={priceFilter}
+                  onChange={(event) =>
+                    setPriceFilter(event.target.value as PriceFilter)
+                  }
+                >
+                  <option value="all">Tous les tarifs</option>
+                  <option value="free">Gratuit</option>
+                  <option value="paid">Payant</option>
+                </Select>
+              </label>
+            </div>
+          </section>
+
+          <section
+            className="events-filter-modal__section"
+            aria-labelledby="filter-sort-title"
+          >
+            <h3 id="filter-sort-title">Tri</h3>
+            <label className="events-filter-modal__field">
+              <span>Trier par</span>
+              <Select
+                value={sort}
+                onChange={(event) => setSort(event.target.value as SortValue)}
+              >
+                <option value="date-asc">Date la plus proche</option>
+                <option value="date-desc">Date la plus eloignee</option>
+                <option value="distance-asc">Proximite</option>
+                <option value="popularity-desc">Popularite</option>
+                <option value="title-asc">Titre A-Z</option>
+                <option value="title-desc">Titre Z-A</option>
+                <option value="city-asc">Ville A-Z</option>
+                <option value="price-asc">Prix croissant</option>
+                <option value="price-desc">Prix decroissant</option>
+              </Select>
+            </label>
+          </section>
+
+          <div className="events-filter-modal__actions">
+            {hasFilters && (
+              <Button type="button" variant="secondary" onClick={resetFilters}>
+                Reinitialiser
+              </Button>
+            )}
+            <Button type="submit">Afficher les resultats</Button>
+          </div>
+        </form>
+      </FormModal>
     </div>
   );
 }

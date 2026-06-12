@@ -10,9 +10,16 @@ import useDataStore from "../../../shared/store/dataStore";
 type Props = {
   event: Event & { latitude: number; longitude: number };
   shouldOpenPopup?: boolean;
+  showPopup?: boolean;
+  onSelect?: (eventId: number) => void;
 };
 
-export default function EventMarker({ event, shouldOpenPopup = false }: Props) {
+export default function EventMarker({
+  event,
+  shouldOpenPopup = false,
+  showPopup = true,
+  onSelect,
+}: Props) {
   const markerRef = useRef<LeafletMarker | null>(null);
   const currentUser = useAuthStore((s) => s.currentUser);
   const recordHistory = useDataStore((s) => s.recordHistory);
@@ -38,6 +45,8 @@ export default function EventMarker({ event, shouldOpenPopup = false }: Props) {
     if (currentUser?.role === "user" && currentUser.user_id) {
       recordHistory(currentUser.user_id, event.id);
     }
+
+    onSelect?.(event.id);
   };
 
   return (
@@ -47,7 +56,7 @@ export default function EventMarker({ event, shouldOpenPopup = false }: Props) {
       position={[event.latitude, event.longitude]}
       eventHandlers={{ click: handleMarkerClick }}
     >
-      <EventPopup event={event} />
+      {showPopup && <EventPopup event={event} />}
     </Marker>
   );
 }

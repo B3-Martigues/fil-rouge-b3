@@ -74,10 +74,12 @@ export default function LoginForm() {
   };
 
   return (
-    <div>
-      <h1>Connexion</h1>
-
-      <form onSubmit={handleSubmit(onSubmit)} noValidate>
+    <form
+      className="auth-login-form"
+      onSubmit={handleSubmit(onSubmit)}
+      noValidate
+    >
+      <div className="auth-login-form__fields">
         <FormField
           label="Email"
           htmlFor="email"
@@ -109,23 +111,20 @@ export default function LoginForm() {
             {...register("password")}
           />
         </FormField>
+      </div>
 
-        {serverError && <ErrorMessage message={serverError} />}
+      {serverError && <ErrorMessage message={serverError} />}
 
-        <Button type="submit" loading={loading}>
-          Se connecter
-        </Button>
+      <Button type="submit" loading={loading} fullWidth>
+        Se connecter
+      </Button>
 
-        <br />
-
-        <Link to={ROUTES.PUBLIC.REGISTER}>
-          <strong>Pas encore inscrit ?</strong>
-        </Link>
-        <br />
+      <div className="auth-login-form__links">
+        <Link to={ROUTES.PUBLIC.REGISTER}>Creer un compte</Link>
         <FormModalLink to={ROUTES.PUBLIC.FORGOT_PASSWORD}>
-          <strong>Mot de passe oublie ?</strong>
+          Mot de passe oublie ?
         </FormModalLink>
-      </form>
-    </div>
+      </div>
+    </form>
   );
 }

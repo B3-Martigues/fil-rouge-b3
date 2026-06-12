@@ -75,6 +75,17 @@
   }
 }
 
+.public-layout {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 100svh;
+
+  > main {
+    flex: 1 1 auto;
+  }
+}
+
 .card {
   @include surface;
 
@@ -204,7 +215,7 @@
 
   &.is-active {
     border-color: var(--accent-border);
-    color: var(--color-inverse);
+    color: var(--on-primary);
     background: var(--accent);
   }
 
@@ -254,7 +265,7 @@
 
   &.is-active {
     border-color: var(--accent-border);
-    color: var(--color-inverse);
+    color: var(--on-primary);
     background: var(--accent);
   }
 
@@ -278,11 +289,11 @@
   }
 
   &.is-active &__value {
-    color: var(--color-inverse);
+    color: var(--on-primary);
   }
 
   &.is-active &__detail {
-    color: var(--color-inverse);
+    color: var(--on-primary);
   }
 }
 

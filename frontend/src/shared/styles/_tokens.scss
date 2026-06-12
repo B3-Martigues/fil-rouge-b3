@@ -1,3 +1,20 @@
+@font-face {
+  font-family: "Cal Sans";
+  src: url("../../assets/fonts/CalSans-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Google Sans Flex";
+  src: url("../../assets/fonts/GoogleSansFlex-VariableFont_GRAD,ROND,opsz,slnt,wdth,wght.ttf")
+    format("truetype");
+  font-weight: 100 1000;
+  font-style: normal;
+  font-display: swap;
+}
+
 $bp-sm: 760px;
 $bp-md: 900px;
 $bp-lg: 1024px;
@@ -8,36 +25,58 @@ $radius-pill: 999px;
 
 @mixin dark-theme {
   color-scheme: dark;
-  --color-text: #9ca3af;
-  --color-text-muted: #9ca3af;
-  --color-heading: #f3f4f6;
-  --color-surface: #16171d;
-  --color-surface-muted: rgba(47, 48, 58, 0.5);
-  --color-border: #2e303a;
-  --color-code-bg: #1f2028;
-  --color-accent: #c084fc;
-  --color-accent-bg: rgba(192, 132, 252, 0.15);
-  --color-accent-border: rgba(192, 132, 252, 0.5);
+  --color-text: #ffffff;
+  --color-text-muted: rgba(255, 255, 255, 0.78);
+  --color-heading: #ffffff;
+  --color-surface: #121412;
+  --color-surface-muted: rgba(255, 255, 255, 0.08);
+  --color-border: rgba(255, 255, 255, 0.18);
+  --color-code-bg: rgba(255, 255, 255, 0.1);
+  --color-primary: #6ed083;
+  --color-secondary: #4f886c;
+  --color-on-primary: #404040;
+  --color-accent: var(--color-primary);
+  --color-accent-bg: rgba(110, 208, 131, 0.18);
+  --color-accent-border: rgba(110, 208, 131, 0.56);
+  --color-mobile-map-bg: var(--color-surface);
+  --color-mobile-floating-surface: var(--color-surface);
+  --color-mobile-sheet-surface: var(--color-surface);
+  --color-mobile-handle: var(--color-border);
+  --color-weather-surface: rgba(138, 91, 0, 0.28);
+  --color-weather-text: #fde68a;
+  --color-weather-icon: #facc15;
   --color-success-bg: rgba(20, 108, 67, 0.22);
   --color-warning-bg: rgba(138, 91, 0, 0.2);
   --color-info-bg: rgba(21, 94, 117, 0.28);
   --color-favorite-bg: rgba(220, 38, 38, 0.2);
+  --color-floating-shadow: rgba(0, 0, 0, 0.35);
+  --color-sheet-shadow: rgba(0, 0, 0, 0.45);
   --shadow-default:
     rgba(0, 0, 0, 0.4) 0 10px 15px -3px,
     rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
 }
 
 :root {
-  --color-text: #6b6375;
-  --color-text-muted: #6b6375;
-  --color-heading: #08060d;
-  --color-surface: #fff;
-  --color-surface-muted: rgba(244, 243, 236, 0.5);
-  --color-border: #e5e4e7;
-  --color-code-bg: #f4f3ec;
-  --color-accent: #aa3bff;
-  --color-accent-bg: rgba(170, 59, 255, 0.1);
-  --color-accent-border: rgba(170, 59, 255, 0.5);
+  --color-text: #404040;
+  --color-text-muted: rgba(64, 64, 64, 0.76);
+  --color-heading: #404040;
+  --color-surface: #ffffff;
+  --color-surface-muted: rgba(110, 208, 131, 0.1);
+  --color-border: rgba(64, 64, 64, 0.16);
+  --color-code-bg: rgba(110, 208, 131, 0.12);
+  --color-primary: #6ed083;
+  --color-secondary: #4f886c;
+  --color-on-primary: #404040;
+  --color-accent: var(--color-primary);
+  --color-accent-bg: rgba(110, 208, 131, 0.16);
+  --color-accent-border: rgba(110, 208, 131, 0.58);
+  --color-mobile-map-bg: var(--color-surface);
+  --color-mobile-floating-surface: var(--color-surface);
+  --color-mobile-sheet-surface: var(--color-surface);
+  --color-mobile-handle: var(--color-border);
+  --color-weather-surface: #fff7d6;
+  --color-weather-text: #1f2937;
+  --color-weather-icon: #e6a700;
   --color-danger: #9f1239;
   --color-danger-bg: #ffe1e1;
   --color-danger-border: #fecdd3;
@@ -58,6 +97,8 @@ $radius-pill: 999px;
   --color-inverse: #fff;
   --color-inverse-muted: rgba(255, 255, 255, 0.2);
   --color-overlay: rgba(8, 6, 13, 0.55);
+  --color-floating-shadow: rgba(15, 23, 42, 0.16);
+  --color-sheet-shadow: rgba(15, 23, 42, 0.18);
   --shadow-default:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px,
     rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
@@ -71,11 +112,15 @@ $radius-pill: 999px;
   --accent: var(--color-accent);
   --accent-bg: var(--color-accent-bg);
   --accent-border: var(--color-accent-border);
+  --primary: var(--color-primary);
+  --secondary: var(--color-secondary);
+  --on-primary: var(--color-on-primary);
   --social-bg: var(--color-surface-muted);
   --shadow: var(--shadow-default);
 
-  --sans: system-ui, "Segoe UI", Roboto, sans-serif;
-  --heading: system-ui, "Segoe UI", Roboto, sans-serif;
+  --sans: "Google Sans Flex", system-ui, "Segoe UI", Roboto, sans-serif;
+  --heading: "Google Sans Flex", system-ui, "Segoe UI", Roboto, sans-serif;
+  --display: "Cal Sans", "Google Sans Flex", system-ui, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
   font: 18px/145% var(--sans);

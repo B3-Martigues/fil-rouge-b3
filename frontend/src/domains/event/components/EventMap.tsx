@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 
 import EventMarker from "./EventMarker";
@@ -14,6 +14,8 @@ type EventMapProps = {
   selectedEventId?: number | null;
   selectedEventRequestId?: number;
   userPosition?: UserPosition | null;
+  showPopups?: boolean;
+  onEventSelect?: (eventId: number) => void;
 };
 
 type MappableEvent = Event & { latitude: number; longitude: number };
@@ -26,6 +28,7 @@ type SelectedEventFocusProps = {
 };
 
 const SELECTED_EVENT_ZOOM = 16;
+const HOME_MAP_READY_EVENT = "mappening:home-map-ready";
 
 function SelectedEventFocus({
   event,
@@ -71,9 +74,14 @@ export default function EventMap({
   selectedEventId = null,
   selectedEventRequestId = 0,
   userPosition = null,
+  showPopups = true,
+  onEventSelect,
 }: EventMapProps) {
   const organizations = useDataStore((s) => s.organizations);
   const [openPopupEventId, setOpenPopupEventId] = useState<number | null>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
+  const [areTilesLoaded, setAreTilesLoaded] = useState(false);
+  const hasAnnouncedReady = useRef(false);
   const activeOrganizationsById = useMemo(
     () =>
       new Map(
@@ -132,6 +140,25 @@ export default function EventMap({
   const handleFocusDone = useCallback((eventId: number) => {
     setOpenPopupEventId(eventId);
   }, []);
+  const handleMapReady = useCallback(() => {
+    setIsMapReady(true);
+  }, []);
+  const handleTilesLoaded = useCallback(() => {
+    setAreTilesLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isMapReady || !areTilesLoaded || hasAnnouncedReady.current) return;
+
+    const readyTimer = window.setTimeout(() => {
+      hasAnnouncedReady.current = true;
+      window.dispatchEvent(new Event(HOME_MAP_READY_EVENT));
+    }, 350);
+
+    return () => {
+      window.clearTimeout(readyTimer);
+    };
+  }, [areTilesLoaded, isMapReady]);
 
   const activeOpenPopupEventId = selectedEvent ? openPopupEventId : null;
 
@@ -141,9 +168,11 @@ export default function EventMap({
       className="event-map"
       zoom={13}
       scrollWheelZoom={true}
+      whenReady={handleMapReady}
     >
       <TileLayer
         attribution="&copy; OpenStreetMap contributors"
+        eventHandlers={{ load: handleTilesLoaded }}
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <MapFitBounds points={mapPoints} />
@@ -158,6 +187,8 @@ export default function EventMap({
           key={event.id}
           event={event}
           shouldOpenPopup={activeOpenPopupEventId === event.id}
+          showPopup={showPopups}
+          onSelect={onEventSelect}
         />
       ))}
       {userPosition && (

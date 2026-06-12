@@ -80,7 +80,7 @@ export default function History() {
                   <p>{event.description}</p>
                   <dl className="event-card__details">
                     <div>
-                      <dt>Debut / fin</dt>
+                      <dt>Horaires de l'evenement</dt>
                       <dd>{formatEventDateRange(event)}</dd>
                     </div>
                     <div>

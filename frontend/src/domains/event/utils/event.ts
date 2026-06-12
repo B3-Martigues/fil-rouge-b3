@@ -5,6 +5,14 @@ const dateTimeFormatOptions: Intl.DateTimeFormatOptions = {
   timeStyle: "short",
 };
 
+const dateFormatOptions: Intl.DateTimeFormatOptions = {
+  dateStyle: "short",
+};
+
+const timeFormatOptions: Intl.DateTimeFormatOptions = {
+  timeStyle: "short",
+};
+
 const priceFormatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
   currency: "EUR",
@@ -118,11 +126,31 @@ export function formatEventDateRange(
   const start = new Date(event.start_date);
   const end = new Date(event.end_date);
 
+  if (isSameLocalDay(start, end)) {
+    return `${formatDate(start)} ${formatTime(start)} - ${formatTime(end)}`;
+  }
+
   return `${formatDateTime(start)} - ${formatDateTime(end)}`;
 }
 
 export function formatDateTime(date: string | Date): string {
   return new Date(date).toLocaleString("fr-FR", dateTimeFormatOptions);
+}
+
+function formatDate(date: string | Date): string {
+  return new Date(date).toLocaleDateString("fr-FR", dateFormatOptions);
+}
+
+function formatTime(date: string | Date): string {
+  return new Date(date).toLocaleTimeString("fr-FR", timeFormatOptions);
+}
+
+function isSameLocalDay(firstDate: Date, secondDate: Date): boolean {
+  return (
+    firstDate.getFullYear() === secondDate.getFullYear() &&
+    firstDate.getMonth() === secondDate.getMonth() &&
+    firstDate.getDate() === secondDate.getDate()
+  );
 }
 
 export function getWeekStart(date: Date): Date {

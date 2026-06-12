@@ -21,6 +21,9 @@ export default function ReportEventButton({ event }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [details, setDetails] = useState("");
+
+  if (!currentUser) return null;
+
   const userId =
     currentUser?.role === "user" && currentUser.is_active
       ? currentUser.user_id
@@ -34,9 +37,7 @@ export default function ReportEventButton({ event }: Props) {
           (report.status === "open" || report.status === "reviewing"),
       )
     : null;
-  const unavailableMessage = !currentUser
-    ? "Connectez-vous avec un compte utilisateur pour signaler cet evenement."
-    : currentUser.role !== "user"
+  const unavailableMessage = currentUser.role !== "user"
       ? "Seuls les comptes utilisateur peuvent signaler un evenement."
       : !currentUser.is_active
         ? "Votre compte doit etre actif pour signaler un evenement."

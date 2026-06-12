@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -35,16 +36,23 @@ import { ACCOUNT_TYPE_IDS, ROLE_IDS, toAuthenticatedUser } from "../../user/type
 import useAuthStore from "../store/authStore";
 import { registerSchema, type RegisterFormData } from "../validations/register.schema";
 
-type WorkflowStep = "user" | "organizer-choice" | "organizer" | "organization";
+type WorkflowStep =
+  | "user-info"
+  | "user-preferences"
+  | "organizer-choice"
+  | "organizer"
+  | "organization";
 
 const workflowSteps = [
-  { key: "user", label: "Utilisateur" },
+  { key: "user-info", label: "Infos" },
+  { key: "user-preferences", label: "Preferences" },
   { key: "organizer", label: "Organisateur" },
   { key: "organization", label: "Organisation" },
 ] as const;
+const userWorkflowSteps = workflowSteps.slice(0, 2);
 
 const isActiveStep = (step: WorkflowStep, key: (typeof workflowSteps)[number]["key"]) => {
-  if (step === "organizer-choice") return key === "user";
+  if (step === "organizer-choice") return key === "user-preferences";
 
   return step === key;
 };
@@ -63,7 +71,7 @@ export default function RegistrationWorkflow() {
   const setUserEventPreferences = useDataStore((s) => s.setUserEventPreferences);
   const dispatchNotification = useDataStore((s) => s.dispatchNotification);
   const { preferences, toggle } = useUserPreferences([]);
-  const [step, setStep] = useState<WorkflowStep>("user");
+  const [step, setStep] = useState<WorkflowStep>("user-info");
   const [userDraft, setUserDraft] = useState<RegisterFormData | null>(null);
   const [organizerForm, setOrganizerForm] = useState<OrganizerProfileForm>(
     emptyOrganizerProfileForm,
@@ -77,7 +85,20 @@ export default function RegistrationWorkflow() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [preferencesError, setPreferencesError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const showWorkflowProgress = step === "organizer" || step === "organization";
+  const showWorkflowProgress = true;
+  const [hasChosenOrganizerRegistration, setHasChosenOrganizerRegistration] =
+    useState(false);
+  const visibleWorkflowSteps = hasChosenOrganizerRegistration
+    ? workflowSteps
+    : userWorkflowSteps;
+  const handleMobileBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate(ROUTES.PUBLIC.LOGIN);
+  };
 
   const {
     register,
@@ -157,7 +178,7 @@ export default function RegistrationWorkflow() {
       const duplicateError = validateUserUniqueness(userDraft);
 
       if (duplicateError) {
-        setStep("user");
+        setStep("user-info");
         setServerError(duplicateError);
         return;
       }
@@ -172,7 +193,7 @@ export default function RegistrationWorkflow() {
     }
   };
 
-  const onUserStepSubmit = (data: RegisterFormData) => {
+  const onUserInfoSubmit = (data: RegisterFormData) => {
     setServerError(null);
     setPreferencesError(null);
 
@@ -183,12 +204,19 @@ export default function RegistrationWorkflow() {
       return;
     }
 
+    setUserDraft(data);
+    setStep("user-preferences");
+  };
+
+  const onUserPreferencesSubmit = () => {
+    setServerError(null);
+
     if (preferences.length === 0) {
       setPreferencesError("Selectionnez au moins une preference d'evenement.");
       return;
     }
 
-    setUserDraft(data);
+    setPreferencesError(null);
     setStep("organizer-choice");
   };
 
@@ -242,7 +270,7 @@ export default function RegistrationWorkflow() {
       const duplicateError = validateUserUniqueness(userDraft);
 
       if (duplicateError) {
-        setStep("user");
+        setStep("user-info");
         setServerError(duplicateError);
         return;
       }
@@ -303,87 +331,119 @@ export default function RegistrationWorkflow() {
   };
 
   return (
-    <div className="auth-page auth-page--wide">
-      <h1>Inscription</h1>
+    <div className="auth-page auth-page--wide auth-page--register">
+      <div className="auth-mobile-hero">
+        <p className="auth-mobile-hero__brand">Mappening</p>
+        <p>Trouvez les meilleurs evenements autour de vous !</p>
+      </div>
 
-      {showWorkflowProgress && (
-        <ol className="form-stepper" aria-label="Progression du formulaire">
-          {workflowSteps.map((item, index) => (
-            <li className={isActiveStep(step, item.key) ? "is-active" : ""} key={item.key}>
-              <span>{index + 1}</span>
-              {item.label}
-            </li>
-          ))}
-        </ol>
-      )}
+      <div className="auth-login-stack auth-register-stack">
+        <div className="auth-register-stack__header">
+          <Button
+            aria-label="Retour"
+            className="auth-register-stack__back"
+            icon={<ArrowLeft size={18} aria-hidden="true" />}
+            iconOnly
+            size="icon"
+            type="button"
+            variant="secondary"
+            onClick={handleMobileBack}
+          >
+            Retour
+          </Button>
+          <h1>Inscription</h1>
+        </div>
 
-      {step === "user" && (
-        <form onSubmit={handleSubmit(onUserStepSubmit)} noValidate>
-          <fieldset className="auth-form-section">
-            <legend>Inscription utilisateur</legend>
-            <FormField
-              label="Nom d'utilisateur"
-              htmlFor="username"
-              error={errors.username?.message}
-            >
-              <Input
-                id="username"
-                autoComplete="username"
-                hasError={!!errors.username}
-                placeholder="Votre nom"
-                type="text"
-                {...register("username")}
-              />
-            </FormField>
+        {showWorkflowProgress && (
+          <ol className="form-stepper" aria-label="Progression du formulaire">
+            {visibleWorkflowSteps.map((item, index) => (
+              <li
+                className={isActiveStep(step, item.key) ? "is-active" : ""}
+                key={item.key}
+              >
+                <span>{index + 1}</span>
+                {item.label}
+              </li>
+            ))}
+          </ol>
+        )}
 
-            <FormField
-              label="Email"
-              htmlFor="email"
-              error={errors.login_email?.message}
-            >
-              <Input
-                id="email"
-                autoComplete="email"
-                hasError={!!errors.login_email}
-                placeholder="Votre email"
-                type="email"
-                {...register("login_email")}
-              />
-            </FormField>
+        {step === "user-info" && (
+          <form onSubmit={handleSubmit(onUserInfoSubmit)} noValidate>
+            <fieldset className="auth-form-section">
+              <legend>Informations utilisateur</legend>
+              <FormField
+                label="Nom d'utilisateur"
+                htmlFor="username"
+                error={errors.username?.message}
+              >
+                <Input
+                  id="username"
+                  autoComplete="username"
+                  hasError={!!errors.username}
+                  placeholder="Votre nom"
+                  type="text"
+                  {...register("username")}
+                />
+              </FormField>
 
-            <FormField
-              label="Mot de passe"
-              htmlFor="password"
-              error={errors.password?.message}
-            >
-              <Input
-                id="password"
-                autoComplete="new-password"
-                hasError={!!errors.password}
-                placeholder="Votre mot de passe"
-                type="password"
-                {...register("password")}
-              />
-            </FormField>
+              <FormField
+                label="Email"
+                htmlFor="email"
+                error={errors.login_email?.message}
+              >
+                <Input
+                  id="email"
+                  autoComplete="email"
+                  hasError={!!errors.login_email}
+                  placeholder="Votre email"
+                  type="email"
+                  {...register("login_email")}
+                />
+              </FormField>
 
-            <FormField
-              label="Confirmation du mot de passe"
-              htmlFor="confirmPassword"
-              error={errors.confirmPassword?.message}
-            >
-              <Input
-                id="confirmPassword"
-                autoComplete="new-password"
-                hasError={!!errors.confirmPassword}
-                placeholder="Confirmer votre mot de passe"
-                type="password"
-                {...register("confirmPassword")}
-              />
-            </FormField>
-          </fieldset>
+              <FormField
+                label="Mot de passe"
+                htmlFor="password"
+                error={errors.password?.message}
+              >
+                <Input
+                  id="password"
+                  autoComplete="new-password"
+                  hasError={!!errors.password}
+                  placeholder="Votre mot de passe"
+                  type="password"
+                  {...register("password")}
+                />
+              </FormField>
 
-          <fieldset className="auth-form-section">
-            <legend>Preferences d'evenements</legend>
+              <FormField
+                label="Confirmation du mot de passe"
+                htmlFor="confirmPassword"
+                error={errors.confirmPassword?.message}
+              >
+                <Input
+                  id="confirmPassword"
+                  autoComplete="new-password"
+                  hasError={!!errors.confirmPassword}
+                  placeholder="Confirmer votre mot de passe"
+                  type="password"
+                  {...register("confirmPassword")}
+                />
+              </FormField>
+            </fieldset>
+
+            {serverError && <ErrorMessage message={serverError} />}
+
+            <ActionRow className="form-step-actions" align="center">
+              <Button type="submit">Continuer</Button>
+            </ActionRow>
+          </form>
+        )}
+
+        {step === "user-preferences" && (
+          <section className="auth-form-section">
+            <h2>Preferences d'evenements</h2>
             <PreferencesGrid
               selected={preferences}
               toggle={(category) => {
@@ -392,15 +452,21 @@ export default function RegistrationWorkflow() {
               }}
             />
             {preferencesError && <ErrorMessage message={preferencesError} />}
-          </fieldset>
 
-          {serverError && <ErrorMessage message={serverError} />}
-
-          <ActionRow className="form-step-actions" align="center">
-            <Button type="submit">Continuer</Button>
-          </ActionRow>
-        </form>
-      )}
+            <ActionRow className="form-step-actions" align="center">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setStep("user-info")}
+              >
+                Precedent
+              </Button>
+              <Button type="button" onClick={onUserPreferencesSubmit}>
+                Continuer
+              </Button>
+            </ActionRow>
+          </section>
+        )}
 
       {step === "organizer-choice" && (
         <section className="auth-choice" aria-labelledby="organizer-choice-title">
@@ -415,7 +481,7 @@ export default function RegistrationWorkflow() {
               disabled={loading}
               type="button"
               variant="secondary"
-              onClick={() => setStep("user")}
+              onClick={() => setStep("user-preferences")}
             >
               Precedent
             </Button>
@@ -427,7 +493,14 @@ export default function RegistrationWorkflow() {
             >
               Non
             </Button>
-            <Button disabled={loading} type="button" onClick={() => setStep("organizer")}>
+            <Button
+              disabled={loading}
+              type="button"
+              onClick={() => {
+                setHasChosenOrganizerRegistration(true);
+                setStep("organizer");
+              }}
+            >
               Oui
             </Button>
           </ActionRow>
@@ -469,7 +542,7 @@ export default function RegistrationWorkflow() {
         </form>
       )}
 
-      {step === "organization" && (
+        {step === "organization" && (
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -500,7 +573,8 @@ export default function RegistrationWorkflow() {
             </Button>
           </ActionRow>
         </form>
-      )}
+        )}
+      </div>
     </div>
   );
 }
