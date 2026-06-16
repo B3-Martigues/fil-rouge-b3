@@ -7,13 +7,15 @@ type Coordinate = {
 };
 
 type Props = {
+  enabled?: boolean;
   points: Coordinate[];
 };
 
-export default function MapFitBounds({ points }: Props) {
+export default function MapFitBounds({ enabled = true, points }: Props) {
   const map = useMap();
 
   useEffect(() => {
+    if (!enabled) return;
     if (points.length === 0) return;
 
     if (points.length === 1) {
@@ -25,7 +27,7 @@ export default function MapFitBounds({ points }: Props) {
       points.map((point) => [point.latitude, point.longitude]),
       { padding: [32, 32], maxZoom: 13 },
     );
-  }, [map, points]);
+  }, [enabled, map, points]);
 
   return null;
 }

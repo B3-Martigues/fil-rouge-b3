@@ -12,6 +12,7 @@ import PanelStats from "../../../shared/components/layout/PanelStats";
 import Toolbar from "../../../shared/components/layout/Toolbar";
 import Button from "../../../shared/components/ui/Button";
 import Checkbox from "../../../shared/components/ui/Checkbox";
+import CheckboxGroup from "../../../shared/components/ui/CheckboxGroup";
 import FormField from "../../../shared/components/ui/FormField";
 import Input from "../../../shared/components/ui/Input";
 import Select from "../../../shared/components/ui/Select";
@@ -30,6 +31,10 @@ import {
 } from "../../event/types/event-categories";
 import type { Event } from "../../event/types/event";
 import type { Organization } from "../../organization/types/organization";
+import {
+  CATEGORIES as ORGANIZATION_CATEGORIES,
+  type OrganizationCategoryName,
+} from "../../organization/types/organization-categories";
 import type {
   ModerationAction,
   ModerationTargetType,
@@ -63,6 +68,23 @@ type UserDraft = {
   password_hash: string;
   role: Role;
   is_active: boolean;
+};
+
+type OrganizationDraft = {
+  name: string;
+  contact_email: string;
+  description: string;
+  website: string;
+  latitude: string;
+  longitude: string;
+  address: string;
+  city: string;
+  postal_code: string;
+  logo: string;
+  contact_phone_number: string;
+  siret: string;
+  is_verified: boolean;
+  category_slugs: OrganizationCategoryName[];
 };
 
 type EventDraft = Omit<
@@ -179,6 +201,26 @@ const emptyUserDraft = (): UserDraft => ({
   password_hash: "",
   role: "user",
   is_active: true,
+});
+
+const toOrganizationDraft = (organization: Organization): OrganizationDraft => ({
+  name: organization.name,
+  contact_email: organization.contact_email,
+  description: organization.description ?? "",
+  website: organization.website ?? "",
+  latitude: organization.latitude?.toString() ?? "",
+  longitude: organization.longitude?.toString() ?? "",
+  address: organization.address,
+  city: organization.city,
+  postal_code: organization.postal_code,
+  logo: organization.logo ?? "",
+  contact_phone_number: organization.contact_phone_number ?? "",
+  siret: organization.siret ?? "",
+  is_verified: organization.is_verified,
+  category_slugs: organization.category_slugs.filter(
+    (category): category is OrganizationCategoryName =>
+      ORGANIZATION_CATEGORIES.includes(category as OrganizationCategoryName),
+  ),
 });
 
 const toEventDraft = (event: Event): EventDraft => ({
@@ -322,6 +364,8 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
 
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [userDraft, setUserDraft] = useState<UserDraft | null>(null);
+  const [organizationDraft, setOrganizationDraft] =
+    useState<OrganizationDraft | null>(null);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [accountCreateRole, setAccountCreateRole] = useState<Role>("user");
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
@@ -361,6 +405,30 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         user.id !== currentUserId &&
         !user.deleted_at &&
         normalizeComparable(user.username) === normalizeComparable(username),
+    );
+
+  const hasDuplicateOrganizationContactEmail = (
+    email: string,
+    currentOrganizationId?: number,
+  ) =>
+    organizationsData.some(
+      (organization) =>
+        organization.id !== currentOrganizationId &&
+        !organization.deleted_at &&
+        normalizeComparable(organization.contact_email) ===
+          normalizeComparable(email),
+    );
+
+  const hasDuplicateOrganizationSiret = (
+    siret: string,
+    currentOrganizationId?: number,
+  ) =>
+    siret.trim() !== "" &&
+    organizationsData.some(
+      (organization) =>
+        organization.id !== currentOrganizationId &&
+        !organization.deleted_at &&
+        normalizeComparable(organization.siret ?? "") === normalizeComparable(siret),
     );
 
   const getOrganizationName = (organizationId: number) =>
@@ -519,14 +587,25 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       accountSummaries
         .filter((account) => {
           const accountStatus = getAccountAdminStatus(account);
+          const organization = account.organization_id
+            ? organizationsData.find((item) => item.id === account.organization_id)
+            : null;
+          const searchableFields =
+            account.role === "organization"
+              ? [
+                  account.display_name,
+                  account.login_email,
+                  organization?.contact_email ?? "",
+                ]
+              : [
+                  account.display_name,
+                  account.login_email,
+                  account.role,
+                  accountStatus.label,
+                  account.suspension_reason ?? "",
+                ];
           const matchesSearch = normalizeText(
-            [
-              account.display_name,
-              account.login_email,
-              account.role,
-              accountStatus.label,
-              account.suspension_reason ?? "",
-            ].join(" "),
+            searchableFields.join(" "),
           ).includes(normalizeText(accountSearch));
           const matchesRole =
             accountRoleFilter === "all" || account.role === accountRoleFilter;
@@ -553,6 +632,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       accountSort,
       accountStatusFilter,
       accountSummaries,
+      organizationsData,
     ],
   );
 
@@ -616,13 +696,19 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     });
 
   const startUserEdit = (account: AccountSummary) => {
+    const organization = account.organization_id
+      ? organizationsData.find((item) => item.id === account.organization_id) ?? null
+      : null;
+
     setIsCreatingUser(false);
     setEditingUserId(account.account_id);
     setUserDraft(toUserDraft(account));
+    setOrganizationDraft(organization ? toOrganizationDraft(organization) : null);
   };
 
   const startUserCreate = () => {
     setEditingUserId(null);
+    setOrganizationDraft(null);
     setAccountCreateRole("user");
     setIsCreatingUser(true);
     setUserDraft(emptyUserDraft());
@@ -632,6 +718,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     setEditingUserId(null);
     setIsCreatingUser(false);
     setUserDraft(null);
+    setOrganizationDraft(null);
     setAccountCreateRole("user");
   };
 
@@ -645,13 +732,13 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const saveUser = (reason?: string) => {
     if (!userDraft) return false;
 
-    if (!userDraft.display_name.trim() || !userDraft.login_email.trim()) {
+    const displayName = (organizationDraft?.name ?? userDraft.display_name).trim();
+    const loginEmail = userDraft.login_email.trim();
+
+    if (!displayName || !loginEmail) {
       toast.error("Le nom et l'email sont obligatoires");
       return false;
     }
-
-    const displayName = userDraft.display_name.trim();
-    const loginEmail = userDraft.login_email.trim();
 
     if (!isValidEmail(loginEmail)) {
       toast.error("L'email de connexion est invalide");
@@ -731,6 +818,89 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       return false;
     }
 
+    if (editedAccount.organization_id) {
+      if (!organizationDraft) return false;
+
+      const contactEmail = organizationDraft.contact_email.trim();
+      const siret = organizationDraft.siret.trim();
+      const phoneNumber = organizationDraft.contact_phone_number.trim();
+
+      if (!isValidEmail(contactEmail)) {
+        toast.error("L'email de contact est invalide");
+        return false;
+      }
+
+      if (organizationDraft.description.trim().length < 10) {
+        toast.error("La description doit contenir au moins 10 caracteres");
+        return false;
+      }
+
+      if (organizationDraft.website.trim() && !URL.canParse(organizationDraft.website.trim())) {
+        toast.error("URL du site invalide");
+        return false;
+      }
+
+      if (organizationDraft.logo.trim() && !URL.canParse(organizationDraft.logo.trim())) {
+        toast.error("URL du logo invalide");
+        return false;
+      }
+
+      if (!isValidOptionalCoordinate(organizationDraft.latitude, -90, 90)) {
+        toast.error("La latitude doit etre comprise entre -90 et 90");
+        return false;
+      }
+
+      if (!isValidOptionalCoordinate(organizationDraft.longitude, -180, 180)) {
+        toast.error("La longitude doit etre comprise entre -180 et 180");
+        return false;
+      }
+
+      if (organizationDraft.address.trim().length < 5) {
+        toast.error("L'adresse est obligatoire");
+        return false;
+      }
+
+      if (organizationDraft.city.trim().length < 2) {
+        toast.error("La ville est obligatoire");
+        return false;
+      }
+
+      if (!/^\d{5}$/.test(organizationDraft.postal_code.trim())) {
+        toast.error("Le code postal doit contenir 5 chiffres");
+        return false;
+      }
+
+      if (phoneNumber && !/^\d{10}$/.test(phoneNumber)) {
+        toast.error("Le telephone doit contenir 10 chiffres");
+        return false;
+      }
+
+      if (siret && !/^\d{14}$/.test(siret)) {
+        toast.error("Le SIRET doit contenir 14 chiffres");
+        return false;
+      }
+
+      if (organizationDraft.category_slugs.length === 0) {
+        toast.error("Selectionnez au moins une categorie");
+        return false;
+      }
+
+      if (
+        hasDuplicateOrganizationContactEmail(
+          contactEmail,
+          editedAccount.organization_id,
+        )
+      ) {
+        toast.error("Cet email de contact est deja utilise");
+        return false;
+      }
+
+      if (hasDuplicateOrganizationSiret(siret, editedAccount.organization_id)) {
+        toast.error("Ce SIRET est deja utilise");
+        return false;
+      }
+    }
+
     if (hasDuplicateAccountEmail(loginEmail, editingUserId)) {
       toast.error("Cet email est deja utilise");
       return false;
@@ -756,8 +926,25 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     if (editedAccount.organization_id) {
       updateOrganization(editedAccount.organization_id, {
         name: displayName,
+        contact_email: organizationDraft?.contact_email.trim() ?? "",
+        description: organizationDraft?.description.trim() ?? "",
+        website: organizationDraft?.website.trim() || null,
+        latitude: organizationDraft
+          ? parseOptionalCoordinate(organizationDraft.latitude)
+          : null,
+        longitude: organizationDraft
+          ? parseOptionalCoordinate(organizationDraft.longitude)
+          : null,
+        address: organizationDraft?.address.trim() ?? "",
+        city: organizationDraft?.city.trim() ?? "",
+        postal_code: organizationDraft?.postal_code.trim() ?? "",
+        logo: organizationDraft?.logo.trim() || null,
+        contact_phone_number:
+          organizationDraft?.contact_phone_number.trim() || null,
+        siret: organizationDraft?.siret.trim() || null,
+        category_slugs: organizationDraft?.category_slugs ?? [],
         is_active: userDraft.is_active,
-        is_verified: userDraft.is_active,
+        is_verified: organizationDraft?.is_verified ?? userDraft.is_active,
       });
       if (reason) {
         const organization = organizationsData.find(
@@ -788,6 +975,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
 
     setEditingUserId(null);
     setUserDraft(null);
+    setOrganizationDraft(null);
     toast.success("Compte mis a jour");
     return true;
   };
@@ -1108,7 +1296,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                 Rechercher
                 <Input
                   value={accountSearch}
-                  placeholder="Nom, email, role..."
+                  placeholder="Nom ou email..."
                   onChange={(event) => setAccountSearch(event.target.value)}
                 />
               </label>
@@ -1464,9 +1652,28 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
             <UserEditor
               draft={userDraft}
               setDraft={setUserDraft}
+              showActions={!organizationDraft}
+              showDisplayName={!organizationDraft}
+              showRoleSelect={!organizationDraft}
               onSave={requestSaveUser}
               onCancel={closeUserForm}
             />
+            {organizationDraft && (
+              <>
+                <OrganizationEditor
+                  draft={organizationDraft}
+                  setDraft={setOrganizationDraft}
+                />
+                <ActionRow className="admin-actions">
+                  <Button type="button" onClick={requestSaveUser}>
+                    Enregistrer
+                  </Button>
+                  <Button variant="secondary" type="button" onClick={closeUserForm}>
+                    Annuler
+                  </Button>
+                </ActionRow>
+              </>
+            )}
           </div>
         )}
       </FormModal>
@@ -1512,27 +1719,33 @@ type DraftSetter<T> = (draft: T | null) => void;
 function UserEditor({
   draft,
   setDraft,
+  showActions = true,
+  showDisplayName = true,
   showRoleSelect = true,
   onSave,
   onCancel,
 }: {
   draft: UserDraft;
   setDraft: DraftSetter<UserDraft>;
+  showActions?: boolean;
+  showDisplayName?: boolean;
   showRoleSelect?: boolean;
   onSave: () => void;
   onCancel: () => void;
 }) {
   return (
     <div className="admin-inline-editor">
-      <FormField label="Nom" htmlFor="admin-user-name">
-        <Input
-          id="admin-user-name"
-          value={draft.display_name}
-          onChange={(event) =>
-            setDraft({ ...draft, display_name: event.target.value })
-          }
-        />
-      </FormField>
+      {showDisplayName && (
+        <FormField label="Nom" htmlFor="admin-user-name">
+          <Input
+            id="admin-user-name"
+            value={draft.display_name}
+            onChange={(event) =>
+              setDraft({ ...draft, display_name: event.target.value })
+            }
+          />
+        </FormField>
+      )}
       <FormField label="Email de connexion" htmlFor="admin-user-email">
         <Input
           id="admin-user-email"
@@ -1577,14 +1790,169 @@ function UserEditor({
           setDraft({ ...draft, is_active: event.target.checked })
         }
       />
-      <ActionRow className="admin-actions">
-        <Button type="button" onClick={onSave}>
-          Enregistrer
-        </Button>
-        <Button variant="secondary" type="button" onClick={onCancel}>
-          Annuler
-        </Button>
-      </ActionRow>
+      {showActions && (
+        <ActionRow className="admin-actions">
+          <Button type="button" onClick={onSave}>
+            Enregistrer
+          </Button>
+          <Button variant="secondary" type="button" onClick={onCancel}>
+            Annuler
+          </Button>
+        </ActionRow>
+      )}
+    </div>
+  );
+}
+
+function OrganizationEditor({
+  draft,
+  setDraft,
+}: {
+  draft: OrganizationDraft;
+  setDraft: DraftSetter<OrganizationDraft>;
+}) {
+  const updateField = <Key extends keyof OrganizationDraft>(
+    field: Key,
+    value: OrganizationDraft[Key],
+  ) => {
+    setDraft({ ...draft, [field]: value });
+  };
+
+  const toggleCategory = (category: OrganizationCategoryName) => {
+    updateField(
+      "category_slugs",
+      draft.category_slugs.includes(category)
+        ? draft.category_slugs.filter((item) => item !== category)
+        : [...draft.category_slugs, category],
+    );
+  };
+
+  return (
+    <div className="admin-form-grid admin-organization-form">
+      <h3 className="admin-form-grid__wide">Informations organisation</h3>
+      <FormField label="Nom de l'organization" htmlFor="admin-organization-name">
+        <Input
+          id="admin-organization-name"
+          value={draft.name}
+          onChange={(event) => updateField("name", event.target.value)}
+        />
+      </FormField>
+      <FormField label="Email de contact" htmlFor="admin-organization-contact-email">
+        <Input
+          id="admin-organization-contact-email"
+          type="email"
+          value={draft.contact_email}
+          onChange={(event) => updateField("contact_email", event.target.value)}
+        />
+      </FormField>
+      <FormField
+        label="Description"
+        htmlFor="admin-organization-description"
+        className="admin-form-grid__wide"
+      >
+        <Textarea
+          id="admin-organization-description"
+          rows={4}
+          value={draft.description}
+          onChange={(event) => updateField("description", event.target.value)}
+        />
+      </FormField>
+      <FormField label="Site web" htmlFor="admin-organization-website">
+        <Input
+          id="admin-organization-website"
+          type="url"
+          value={draft.website}
+          onChange={(event) => updateField("website", event.target.value)}
+        />
+      </FormField>
+      <FormField label="Logo" htmlFor="admin-organization-logo">
+        <Input
+          id="admin-organization-logo"
+          type="url"
+          value={draft.logo}
+          onChange={(event) => updateField("logo", event.target.value)}
+        />
+      </FormField>
+      <FormField
+        label="Adresse"
+        htmlFor="admin-organization-address"
+        className="admin-form-grid__wide"
+      >
+        <Input
+          id="admin-organization-address"
+          value={draft.address}
+          onChange={(event) => updateField("address", event.target.value)}
+        />
+      </FormField>
+      <FormField label="Ville" htmlFor="admin-organization-city">
+        <Input
+          id="admin-organization-city"
+          value={draft.city}
+          onChange={(event) => updateField("city", event.target.value)}
+        />
+      </FormField>
+      <FormField label="Code postal" htmlFor="admin-organization-postal-code">
+        <Input
+          id="admin-organization-postal-code"
+          inputMode="numeric"
+          value={draft.postal_code}
+          onChange={(event) => updateField("postal_code", event.target.value)}
+        />
+      </FormField>
+      <FormField label="Latitude" htmlFor="admin-organization-latitude">
+        <Input
+          id="admin-organization-latitude"
+          step="any"
+          type="number"
+          value={draft.latitude}
+          onChange={(event) => updateField("latitude", event.target.value)}
+        />
+      </FormField>
+      <FormField label="Longitude" htmlFor="admin-organization-longitude">
+        <Input
+          id="admin-organization-longitude"
+          step="any"
+          type="number"
+          value={draft.longitude}
+          onChange={(event) => updateField("longitude", event.target.value)}
+        />
+      </FormField>
+      <FormField label="Telephone" htmlFor="admin-organization-phone">
+        <Input
+          id="admin-organization-phone"
+          type="tel"
+          value={draft.contact_phone_number}
+          onChange={(event) =>
+            updateField("contact_phone_number", event.target.value)
+          }
+        />
+      </FormField>
+      <FormField label="SIRET" htmlFor="admin-organization-siret">
+        <Input
+          id="admin-organization-siret"
+          inputMode="numeric"
+          value={draft.siret}
+          onChange={(event) => updateField("siret", event.target.value)}
+        />
+      </FormField>
+      <Checkbox
+        checked={draft.is_verified}
+        className="admin-checkbox"
+        label="Verifiee"
+        onChange={(event) => updateField("is_verified", event.target.checked)}
+      />
+      <div className="admin-form-grid__wide">
+        <CheckboxGroup label="Categories" labelId="admin-organization-categories">
+          {ORGANIZATION_CATEGORIES.map((category) => (
+            <Checkbox
+              checked={draft.category_slugs.includes(category)}
+              key={category}
+              label={category}
+              onChange={() => toggleCategory(category)}
+            />
+          ))}
+        </CheckboxGroup>
+      </div>
     </div>
   );
 }

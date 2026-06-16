@@ -69,12 +69,8 @@ type HandledReportStatus = Extract<
   ModerationReport["status"],
   "resolved" | "dismissed"
 >;
-type ModerationEventFilter = "all" | "pending" | "published" | "suspended";
 type ModerationEventSort = "date-asc" | "date-desc" | "title-asc" | "city-asc";
-type ModerationOrganizationFilter = "all" | "pending" | "active" | "suspended";
-type ModerationAccountFilter = "all" | "active" | "suspended";
 type ModerationAccountSort = "name-asc" | "name-desc" | "email-asc";
-type ModerationReportFilter = "all" | ModerationReport["status"];
 type ModerationReportPriorityFilter = "all" | ModerationReport["priority"];
 type ModerationReportSort = "newest" | "oldest" | "priority";
 
@@ -249,21 +245,14 @@ export default function ModeratorDashboard({
     Record<number, string>
   >({});
   const [eventSearch, setEventSearch] = useState("");
-  const [eventFilter, setEventFilter] = useState<ModerationEventFilter>("all");
   const [eventSort, setEventSort] = useState<ModerationEventSort>("date-asc");
   const [organizationSearch, setOrganizationSearch] = useState("");
-  const [organizationFilter, setOrganizationFilter] =
-    useState<ModerationOrganizationFilter>("all");
   const [organizationSort, setOrganizationSort] =
     useState<ModerationAccountSort>("name-asc");
   const [accountSearch, setAccountSearch] = useState("");
-  const [accountFilter, setAccountFilter] =
-    useState<ModerationAccountFilter>("all");
   const [accountSort, setAccountSort] =
     useState<ModerationAccountSort>("name-asc");
   const [reportSearch, setReportSearch] = useState("");
-  const [reportFilter, setReportFilter] =
-    useState<ModerationReportFilter>("all");
   const [reportPriorityFilter, setReportPriorityFilter] =
     useState<ModerationReportPriorityFilter>("all");
   const [reportSort, setReportSort] =
@@ -931,36 +920,42 @@ export default function ModeratorDashboard({
       ].join(" "),
     ).includes(normalizeText(search));
 
+  const matchesOrganizationAccountSearch = (
+    account: AccountSummary,
+    search: string,
+  ) => {
+    const organization = account.organization_id
+      ? organizations.find((item) => item.id === account.organization_id)
+      : null;
+
+    return normalizeText(
+      [
+        account.display_name,
+        account.login_email,
+        organization?.contact_email ?? "",
+      ].join(" "),
+    ).includes(normalizeText(search));
+  };
+
   const filterAccounts = (
     activeItems: AccountSummary[],
     suspendedItems: AccountSummary[],
-    filter: ModerationAccountFilter | ModerationOrganizationFilter,
     search: string,
     sort: ModerationAccountSort,
+    matchesSearch: (account: AccountSummary, search: string) => boolean =
+      matchesAccountSearch,
   ) => {
-    const sourceItems =
-      filter === "active"
-        ? activeItems
-        : filter === "suspended"
-          ? suspendedItems
-          : [...activeItems, ...suspendedItems];
+    const sourceItems = [...activeItems, ...suspendedItems];
 
     return sortAccounts(
-      sourceItems.filter((account) => matchesAccountSearch(account, search)),
+      sourceItems.filter((account) => matchesSearch(account, search)),
       sort,
     );
   };
 
   const filteredEvents = (() => {
     const eventSearchText = normalizeText(eventSearch);
-    const sourceEvents =
-      eventFilter === "pending"
-        ? pendingEvents
-        : eventFilter === "published"
-          ? publishedEvents
-          : eventFilter === "suspended"
-            ? suspendedEvents
-            : [...pendingEvents, ...publishedEvents, ...suspendedEvents];
+    const sourceEvents = [...pendingEvents, ...publishedEvents, ...suspendedEvents];
 
     return sourceEvents
       .filter((event) =>
@@ -1013,10 +1008,7 @@ export default function ModeratorDashboard({
 
   const filteredOrganizations = (() => {
     const organizationSearchText = normalizeText(organizationSearch);
-    const sourceOrganizations =
-      organizationFilter === "active" || organizationFilter === "suspended"
-        ? []
-        : pendingOrganizations;
+    const sourceOrganizations = pendingOrganizations;
 
     return [...sourceOrganizations]
       .filter((organization) =>
@@ -1024,10 +1016,6 @@ export default function ModeratorDashboard({
           [
             organization.name,
             organization.contact_email,
-            organization.description ?? "",
-            organization.city,
-            organization.postal_code,
-            organization.siret ?? "",
           ].join(" "),
         ).includes(organizationSearchText),
       )
@@ -1040,18 +1028,17 @@ export default function ModeratorDashboard({
   const filteredOrganizationAccounts = filterAccounts(
     organizationAccountsToModerate,
     suspendedOrganizationAccounts,
-    organizationFilter,
     organizationSearch,
     organizationSort,
+    matchesOrganizationAccountSearch,
   );
   const filteredOrganizers = organizerRows
-    .filter(({ member, user, account, organization }) =>
+    .filter(({ account, organization }) =>
       normalizeText(
         [
-          user?.username ?? "",
           account?.login_email ?? "",
           organization?.name ?? "",
-          member.job_role ?? "",
+          organization?.contact_email ?? "",
         ].join(" "),
       ).includes(normalizeText(organizationSearch)),
     )
@@ -1065,7 +1052,6 @@ export default function ModeratorDashboard({
   const filteredUserAccounts = filterAccounts(
     userAccountsToModerate,
     suspendedUserAccounts,
-    accountFilter,
     accountSearch,
     accountSort,
   );
@@ -1087,8 +1073,6 @@ export default function ModeratorDashboard({
 
     return moderationReports
       .filter((report) => {
-        const matchesStatus =
-          reportFilter === "all" || report.status === reportFilter;
         const matchesPriority =
           reportPriorityFilter === "all" ||
           report.priority === reportPriorityFilter;
@@ -1100,7 +1084,6 @@ export default function ModeratorDashboard({
         );
 
         return (
-          matchesStatus &&
           matchesPriority &&
           normalizeText(
             [
@@ -1232,20 +1215,6 @@ export default function ModeratorDashboard({
             />
           </label>
           <label>
-            Statut
-            <Select
-              value={eventFilter}
-              onChange={(event) =>
-                setEventFilter(event.target.value as ModerationEventFilter)
-              }
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="pending">A valider</option>
-              <option value="published">Publies</option>
-              <option value="suspended">Suspendus</option>
-            </Select>
-          </label>
-          <label>
             Trier par
             <Select
               value={eventSort}
@@ -1371,23 +1340,9 @@ export default function ModeratorDashboard({
             Rechercher
             <Input
               value={organizationSearch}
-              placeholder="Organization, email, SIRET..."
+              placeholder="Organization ou email..."
               onChange={(event) => setOrganizationSearch(event.target.value)}
             />
-          </label>
-          <label>
-            Statut
-            <Select
-              value={organizationFilter}
-              onChange={(event) =>
-                setOrganizationFilter(event.target.value as ModerationOrganizationFilter)
-              }
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="pending">A valider</option>
-              <option value="active">Actifs</option>
-              <option value="suspended">Suspendus</option>
-            </Select>
           </label>
           <label>
             Trier par
@@ -1477,19 +1432,6 @@ export default function ModeratorDashboard({
             />
           </label>
           <label>
-            Statut
-            <Select
-              value={accountFilter}
-              onChange={(event) =>
-                setAccountFilter(event.target.value as ModerationAccountFilter)
-              }
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="active">Actifs</option>
-              <option value="suspended">Suspendus</option>
-            </Select>
-          </label>
-          <label>
             Trier par
             <Select
               value={accountSort}
@@ -1544,21 +1486,6 @@ export default function ModeratorDashboard({
               placeholder="Motif, cible, utilisateur..."
               onChange={(event) => setReportSearch(event.target.value)}
             />
-          </label>
-          <label>
-            Statut
-            <Select
-              value={reportFilter}
-              onChange={(event) =>
-                setReportFilter(event.target.value as ModerationReportFilter)
-              }
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="open">En attente</option>
-              <option value="reviewing">En cours</option>
-              <option value="resolved">Confirmes</option>
-              <option value="dismissed">Restaures</option>
-            </Select>
           </label>
           <label>
             Priorite

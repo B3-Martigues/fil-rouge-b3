@@ -49,15 +49,11 @@ export default function ProfilePreferences() {
 
   return (
     <div className="profile-preferences">
-      <h1>Mes preferences</h1>
       <PreferencesGrid selected={preferences} toggle={handleToggle} />
       {error && <ErrorMessage message={error} />}
       <div className="profile-preferences__actions">
         <Button type="button" onClick={handleSave}>
           Enregistrer
-        </Button>
-        <Button type="button" onClick={() => navigate(ROUTES.USER.PROFILE)}>
-          Annuler
         </Button>
       </div>
     </div>

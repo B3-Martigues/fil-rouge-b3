@@ -8,7 +8,7 @@ import {
   type FormEvent,
   type TouchEvent,
 } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
   CalendarDays,
@@ -129,6 +129,7 @@ const statusSections: {
 ];
 
 export default function Home() {
+  const location = useLocation();
   const currentUser = useAuthStore((s) => s.currentUser);
   const isUserAccount = currentUser?.role === "user";
   const currentUserId = isUserAccount ? currentUser.user_id : undefined;
@@ -454,9 +455,37 @@ export default function Home() {
     },
     [filteredEvents, recommendedEvents, showRecommendedEvents],
   );
+  const selectedMapEvent = useMemo(
+    () =>
+      mapEventSelection == null
+        ? null
+        : events.find((event) => event.id === mapEventSelection.eventId) ?? null,
+    [events, mapEventSelection],
+  );
   const mapEvents = useMemo(
-    () => displayedEvents.filter((event) => getEventStatus(event) !== "past"),
-    [displayedEvents],
+    () => {
+      const visibleMapEvents = displayedEvents.filter(
+        (event) =>
+          getEventStatus(event) !== "past" ||
+          event.id === mapEventSelection?.eventId,
+      );
+
+      if (
+        selectedMapEvent &&
+        getEventCoordinates(selectedMapEvent) &&
+        !visibleMapEvents.some((event) => event.id === selectedMapEvent.id)
+      ) {
+        return [...visibleMapEvents, selectedMapEvent];
+      }
+
+      return visibleMapEvents;
+    },
+    [
+      displayedEvents,
+      getEventCoordinates,
+      mapEventSelection?.eventId,
+      selectedMapEvent,
+    ],
   );
   const activeMapEventSelection = useMemo(
     () =>
@@ -470,8 +499,10 @@ export default function Home() {
     () =>
       selectedEventId == null
         ? null
-        : displayedEvents.find((event) => event.id === selectedEventId) ?? null,
-    [displayedEvents, selectedEventId],
+        : displayedEvents.find((event) => event.id === selectedEventId) ??
+          events.find((event) => event.id === selectedEventId) ??
+          null,
+    [displayedEvents, events, selectedEventId],
   );
   const selectedEventCoordinates = selectedEvent
     ? getEventCoordinates(selectedEvent)
@@ -488,7 +519,8 @@ export default function Home() {
   const selectedEventGoogleMapsHref = selectedEventCoordinates
     ? `https://www.google.com/maps/search/?api=1&query=${selectedEventCoordinates.latitude},${selectedEventCoordinates.longitude}`
     : null;
-  const mobileSheetMode = selectedEvent ? "detail" : mobileSheetState;
+  const mobileSheetMode =
+    selectedEvent && mobileSheetState === "expanded" ? "detail" : mobileSheetState;
   const profileHref = !currentUser
     ? ROUTES.PUBLIC.LOGIN
     : currentUser.role === "user"
@@ -588,7 +620,7 @@ export default function Home() {
       return;
     }
 
-    if (deltaY > 36 && !selectedEvent) {
+    if (deltaY > 36) {
       setMobileSheetState("preview");
     }
   };
@@ -612,6 +644,63 @@ export default function Home() {
       block: "start",
     });
   };
+
+  useEffect(() => {
+    const requestedEventId = Number(
+      new URLSearchParams(location.search).get("event"),
+    );
+
+    if (!Number.isInteger(requestedEventId)) return;
+
+    const requestedEvent = events.find((event) => event.id === requestedEventId);
+
+    if (!requestedEvent || !getEventCoordinates(requestedEvent)) return;
+
+    const focusTimer = window.setTimeout(() => {
+      const eventStartDate = new Date(requestedEvent.start_date);
+
+      if (!Number.isNaN(eventStartDate.getTime())) {
+        setMapPeriodMode("month");
+        setMapPeriodValue(
+          `${eventStartDate.getFullYear()}-${String(
+            eventStartDate.getMonth() + 1,
+          ).padStart(2, "0")}`,
+        );
+      }
+
+      if (getEventStatus(requestedEvent) === "past") {
+        setShowPastEvents(true);
+      }
+
+      if (currentUser?.role === "user" && currentUser.user_id) {
+        recordHistory(currentUser.user_id, requestedEventId);
+      }
+
+      setSelectedEventId(isMobile ? requestedEventId : null);
+      if (isMobile) {
+        setMobileSheetState("expanded");
+      }
+      setMapEventSelection((currentSelection) => ({
+        eventId: requestedEventId,
+        requestId: (currentSelection?.requestId ?? 0) + 1,
+      }));
+      mapSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 0);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+    };
+  }, [
+    currentUser,
+    events,
+    getEventCoordinates,
+    isMobile,
+    location.search,
+    recordHistory,
+  ]);
 
   const renderEventCard = (event: Event) => {
     const eventDistance = getEventDistance(event);
@@ -911,11 +1000,12 @@ export default function Home() {
           type="button"
           aria-label={
             mobileSheetMode === "preview"
-              ? "Afficher les evenements"
+              ? selectedEvent
+                ? "Afficher le detail de l'evenement"
+                : "Afficher les evenements"
               : "Reduire la liste des evenements"
           }
           onClick={() => {
-            if (selectedEvent) return;
             setMobileSheetState((state) =>
               state === "preview" ? "expanded" : "preview",
             );
@@ -988,12 +1078,6 @@ export default function Home() {
             <p className="event-mobile-detail__description">
               {selectedEvent.description}
             </p>
-
-            {selectedEvent.source && (
-              <p className="event-mobile-detail__source">
-                Source: {selectedEvent.source}
-              </p>
-            )}
 
             {selectedEventTicketingHref && (
               <a

@@ -115,7 +115,6 @@ export default function ReportEventButton({ event }: Props) {
         title={unavailableMessage ?? "Signaler cet evenement"}
         onClick={toggleReportForm}
       >
-        {existingReport ? "Deja signale" : "Signaler"}
       </Button>
       {unavailableMessage && (
         <p className="event-report__status" id={statusId}>

@@ -620,7 +620,6 @@
     z-index: 1100;
     display: grid;
     gap: 12px;
-    height: min(76svh, 660px);
     padding: 18px 14px calc(18px + env(safe-area-inset-bottom));
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -630,7 +629,7 @@
     color: var(--text);
     background: var(--color-mobile-sheet-surface);
     box-shadow: 0 -18px 40px var(--color-sheet-shadow);
-    transform: translateY(calc(100% - 164px));
+    transform: translateY(calc(100% - 45px));
     transition:
       transform 260ms ease,
       height 260ms ease;
@@ -647,11 +646,9 @@
 
     &__sheet-handle {
       position: sticky;
-      top: 0;
       z-index: 2;
       display: block;
       justify-self: center;
-      width: 76px;
       height: 24px;
       margin: -8px 0 0;
       border: 0;
@@ -663,7 +660,6 @@
         display: block;
         width: 76px;
         height: 5px;
-        margin: 9px auto 0;
         border-radius: 999px;
         background: var(--color-mobile-handle);
       }

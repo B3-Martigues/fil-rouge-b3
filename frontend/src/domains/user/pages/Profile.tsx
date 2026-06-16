@@ -3,11 +3,12 @@
  */
 
 import UserProfileForm from "../components/UserProfileForm";
+import AccountPageShell from "../components/AccountPageShell";
 
 export default function Profile() {
   return (
-    <section className="user-profile-page">
+    <AccountPageShell activeSection="profile">
       <UserProfileForm />
-    </section>
+    </AccountPageShell>
   );
 }

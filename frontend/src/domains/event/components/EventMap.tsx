@@ -175,7 +175,7 @@ export default function EventMap({
         eventHandlers={{ load: handleTilesLoaded }}
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <MapFitBounds points={mapPoints} />
+      <MapFitBounds enabled={selectedEventId == null} points={mapPoints} />
       <SelectedEventFocus
         event={selectedEvent}
         requestId={selectedEventRequestId}

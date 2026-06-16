@@ -5,14 +5,13 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
-import { FormModalLink } from "../../../shared/components/forms/FormModalLink";
-import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
 import {
   profileSchema,
   type ProfileFormData,
 } from "../validations/profile.schema";
+import { createPasswordChangedNotification } from "../../notification/services/notificationFactory";
 
 import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
@@ -27,23 +26,19 @@ export default function UserProfileForm() {
   const logout = useAuthStore((s) => s.logout);
   const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
-  const organizers = useDataStore((s) => s.organizers);
   const updateAccount = useDataStore((s) => s.updateAccount);
   const updateUser = useDataStore((s) => s.updateUser);
   const deleteUser = useDataStore((s) => s.deleteUser);
+  const dispatchNotification = useDataStore((s) => s.dispatchNotification);
   const navigate = useNavigate();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const hasOrganizations =
-    !!user?.user_id &&
-    organizers.some(
-      (organizer) => organizer.user_id === user.user_id && !organizer.deleted_at,
-    );
 
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -51,6 +46,8 @@ export default function UserProfileForm() {
     defaultValues: {
       username: user?.username ?? "",
       login_email: user?.login_email ?? "",
+      newPassword: "",
+      confirmPassword: "",
     },
   });
 
@@ -108,7 +105,39 @@ export default function UserProfileForm() {
         login_email: loginEmail,
       });
 
-      toast.success("Profil mis a jour");
+      const newPassword = data.newPassword?.trim() ?? "";
+
+      if (newPassword) {
+        const notificationUser = users.find(
+          (item) => item.id === user.user_id && !item.deleted_at,
+        );
+
+        if (!notificationUser) {
+          setServerError("Profil utilisateur introuvable");
+          return;
+        }
+
+        updateAccount(user.account_id, {
+          password_hash: newPassword,
+          password_changed_at: new Date().toISOString(),
+        });
+        void dispatchNotification(
+          createPasswordChangedNotification({
+            user: notificationUser,
+            profileUrl: "/profile",
+          }),
+        );
+      }
+
+      reset({
+        username,
+        login_email: loginEmail,
+        newPassword: "",
+        confirmPassword: "",
+      });
+      toast.success(
+        newPassword ? "Profil et mot de passe mis a jour" : "Profil mis a jour",
+      );
     } catch {
       setServerError("Erreur lors de la mise a jour du profil");
     } finally {
@@ -129,8 +158,6 @@ export default function UserProfileForm() {
 
   return (
     <div className="user-profile">
-      <h1>Mon profil</h1>
-
       <form className="user-profile-form" onSubmit={handleSubmit(onSubmit)} noValidate>
         <FormField
           label="Nom d'utilisateur"
@@ -162,26 +189,42 @@ export default function UserProfileForm() {
           />
         </FormField>
 
+        <FormField
+          label="Nouveau mot de passe"
+          htmlFor="newPassword"
+          error={errors.newPassword?.message}
+        >
+          <Input
+            id="newPassword"
+            type="password"
+            autoComplete="new-password"
+            hasError={!!errors.newPassword}
+            aria-describedby="newPassword-error"
+            {...register("newPassword")}
+          />
+        </FormField>
+
+        <FormField
+          label="Confirmer nouveau mot de passe"
+          htmlFor="confirmPassword"
+          error={errors.confirmPassword?.message}
+        >
+          <Input
+            id="confirmPassword"
+            type="password"
+            autoComplete="new-password"
+            hasError={!!errors.confirmPassword}
+            aria-describedby="confirmPassword-error"
+            {...register("confirmPassword")}
+          />
+        </FormField>
+
         {serverError && <ErrorMessage message={serverError} />}
 
         <Button type="submit" loading={loading}>
           Enregistrer les modifications
         </Button>
         <div className="user-profile-actions">
-          <FormModalLink className="btn" to={ROUTES.USER.CHANGE_PASSWORD}>
-            Modifier le mot de passe
-          </FormModalLink>
-
-          <FormModalLink className="btn" to={ROUTES.USER.PREFERENCES}>
-            Modifier mes préférences
-          </FormModalLink>
-
-          {!hasOrganizations && (
-            <FormModalLink className="btn" to={ROUTES.USER.BECOME_ORGANIZER}>
-              Devenir organisateur
-            </FormModalLink>
-          )}
-
           <Button
             variant="danger"
             type="button"

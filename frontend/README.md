@@ -14,6 +14,7 @@ Le frontend permet notamment :
 - La gestion du profil, des préférences, des favoris et de l'historique
 - La consultation des organisations
 - La création et la gestion d'événements par les organisations validées
+- Les notifications applicatives et les messages liés aux décisions
 - La validation et la modération des comptes, événements et signalements
 - L'administration de la plateforme
 
@@ -239,6 +240,30 @@ Les espaces administrateur et modérateur permettent :
 - Le suivi des signalements
 - La suspension temporaire de comptes ou d'événements
 - L'affichage des motifs de décision
+
+### Notifications
+
+Le frontend intègre un système de notifications mocké et persistant localement.
+
+Fonctionnalités disponibles :
+
+- Centre de notifications utilisateur
+- Notifications liées aux changements administratifs
+- Notifications pour les validations, refus, suppressions et suspensions
+- Notifications de sécurité pour les mots de passe
+- Templates email et fournisseurs mockés pour préparer l'intégration backend
+
+### Modération
+
+Le domaine `moderator` regroupe les workflows de contrôle des contenus et des comptes.
+
+Fonctionnalités disponibles :
+
+- Validation ou refus motivé des organisations en attente
+- Validation, refus, masquage et suppression des événements
+- Suspension temporaire de comptes utilisateurs ou organisations
+- Traitement des signalements par priorité
+- Journalisation des décisions avec motif obligatoire
 
 ### Intégration météo Open-Meteo
 
