@@ -73,7 +73,7 @@ const toEventDraft = (event: Event): EventDraft => ({
   ticketing_link: event.ticketing_link,
   source:
     event.source === "organization" || event.source === "Organization"
-      ? "Evenement cree par une organization"
+      ? "Événement créé par une organisation"
       : event.source ?? "",
   is_active: event.is_active,
 });
@@ -213,13 +213,13 @@ export default function OrganizationEvents() {
       image: eventDraft.image.trim(),
       price: Number(eventDraft.price.trim()),
       ticketing_link: eventDraft.ticketing_link.trim(),
-      source: eventDraft.source?.trim() || "Evenement cree par une organisation",
+      source: eventDraft.source?.trim() || "Événement créé par une organisation",
       organization_id: currentUser.organization_id,
       is_active: false,
     });
 
     cancelEdit();
-    toast.success("Evenement mis a jour, en attente de publication");
+    toast.success("Événement mis à jour, en attente de publication");
   };
 
   const deleteEvent = (eventId: number) => {
@@ -229,7 +229,7 @@ export default function OrganizationEvents() {
     deleteEventFromStore(eventId);
     setPendingDeleteEventId(null);
     cancelEdit();
-    toast.success(`${deletedEvent.title} supprime`);
+    toast.success(`${deletedEvent.title} supprimé`);
   };
 
   const pendingDeleteEvent = organizationEvents.find(
@@ -241,8 +241,8 @@ export default function OrganizationEvents() {
       <div className="organization-dashboard">
         <h2>Votre compte est en attente de validation</h2>
         <p>
-          Votre compte doit etre valide par un administrateur avant de pouvoir
-          gerer des événements.
+          Votre compte doit être validé par un administrateur avant de pouvoir
+          gérer des événements.
         </p>
       </div>
     );
@@ -254,11 +254,11 @@ export default function OrganizationEvents() {
         confirmLabel="Supprimer"
         message={
           pendingDeleteEvent
-            ? `Supprimer l'evenement "${pendingDeleteEvent.title}" ? Cette action le retirera de votre liste.`
-            : "Supprimer cet evenement ?"
+            ? `Supprimer l'événement "${pendingDeleteEvent.title}" ? Cette action le retirera de votre liste.`
+            : "Supprimer cet événement ?"
         }
         open={pendingDeleteEventId !== null}
-        title="Supprimer l'evenement"
+        title="Supprimer l'événement"
         onCancel={() => setPendingDeleteEventId(null)}
         onConfirm={() => {
           if (pendingDeleteEventId !== null) {
@@ -268,7 +268,7 @@ export default function OrganizationEvents() {
       />
 
       <FormModal
-        ariaLabel="Modifier un evenement"
+        ariaLabel="Modifier un événement"
         open={!!eventDraft && editingEventId !== null}
         size="lg"
         onClose={cancelEdit}
@@ -292,7 +292,7 @@ export default function OrganizationEvents() {
         <h2 id="organization-events-title">Liste des événements</h2>
 
         <Toolbar
-          ariaLabel="Filtres des evenements de l'organisation"
+          ariaLabel="Filtres des événements de l'organisation"
           className="admin-toolbar"
         >
           <label>
@@ -323,9 +323,9 @@ export default function OrganizationEvents() {
               value={eventSort}
               onChange={(event) => setEventSort(event.target.value as EventSort)}
             >
-              <option value="created-desc">Date de creation</option>
-              <option value="date-asc">Debut croissant</option>
-              <option value="date-desc">Debut decroissant</option>
+              <option value="created-desc">Date de création</option>
+              <option value="date-asc">Début croissant</option>
+              <option value="date-desc">Début décroissant</option>
               <option value="title-asc">Titre A-Z</option>
               <option value="city-asc">Ville A-Z</option>
             </Select>
@@ -333,9 +333,9 @@ export default function OrganizationEvents() {
         </Toolbar>
 
         {organizationEvents.length === 0 ? (
-          <EmptyState message="Aucun evenement cree pour le moment." />
+          <EmptyState message="Aucun événement créé pour le moment." />
         ) : filteredOrganizationEvents.length === 0 ? (
-          <EmptyState message="Aucun evenement ne correspond aux filtres." />
+          <EmptyState message="Aucun événement ne correspond àux filtres." />
         ) : (
           <div className="organization-review-list">
             {filteredOrganizationEvents.map((event) => {
@@ -357,19 +357,19 @@ export default function OrganizationEvents() {
                         <StatusBadge
                           variant={event.is_active ? "active" : "pending"}
                         >
-                          {event.is_active ? "Publie" : "En attente"}
+                          {event.is_active ? "Publié" : "En attente"}
                         </StatusBadge>
                       </div>
                       <dl className="organization-review__details">
                         <div>
-                          <dt>Horaires de l'evenement</dt>
+                          <dt>Horaires de l'événement</dt>
                           <dd>{formatEventDateRange(event)}</dd>
                         </div>
                         <div>
                           <dt>Coordonnees</dt>
                           <dd>
-                            {event.latitude ?? "Non renseignee"},{" "}
-                            {event.longitude ?? "Non renseignee"}
+                            {event.latitude ?? "Non renseignée"},{" "}
+                            {event.longitude ?? "Non renseignée"}
                           </dd>
                         </div>
                         <div>
@@ -403,11 +403,11 @@ export default function OrganizationEvents() {
                           </div>
                         )}
                         <div>
-                          <dt>Date de creation</dt>
+                          <dt>Date de création</dt>
                           <dd>
                             {event.created_at
                               ? formatDateTime(event.created_at)
-                              : "Non renseignee"}
+                              : "Non renseignée"}
                           </dd>
                         </div>
                       </dl>
@@ -445,8 +445,8 @@ export default function OrganizationEvents() {
             })}
           </div>
         )}
-        <FormModalLink className="btn" to={ROUTES.ORGANIZATION.CREATE}>
-          Ajouter un nouvel evenement
+        <FormModalLink className="btn btn--primary" to={ROUTES.ORGANIZATION.CREATE}>
+          Ajouter un nouvel événement
         </FormModalLink>
       </section>
     </div>
@@ -466,7 +466,7 @@ function OrganizationEventEditor({
 }) {
   return (
     <div className="admin-create-account">
-      <h2>Modifier un evenement</h2>
+      <h2>Modifier un événement</h2>
       <div className="admin-form-grid">
         <FormField label="Titre" htmlFor="organization-event-title">
           <Input
@@ -501,7 +501,7 @@ function OrganizationEventEditor({
           />
         </FormField>
 
-        <FormField label="Date de debut" htmlFor="organization-event-start-date">
+        <FormField label="Date de début" htmlFor="organization-event-start-date">
           <Input
             id="organization-event-start-date"
             type="datetime-local"
@@ -617,7 +617,7 @@ function OrganizationEventEditor({
 
         <ActionRow className="admin-actions admin-form-grid__wide">
           <Button type="button" onClick={onSave}>
-            Enregistrer
+            Valider
           </Button>
           <Button variant="secondary" type="button" onClick={onCancel}>
             Annuler

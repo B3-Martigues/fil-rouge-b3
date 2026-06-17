@@ -94,6 +94,10 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
     );
   };
 
+  const cancelSetup = () => {
+    navigate(ROUTES.USER.PROFILE);
+  };
+
   const goToOrganizationStep = () => {
     const errors = validateOrganizerProfileForm(organizerForm);
     setOrganizerErrors(errors);
@@ -156,7 +160,7 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
 
     addOrganization(organization);
     addOrganizer(organizer);
-    toast.success("Organisation creee et rattachee a votre compte");
+    toast.success("Organisation créée et rattachee à votre compte");
     navigate(getOrganizationDetailPath(organizationId), { replace: true });
   };
 
@@ -164,7 +168,7 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
     return (
       <section className="organization-setup">
         <h1>{title}</h1>
-        <ErrorMessage message="Vous devez etre connecte avec un compte utilisateur." />
+        <ErrorMessage message="Vous devez être connecte avec un compte utilisateur." />
       </section>
     );
   }
@@ -182,7 +186,7 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
         </li>
         <li className={step === 1 ? "is-active" : ""}>
           <span>2</span>
-          Organisation
+          Organization
         </li>
       </ol>
 
@@ -199,7 +203,7 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
                 id="organizer-job-role"
                 autoComplete="organization-title"
                 hasError={!!organizerErrors.job_role}
-                placeholder="Responsable evenementiel"
+                placeholder="Responsable événementiel"
                 value={organizerForm.job_role}
                 onChange={(event) =>
                   updateOrganizerField("job_role", event.target.value)
@@ -211,6 +215,9 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
           {serverError && <ErrorMessage message={serverError} />}
 
           <ActionRow className="form-step-actions" align="center">
+            <Button type="button" variant="secondary" onClick={cancelSetup}>
+              Annuler
+            </Button>
             <Button type="button" onClick={goToOrganizationStep}>
               Suivant
             </Button>
@@ -228,10 +235,13 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
           {serverError && <ErrorMessage message={serverError} />}
 
           <ActionRow className="form-step-actions" align="center">
-            <Button type="button" variant="secondary" onClick={() => setStep(0)}>
-              Precedent
+            <Button type="button" variant="secondary" onClick={cancelSetup}>
+              Annuler
             </Button>
-            <Button type="submit">Creer l'organisation</Button>
+            <Button type="button" variant="secondary" onClick={() => setStep(0)}>
+              Précédent
+            </Button>
+            <Button type="submit">Valider</Button>
           </ActionRow>
         </form>
       )}

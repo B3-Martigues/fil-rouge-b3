@@ -34,6 +34,7 @@ export default function UserProfileForm() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const canDeleteOwnAccount = user?.role === "user" && !!user.user_id;
 
   const {
     register,
@@ -63,11 +64,6 @@ export default function UserProfileForm() {
         return;
       }
 
-      if (!user.user_id) {
-        setServerError("Profil utilisateur introuvable");
-        return;
-      }
-
       const loginEmail = data.login_email.trim();
       const username = data.username.trim();
       const existingAccount = accounts.find(
@@ -82,12 +78,14 @@ export default function UserProfileForm() {
         return;
       }
 
-      const existingUsername = users.find(
-        (item) =>
-          item.id !== user.user_id &&
-          !item.deleted_at &&
-          normalizeComparable(item.username) === normalizeComparable(username),
-      );
+      const existingUsername = user.user_id
+        ? users.find(
+            (item) =>
+              item.id !== user.user_id &&
+              !item.deleted_at &&
+              normalizeComparable(item.username) === normalizeComparable(username),
+          )
+        : null;
 
       if (existingUsername) {
         setServerError("Ce nom d'utilisateur est deja utilise");
@@ -97,9 +95,11 @@ export default function UserProfileForm() {
       updateAccount(user.account_id, {
         login_email: loginEmail,
       });
-      updateUser(user.user_id, {
-        username,
-      });
+      if (user.user_id) {
+        updateUser(user.user_id, {
+          username,
+        });
+      }
       updateAuthUser({
         username,
         login_email: loginEmail,
@@ -108,11 +108,11 @@ export default function UserProfileForm() {
       const newPassword = data.newPassword?.trim() ?? "";
 
       if (newPassword) {
-        const notificationUser = users.find(
-          (item) => item.id === user.user_id && !item.deleted_at,
-        );
+        const notificationUser = user.user_id
+          ? users.find((item) => item.id === user.user_id && !item.deleted_at)
+          : null;
 
-        if (!notificationUser) {
+        if (user.user_id && !notificationUser) {
           setServerError("Profil utilisateur introuvable");
           return;
         }
@@ -121,12 +121,14 @@ export default function UserProfileForm() {
           password_hash: newPassword,
           password_changed_at: new Date().toISOString(),
         });
-        void dispatchNotification(
-          createPasswordChangedNotification({
-            user: notificationUser,
-            profileUrl: "/profile",
-          }),
-        );
+        if (notificationUser) {
+          void dispatchNotification(
+            createPasswordChangedNotification({
+              user: notificationUser,
+              profileUrl: "/profile",
+            }),
+          );
+        }
       }
 
       reset({
@@ -136,10 +138,10 @@ export default function UserProfileForm() {
         confirmPassword: "",
       });
       toast.success(
-        newPassword ? "Profil et mot de passe mis a jour" : "Profil mis a jour",
+        newPassword ? "Profil et mot de passe mis à jour" : "Profil mis à jour",
       );
     } catch {
-      setServerError("Erreur lors de la mise a jour du profil");
+      setServerError("Erreur lors de la mise à jour du profil");
     } finally {
       setLoading(false);
     }
@@ -224,15 +226,17 @@ export default function UserProfileForm() {
         <Button type="submit" loading={loading}>
           Enregistrer les modifications
         </Button>
-        <div className="user-profile-actions">
-          <Button
-            variant="danger"
-            type="button"
-            onClick={() => setShowDeleteModal(true)}
-          >
-            Supprimer mon compte
-          </Button>
-        </div>
+        {canDeleteOwnAccount && (
+          <div className="user-profile-actions">
+            <Button
+              variant="danger"
+              type="button"
+              onClick={() => setShowDeleteModal(true)}
+            >
+              Supprimer mon compte
+            </Button>
+          </div>
+        )}
       </form>
 
       <ConfirmDialog

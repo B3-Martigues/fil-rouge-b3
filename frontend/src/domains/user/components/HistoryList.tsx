@@ -57,7 +57,7 @@ export default function History() {
   return (
     <div className="user-history">
       {userHistory.length === 0 ? (
-        <p>Aucun evenement consulte pour le moment.</p>
+        <p>Aucun événement consulté pour le moment.</p>
       ) : (
         <div className="user-events-list__grid">
           {userHistory.map(({ history, event }) => {
@@ -70,7 +70,7 @@ export default function History() {
                 distanceInKilometers={getEventDistance(event)}
                 meta={
                   <time dateTime={history.visited_at}>
-                    Consulte le {formatDateTime(history.visited_at)}
+                    Consulté le {formatDateTime(history.visited_at)}
                   </time>
                 }
                 actions={

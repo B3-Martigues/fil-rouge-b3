@@ -445,10 +445,11 @@
   .events-mobile-topbar {
     position: fixed;
     top: max(12px, env(safe-area-inset-top));
-    right: 64px;
+    right: 12px;
     left: 12px;
     z-index: 1200;
-    display: flex;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
     gap: 8px;
     align-items: center;
     box-sizing: border-box;
@@ -459,25 +460,8 @@
     }
 
     &::after {
-      content: "--\00B0 C";
-      position: fixed;
-      top: max(12px, env(safe-area-inset-top));
-      right: 12px;
-      z-index: 1299;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 42px;
-      height: 42px;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      color: var(--color-weather-text);
-      background: var(--color-weather-surface);
-      box-shadow: 0 8px 22px var(--color-floating-shadow);
-      font-size: 11px;
-      font-weight: 800;
-      line-height: 1;
-      pointer-events: none;
+      display: none;
+      content: none;
     }
 
     &--has-filter::after {
@@ -505,10 +489,32 @@
     }
 
     &__profile {
+      position: relative;
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      flex: 0 0 42px;
       text-decoration: none;
+    }
+
+    &__profile-badge {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      padding: 0 5px;
+      border: 2px solid var(--color-mobile-floating-surface);
+      border-radius: 50%;
+      color: var(--color-inverse);
+      background: var(--color-favorite);
+      font-size: 10px;
+      font-weight: 900;
+      line-height: 1;
+      box-shadow: 0 4px 10px var(--color-floating-shadow);
     }
 
     &__filter,
@@ -516,10 +522,8 @@
     .header-weather {
       display: flex;
       flex: 0 0 42px;
-      position: fixed;
-      top: max(12px, env(safe-area-inset-top));
-      right: 12px;
-      z-index: 1301;
+      position: static;
+      z-index: 1;
     }
 
     &__weather {
@@ -544,52 +548,75 @@
     }
   }
 
-  .events-mobile-search {
-    display: grid;
-    flex: 1 1 auto;
-    grid-template-columns: 18px minmax(0, 1fr) 34px;
-    align-items: center;
-    min-width: 0;
-    height: 42px;
-    padding: 0 4px 0 12px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    color: var(--text-p);
-    background: var(--color-mobile-floating-surface);
-    box-shadow: 0 8px 22px var(--color-floating-shadow);
-    backdrop-filter: blur(12px);
+.events-mobile-search {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  min-width: 0;
+  height: 42px;
+  padding: 0 4px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-p);
+  background: var(--color-mobile-floating-surface);
+  box-shadow: 0 8px 22px var(--color-floating-shadow);
+  backdrop-filter: blur(12px);
 
-    .input {
-      min-width: 0;
-      height: 38px;
-      padding: 0 6px;
-      border: 0;
-      color: var(--text-h);
-      background: transparent;
-      box-shadow: none;
-      font-size: 13px;
+  .input {
+    min-width: 0;
+    height: 38px;
+    padding: 0 6px;
+    border: 0;
+    color: var(--text-h);
+    background: transparent;
+    box-shadow: none;
+    border-color: transparent !important;
+    outline: none;
+    font-size: 16px;
+
+    @include respond-below($bp-lg) {
+      font-size: 15px;
+    }
+
+    @include respond-below($bp-md) {
+      font-size: 18px;
+    }
+
+    @include respond-below($bp-sm) {
+      font-size: 16px;
+    }
+
+    @include respond-below($bp-mobile) {
+      font-size: 14px;
+    }
+
+    @include respond-below($bp-sm-mobile) {
+      font-size: 14px;
+    }
+
+    @include respond-below($bp-xs) {
+      font-size: 14px;
+    }
+
+    &:focus,
+    &:focus-visible {
       border-color: transparent !important;
       outline: none;
-
-      &:focus,
-      &:focus-visible {
-        border-color: transparent !important;
-        outline: none;
-      }
-
-      &::placeholder {
-        color: var(--text-p);
-      }
     }
 
-    &__clear {
-      width: 34px;
-      height: 34px;
-      min-height: 34px;
+    &::placeholder {
       color: var(--text-p);
-      background: transparent;
     }
   }
+
+  &__clear {
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+    color: var(--text-p);
+    background: transparent;
+  }
+}
 
   .event-map {
     width: 100%;

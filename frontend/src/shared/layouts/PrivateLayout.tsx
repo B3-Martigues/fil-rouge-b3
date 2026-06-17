@@ -11,7 +11,10 @@ const accountRoutes = new Set<string>([
   ROUTES.USER.PROFILE,
   ROUTES.USER.FAVORITES,
   ROUTES.USER.HISTORY,
+  ROUTES.USER.NOTIFICATIONS,
   ROUTES.USER.PREFERENCES,
+  ROUTES.USER.ORGANIZATIONS,
+  ROUTES.USER.EVENTS,
 ]);
 
 export default function PrivateLayout() {

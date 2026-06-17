@@ -1,23 +1,26 @@
-import { NavLink } from "react-router-dom";
+import { CalendarDays, ShieldCheck, UsersRound } from "lucide-react";
 
-import LogoutButton from "../../../domains/auth/components/LogoutButton";
-import NotificationCenter from "../../../domains/notification/components/NotificationCenter";
 import { ROUTES } from "../../constants/routes";
-import HeaderWeather from "./HeaderWeather";
-import ThemeToggle from "./ThemeToggle";
+import StaffAccountHeader from "./StaffAccountHeader";
+
+const adminTabs = [
+  {
+    label: "Comptes",
+    route: ROUTES.ADMIN.DASHBOARD,
+    Icon: UsersRound,
+  },
+  {
+    label: "Evenements",
+    route: ROUTES.ADMIN.EVENTS,
+    Icon: CalendarDays,
+  },
+  {
+    label: "Moderation",
+    route: ROUTES.MODERATOR.DASHBOARD,
+    Icon: ShieldCheck,
+  },
+] as const;
 
 export default function HeaderAdmin() {
-  return (
-    <header className="role-header">
-      <nav className="role-header__nav">
-        <NavLink to={ROUTES.PUBLIC.HOME}>Accueil</NavLink>
-        <NavLink to={ROUTES.ADMIN.DASHBOARD}>Admin</NavLink>
-        <NavLink to={ROUTES.MODERATOR.DASHBOARD}>Moderation</NavLink>
-        <NotificationCenter />
-        <HeaderWeather />
-        <ThemeToggle />
-        <LogoutButton />
-      </nav>
-    </header>
-  );
+  return <StaffAccountHeader ariaLabel="Navigation administrateur" tabs={adminTabs} />;
 }

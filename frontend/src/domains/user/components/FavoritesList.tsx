@@ -27,7 +27,7 @@ export default function Favorites() {
   if (favoriteEvents.length === 0) {
     return (
       <p className="feedback-message feedback-message--empty">
-        Aucun evenement en favoris
+        Aucun événement en favoris
       </p>
     );
   }

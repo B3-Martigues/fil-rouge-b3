@@ -1,18 +1,33 @@
-import type { ReactNode } from "react";
-import { ArrowLeft, Clock3, Heart, Settings2, UserRound } from "lucide-react";
-import { Link, NavLink } from "react-router-dom";
+import {
+  ArrowLeft,
+  Bell,
+  Building2,
+  CalendarDays,
+  Clock3,
+  Heart,
+  LogOut,
+  Settings2,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { FormModalLink } from "../../../shared/components/forms/FormModalLink";
+import Button from "../../../shared/components/ui/Button";
 import { ROUTES } from "../../../shared/constants/routes";
 import useDataStore from "../../../shared/store/dataStore";
 import useAuthStore from "../../auth/store/authStore";
+import useModeratorPermissions from "../../moderator/hooks/useModeratorPermissions";
+import { getNotificationTypeConfig } from "../../notification/mocks/notification-types.mock";
 
-type AccountSection = "profile" | "favorites" | "preferences" | "history";
-
-type Props = {
-  activeSection: AccountSection;
-  children: ReactNode;
-};
+type AccountSection =
+  | "profile"
+  | "favorites"
+  | "preferences"
+  | "history"
+  | "notifications"
+  | "organizations"
+  | "events";
 
 const accountSections = [
   {
@@ -22,13 +37,19 @@ const accountSections = [
     route: ROUTES.USER.PROFILE,
     Icon: UserRound,
   },
-
   {
     key: "preferences",
-    label: "Préférences",
-    title: "Mes preferences",
+    label: "Paramètres",
+    title: "Mes paramètres",
     route: ROUTES.USER.PREFERENCES,
     Icon: Settings2,
+  },
+  {
+    key: "notifications",
+    label: "Notifications",
+    title: "Mes notifications",
+    route: ROUTES.USER.NOTIFICATIONS,
+    Icon: Bell,
   },
   {
     key: "favorites",
@@ -44,7 +65,36 @@ const accountSections = [
     route: ROUTES.USER.HISTORY,
     Icon: Clock3,
   },
+  {
+    key: "organizations",
+    label: "Organisations",
+    title: "Mes organisations",
+    route: ROUTES.USER.ORGANIZATIONS,
+    Icon: Building2,
+  },
+  {
+    key: "events",
+    label: "Événements",
+    title: "Mes événements",
+    route: ROUTES.USER.EVENTS,
+    Icon: CalendarDays,
+  },
 ] as const;
+
+const organizerOnlySections: AccountSection[] = ["organizations", "events"];
+
+const roleLabels = {
+  admin: "Administrateur",
+  moderator: "Modérateur",
+  organization: "Organisation",
+  user: "Utilisateur",
+} as const;
+
+const getActiveAccountSection = (pathname: string): AccountSection => {
+  const activeSection = accountSections.find((section) => section.route === pathname);
+
+  return activeSection?.key ?? "profile";
+};
 
 const getInitials = (name?: string | null) => {
   if (!name) return "U";
@@ -71,13 +121,18 @@ const formatMemberSince = (value?: string | null) => {
   }).format(date);
 };
 
-export default function AccountPageShell({ activeSection, children }: Props) {
+export default function AccountPageShell() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.currentUser);
+  const logout = useAuthStore((s) => s.logout);
+  const { permissions } = useModeratorPermissions();
   const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
   const organizations = useDataStore((s) => s.organizations);
   const organizers = useDataStore((s) => s.organizers);
   const events = useDataStore((s) => s.events);
+  const notifications = useDataStore((s) => s.notifications);
   const userId = currentUser?.user_id;
   const user = users.find((item) => item.id === userId && !item.deleted_at);
   const account = accounts.find(
@@ -99,9 +154,49 @@ export default function AccountPageShell({ activeSection, children }: Props) {
   const memberSince = formatMemberSince(account?.created_at ?? user?.created_at);
   const displayName = currentUser?.username ?? "Utilisateur";
   const email = currentUser?.login_email ?? "Compte utilisateur";
+  const roleLabel = currentUser ? roleLabels[currentUser.role] : "Utilisateur";
+  const activeSection = getActiveAccountSection(location.pathname);
+  const isStaffAccount =
+    currentUser?.role === "admin" || currentUser?.role === "moderator";
+  const staffDashboardRoute =
+    currentUser?.role === "admin"
+      ? ROUTES.ADMIN.DASHBOARD
+      : ROUTES.MODERATOR.DASHBOARD;
+  const staffDashboardLabel =
+    currentUser?.role === "admin"
+      ? "Acceder au panel admin"
+      : "Acceder a la moderation";
+  const staffScopeLabel =
+    currentUser?.role === "admin"
+      ? "Acces complet a la plateforme"
+      : `${permissions.length} permission${permissions.length > 1 ? "s" : ""} active${
+          permissions.length > 1 ? "s" : ""
+        }`;
   const activeSectionTitle =
     accountSections.find((section) => section.key === activeSection)?.title ??
     "Compte";
+  const visibleAccountSections =
+    currentUser?.role === "user"
+      ? accountSections.filter(
+          (section) => hasOrganizations || !organizerOnlySections.includes(section.key),
+        )
+      : accountSections.filter((section) => section.key === "profile");
+  const unreadNotificationCount = notifications.filter((notification) => {
+    const notificationTypeConfig = getNotificationTypeConfig(
+      notification.notification_type_id,
+    );
+
+    return (
+      notification.user_id === userId &&
+      !notification.is_read &&
+      notificationTypeConfig?.channels.includes("in_app")
+    );
+  }).length;
+
+  const handleLogout = () => {
+    logout();
+    navigate(ROUTES.PUBLIC.LOGIN, { replace: true });
+  };
 
   return (
     <section className="account-shell" aria-labelledby="account-title">
@@ -121,25 +216,46 @@ export default function AccountPageShell({ activeSection, children }: Props) {
           <div className="account-summary__identity">
             <strong>{displayName}</strong>
             <span>{email}</span>
+            <span className="account-summary__role">{roleLabel}</span>
           </div>
+          <Button
+            aria-label="Se déconnecter"
+            className="account-summary__logout"
+            icon={<LogOut size={17} aria-hidden="true" />}
+            type="button"
+            variant="secondary"
+            onClick={handleLogout}
+          >
+            Déconnexion
+          </Button>
           <div
             className={`account-summary__meta${
               hasOrganizations ? " account-summary__meta--organizer" : ""
-            }`}
-            aria-label="Resume du compte"
+            }${isStaffAccount ? " account-summary__meta--staff" : ""}`}
+            aria-label="Résumé du compte"
           >
             <span className="account-summary__member-since">
               Membre depuis {memberSince}
             </span>
-            {hasOrganizations ? (
+            {isStaffAccount ? (
+              <>
+                <span>
+                  <ShieldCheck size={16} aria-hidden="true" />
+                  {staffScopeLabel}
+                </span>
+                <Link className="btn account-summary__dashboard-link" to={staffDashboardRoute}>
+                  {staffDashboardLabel}
+                </Link>
+              </>
+            ) : hasOrganizations ? (
               <>
                 <span>
                   {organizationCount} organisation
                   {organizationCount > 1 ? "s" : ""}
                 </span>
                 <span>
-                  {createdEventCount} evenement
-                  {createdEventCount > 1 ? "s" : ""} cree
+                  {createdEventCount} événement
+                  {createdEventCount > 1 ? "s" : ""} créé
                   {createdEventCount > 1 ? "s" : ""}
                 </span>
               </>
@@ -155,7 +271,7 @@ export default function AccountPageShell({ activeSection, children }: Props) {
         </div>
 
         <nav className="account-tabs" aria-label="Sections du compte">
-          {accountSections.map(({ key, label, route, Icon }) => (
+          {visibleAccountSections.map(({ key, label, route, Icon }) => (
             <NavLink
               className={({ isActive }) =>
                 [
@@ -169,6 +285,16 @@ export default function AccountPageShell({ activeSection, children }: Props) {
               to={route}
             >
               <Icon size={18} aria-hidden="true" />
+              {key === "notifications" && unreadNotificationCount > 0 && (
+                <span
+                  className="account-tabs__badge"
+                  aria-label={`${unreadNotificationCount} notification non lue${
+                    unreadNotificationCount > 1 ? "s" : ""
+                  }`}
+                >
+                  {unreadNotificationCount}
+                </span>
+              )}
               <span>{label}</span>
             </NavLink>
           ))}
@@ -177,7 +303,9 @@ export default function AccountPageShell({ activeSection, children }: Props) {
         <h2 className="account-shell__section-title">{activeSectionTitle}</h2>
       </div>
 
-      <div className="account-shell__content">{children}</div>
+      <div className="account-shell__content">
+        <Outlet />
+      </div>
     </section>
   );
 }

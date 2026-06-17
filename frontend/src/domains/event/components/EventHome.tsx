@@ -31,6 +31,7 @@ import Select from "../../../shared/components/ui/Select";
 import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
+import { getNotificationTypeConfig } from "../../notification/mocks/notification-types.mock";
 import {
   EVENT_CATEGORIES,
   getEventCategorySlug,
@@ -114,17 +115,17 @@ const statusSections: {
   {
     status: "current",
     title: "Événements en cours",
-    empty: "Aucun evenement en cours.",
+    empty: "Aucun événement en cours.",
   },
   {
     status: "upcoming",
     title: "Les prochains événements",
-    empty: "Aucun evenement prochain ne correspond a votre recherche.",
+    empty: "Aucun événement prochain ne correspond à votre recherche.",
   },
   {
     status: "past",
-    title: "Événements passes",
-    empty: "Aucun evenement passe ne correspond a votre recherche.",
+    title: "Événements passés",
+    empty: "Aucun événement passé ne correspond à votre recherche.",
   },
 ];
 
@@ -138,6 +139,7 @@ export default function Home() {
   const userEventPreferences = useDataStore((s) => s.userEventPreferences);
   const favorites = useDataStore((s) => s.favorites);
   const histories = useDataStore((s) => s.histories);
+  const notifications = useDataStore((s) => s.notifications);
   const recordHistory = useDataStore((s) => s.recordHistory);
   const { position: userPosition } = useUserLocation();
   const [search, setSearch] = useState("");
@@ -520,7 +522,7 @@ export default function Home() {
     ? `https://www.google.com/maps/search/?api=1&query=${selectedEventCoordinates.latitude},${selectedEventCoordinates.longitude}`
     : null;
   const mobileSheetMode =
-    selectedEvent && mobileSheetState === "expanded" ? "detail" : mobileSheetState;
+    selectedEvent && mobileSheetState === "expanded" ? "détail" : mobileSheetState;
   const profileHref = !currentUser
     ? ROUTES.PUBLIC.LOGIN
     : currentUser.role === "user"
@@ -529,7 +531,18 @@ export default function Home() {
         ? ROUTES.ORGANIZATION.PROFILE
         : currentUser.role === "admin"
           ? ROUTES.ADMIN.DASHBOARD
-          : ROUTES.MODERATOR.DASHBOARD;
+        : ROUTES.MODERATOR.DASHBOARD;
+  const unreadNotificationCount = notifications.filter((notification) => {
+    const notificationTypeConfig = getNotificationTypeConfig(
+      notification.notification_type_id,
+    );
+
+    return (
+      notification.user_id === currentUserId &&
+      !notification.is_read &&
+      notificationTypeConfig?.channels.includes("in_app")
+    );
+  }).length;
 
   const groupedEvents = useMemo(
     () =>
@@ -790,6 +803,16 @@ export default function Home() {
             aria-label={currentUser ? "Ouvrir le profil" : "Connexion"}
           >
             <UserRound size={20} aria-hidden="true" />
+            {unreadNotificationCount > 0 && (
+              <span
+                className="events-mobile-topbar__profile-badge"
+                aria-label={`${unreadNotificationCount} notification non lue${
+                  unreadNotificationCount > 1 ? "s" : ""
+                }`}
+              >
+                {unreadNotificationCount}
+              </span>
+            )}
           </Link>
 
           <form
@@ -801,8 +824,8 @@ export default function Home() {
             <Input
               type="search"
               value={search}
-              placeholder="Rechercher un evenement..."
-              aria-label="Rechercher un evenement"
+              placeholder="Rechercher un événement..."
+              aria-label="Rechercher un événement"
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setIsSearchFocused(false)}
               onChange={(event) => setSearch(event.target.value)}
@@ -856,7 +879,7 @@ export default function Home() {
 
         <div
           className="events-map-controls"
-          aria-label="Filtres des evenements"
+          aria-label="Filtres des événements"
         >
           <label>
             Rechercher
@@ -869,22 +892,22 @@ export default function Home() {
           </label>
 
           <label>
-            Periode
+            Période
             <Select
               value={mapPeriodMode}
               onChange={(event) =>
                 handleMapPeriodModeChange(event.target.value as EventPeriodMode)
               }
             >
-              <option value="day">Journee</option>
+              <option value="day">Journée</option>
               <option value="week">Semaine</option>
               <option value="month">Mois</option>
-              <option value="year">Annee</option>
+              <option value="year">Année</option>
             </Select>
           </label>
 
           <label>
-            Selection
+            Sélection
             <Input
               type={
                 mapPeriodMode === "day"
@@ -903,14 +926,14 @@ export default function Home() {
           </label>
 
           <label>
-            Categorie
+            Catégorie
             <Select
               value={category}
               onChange={(event) =>
                 setCategory(event.target.value as EventCategory | "all")
               }
             >
-              <option value="all">Toutes les categories</option>
+              <option value="all">Toutes les catégories</option>
               {EVENT_CATEGORIES.map((eventCategory) => (
                 <option key={eventCategory} value={eventCategory}>
                   {eventCategory}
@@ -955,9 +978,9 @@ export default function Home() {
               onChange={(event) => setSort(event.target.value as SortValue)}
             >
               <option value="date-asc">Date la plus proche</option>
-              <option value="date-desc">Date la plus eloignee</option>
-              <option value="distance-asc">Proximite</option>
-              <option value="popularity-desc">Popularite</option>
+              <option value="date-desc">Date la plus éloignée</option>
+              <option value="distance-asc">Proximité</option>
+              <option value="popularity-desc">Popularité</option>
               <option value="title-asc">Titre A-Z</option>
               <option value="title-desc">Titre Z-A</option>
               <option value="city-asc">Ville A-Z</option>
@@ -972,7 +995,7 @@ export default function Home() {
               type="button"
               onClick={resetFilters}
             >
-              Reinitialiser
+              Réinitialiser
             </Button>
           )}
         </div>
@@ -1001,9 +1024,9 @@ export default function Home() {
           aria-label={
             mobileSheetMode === "preview"
               ? selectedEvent
-                ? "Afficher le detail de l'evenement"
-                : "Afficher les evenements"
-              : "Reduire la liste des evenements"
+                ? "Afficher le détail de l'événement"
+                : "Afficher les événements"
+              : "Réduire la liste des événements"
           }
           onClick={() => {
             setMobileSheetState((state) =>
@@ -1012,11 +1035,11 @@ export default function Home() {
           }}
         />
         {selectedEvent ? (
-          <div className="event-mobile-detail" aria-label={selectedEvent.title}>
-            <div className="event-mobile-detail__actions">
+          <div className="event-mobile-détail" aria-label={selectedEvent.title}>
+            <div className="event-mobile-détail__actions">
               <Button
-                aria-label="Retour a la liste des evenements"
-                className="event-mobile-detail__back"
+                aria-label="Retour à la liste des événements"
+                className="event-mobile-détail__back"
                 icon={<ArrowLeft size={18} aria-hidden="true" />}
                 iconOnly
                 size="icon"
@@ -1029,24 +1052,24 @@ export default function Home() {
               >
                 Retour
               </Button>
-              <div className="event-mobile-detail__quick-actions">
+              <div className="event-mobile-détail__quick-actions">
                 <ReportEventButton event={selectedEvent} />
                 <FavoriteButton event={selectedEvent} />
               </div>
             </div>
 
-            <div className="event-mobile-detail__heading">
+            <div className="event-mobile-détail__heading">
               <p>{selectedEventOrganization?.name ?? "Organisateur"}</p>
               <h2>{selectedEvent.title}</h2>
             </div>
 
             <img
-              className="event-mobile-detail__image"
+              className="event-mobile-détail__image"
               src={selectedEvent.image}
               alt=""
             />
 
-            <div className="event-mobile-detail__info-grid">
+            <div className="event-mobile-détail__info-grid">
               <span>
                 <MapPin size={17} aria-hidden="true" />
                 {selectedEvent.address}, {selectedEvent.postal_code}{" "}
@@ -1069,19 +1092,19 @@ export default function Home() {
               </span>
             </div>
 
-            <div className="event-mobile-detail__categories">
+            <div className="event-mobile-détail__categories">
               {getEventCategories(selectedEvent).map((eventCategory) => (
                 <span key={eventCategory}>{eventCategory}</span>
               ))}
             </div>
 
-            <p className="event-mobile-detail__description">
+            <p className="event-mobile-détail__description">
               {selectedEvent.description}
             </p>
 
             {selectedEventTicketingHref && (
               <a
-                className="btn btn--secondary event-mobile-detail__link"
+                className="btn btn--secondary event-mobile-détail__link"
                 href={selectedEventTicketingHref}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -1099,7 +1122,7 @@ export default function Home() {
                 />
                 {selectedEventGoogleMapsHref && (
                   <a
-                    className="btn btn--primary event-mobile-detail__maps"
+                    className="btn btn--primary event-mobile-détail__maps"
                     href={selectedEventGoogleMapsHref}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -1128,14 +1151,14 @@ export default function Home() {
                     setPersonalizedEventsView("all")
                   }
                 >
-                  Voir tous les evenements
+                  Voir tous les événements
                 </Button>
               </div>
               <span>{displayedEvents.length}</span>
             </div>
 
             {displayedEvents.length === 0 ? (
-              <EmptyState message="Aucun evenement ne correspond a vos preferences." />
+              <EmptyState message="Aucun événement ne correspond à vos preferences." />
             ) : (
               <div className={getEventsGridClassName(displayedEvents)}>
                 {displayedEvents.map(renderEventCard)}
@@ -1152,7 +1175,7 @@ export default function Home() {
                 <div className="events-status-section__header">
                   <div className="events-status-section__title-actions">
                     <h3 id="events-all-title">
-                      Tous les evenements
+                      Tous les événements
                     </h3>
                     <Button
                       variant="secondary"
@@ -1236,7 +1259,7 @@ export default function Home() {
                     type="button"
                     onClick={() => setShowPastEvents((value) => !value)}
                   >
-                    <span>Voir les evenements passes</span>
+                    <span>Voir les événements passés</span>
                       <ChevronDown
                         size={18}
                         aria-hidden="true"
@@ -1254,7 +1277,7 @@ export default function Home() {
               >
                 <div className="events-status-section__collapsible-inner">
                   {groupedEvents.past.length === 0 ? (
-                    <EmptyState message="Aucun evenement passe ne correspond a votre recherche." />
+                    <EmptyState message="Aucun événement passé ne correspond à votre recherche." />
                   ) : (
                     <div className={getEventsGridClassName(groupedEvents.past)}>
                       {groupedEvents.past.map(renderEventCard)}
@@ -1270,7 +1293,7 @@ export default function Home() {
       </section>
 
       <FormModal
-        ariaLabel="Filtres et tri des evenements"
+        ariaLabel="Filtres et tri des événements"
         open={isFilterModalOpen}
         size="lg"
         onClose={closeFilterModal}
@@ -1292,7 +1315,7 @@ export default function Home() {
             className="events-filter-modal__section"
             aria-labelledby="filter-period-title"
           >
-            <h3 id="filter-period-title">Periode</h3>
+            <h3 id="filter-period-title">Période</h3>
             <div className="events-filter-modal__field-grid">
               <label className="events-filter-modal__field">
                 <span>Afficher</span>
@@ -1302,15 +1325,15 @@ export default function Home() {
                     handleMapPeriodModeChange(event.target.value as EventPeriodMode)
                   }
                 >
-                  <option value="day">Journee</option>
+                  <option value="day">Journée</option>
                   <option value="week">Semaine</option>
                   <option value="month">Mois</option>
-                  <option value="year">Annee</option>
+                  <option value="year">Année</option>
                 </Select>
               </label>
 
               <label className="events-filter-modal__field">
-                <span>Selection</span>
+                <span>Sélection</span>
                 <Input
                   type={
                     mapPeriodMode === "day"
@@ -1337,14 +1360,14 @@ export default function Home() {
             <h3 id="filter-refine-title">Filtres</h3>
             <div className="events-filter-modal__field-grid">
               <label className="events-filter-modal__field">
-                <span>Categorie</span>
+                <span>Catégorie</span>
                 <Select
                   value={category}
                   onChange={(event) =>
                     setCategory(event.target.value as EventCategory | "all")
                   }
                 >
-                  <option value="all">Toutes les categories</option>
+                  <option value="all">Toutes les catégories</option>
                   {EVENT_CATEGORIES.map((eventCategory) => (
                     <option key={eventCategory} value={eventCategory}>
                       {eventCategory}
@@ -1393,9 +1416,9 @@ export default function Home() {
                 onChange={(event) => setSort(event.target.value as SortValue)}
               >
                 <option value="date-asc">Date la plus proche</option>
-                <option value="date-desc">Date la plus eloignee</option>
-                <option value="distance-asc">Proximite</option>
-                <option value="popularity-desc">Popularite</option>
+                <option value="date-desc">Date la plus éloignée</option>
+                <option value="distance-asc">Proximité</option>
+                <option value="popularity-desc">Popularité</option>
                 <option value="title-asc">Titre A-Z</option>
                 <option value="title-desc">Titre Z-A</option>
                 <option value="city-asc">Ville A-Z</option>
@@ -1406,12 +1429,15 @@ export default function Home() {
           </section>
 
           <div className="events-filter-modal__actions">
+            <Button type="button" variant="secondary" onClick={closeFilterModal}>
+              Annuler
+            </Button>
             {hasFilters && (
               <Button type="button" variant="secondary" onClick={resetFilters}>
-                Reinitialiser
+                Réinitialiser
               </Button>
             )}
-            <Button type="submit">Afficher les resultats</Button>
+            <Button type="submit">Valider</Button>
           </div>
         </form>
       </FormModal>

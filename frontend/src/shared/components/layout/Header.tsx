@@ -42,10 +42,12 @@ export default function Header() {
 
   return (
     <>
-      <div className="account-type-badge" aria-label="Type de compte connecte">
-        {accountType}
-        {isPendingOrganization ? " - en attente de validation" : ""}
-      </div>
+      {role !== "admin" && role !== "moderator" && (
+        <div className="account-type-badge" aria-label="Type de compte connecte">
+          {accountType}
+          {isPendingOrganization ? " - en attente de validation" : ""}
+        </div>
+      )}
       {headerByRole()}
     </>
   );

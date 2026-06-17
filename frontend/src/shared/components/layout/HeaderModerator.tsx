@@ -1,11 +1,14 @@
-import { NavLink } from "react-router-dom";
+import {
+  Building2,
+  CalendarDays,
+  Flag,
+  ShieldCheck,
+  UsersRound,
+} from "lucide-react";
 
-import LogoutButton from "../../../domains/auth/components/LogoutButton";
 import useModeratorPermissions from "../../../domains/moderator/hooks/useModeratorPermissions";
-import NotificationCenter from "../../../domains/notification/components/NotificationCenter";
 import { ROUTES } from "../../constants/routes";
-import HeaderWeather from "./HeaderWeather";
-import ThemeToggle from "./ThemeToggle";
+import StaffAccountHeader from "./StaffAccountHeader";
 
 export default function HeaderModerator() {
   const { can } = useModeratorPermissions();
@@ -14,29 +17,43 @@ export default function HeaderModerator() {
   const canReviewOrganizations = can("review_organizations");
   const canSuspendAccounts = can("suspend_accounts");
   const canManageReports = can("manage_reports");
+  const moderatorTabs = [
+    {
+      label: "Moderation",
+      route: ROUTES.MODERATOR.DASHBOARD,
+      Icon: ShieldCheck,
+      isVisible: true,
+    },
+    {
+      label: "Evenements",
+      route: ROUTES.MODERATOR.EVENTS,
+      Icon: CalendarDays,
+      isVisible: canReviewEvents || canModerateEvents,
+    },
+    {
+      label: "Organisations",
+      route: ROUTES.MODERATOR.ORGANIZATIONS,
+      Icon: Building2,
+      isVisible: canReviewOrganizations || canSuspendAccounts,
+    },
+    {
+      label: "Comptes",
+      route: ROUTES.MODERATOR.ACCOUNTS,
+      Icon: UsersRound,
+      isVisible: canSuspendAccounts,
+    },
+    {
+      label: "Signalements",
+      route: ROUTES.MODERATOR.REPORTS,
+      Icon: Flag,
+      isVisible: canManageReports,
+    },
+  ] as const;
 
   return (
-    <header className="role-header">
-      <nav className="role-header__nav">
-        <NavLink to={ROUTES.PUBLIC.HOME}>Accueil</NavLink>
-        <NavLink to={ROUTES.MODERATOR.DASHBOARD}>Moderation</NavLink>
-        {(canReviewEvents || canModerateEvents) && (
-          <NavLink to={ROUTES.MODERATOR.EVENTS}>Evenements</NavLink>
-        )}
-        {(canReviewOrganizations || canSuspendAccounts) && (
-          <NavLink to={ROUTES.MODERATOR.ORGANIZATIONS}>Organisations</NavLink>
-        )}
-        {canSuspendAccounts && (
-          <NavLink to={ROUTES.MODERATOR.ACCOUNTS}>Comptes</NavLink>
-        )}
-        {canManageReports && (
-          <NavLink to={ROUTES.MODERATOR.REPORTS}>Signalements</NavLink>
-        )}
-        <NotificationCenter />
-        <HeaderWeather />
-        <ThemeToggle />
-        <LogoutButton />
-      </nav>
-    </header>
+    <StaffAccountHeader
+      ariaLabel="Navigation moderation"
+      tabs={moderatorTabs.filter((tab) => tab.isVisible)}
+    />
   );
 }

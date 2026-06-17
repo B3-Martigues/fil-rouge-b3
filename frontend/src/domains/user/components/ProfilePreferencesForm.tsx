@@ -49,11 +49,12 @@ export default function ProfilePreferences() {
 
   return (
     <div className="profile-preferences">
+      <h3 className="profile-preferences__title">Préférences</h3>
       <PreferencesGrid selected={preferences} toggle={handleToggle} />
       {error && <ErrorMessage message={error} />}
       <div className="profile-preferences__actions">
         <Button type="button" onClick={handleSave}>
-          Enregistrer
+          Enregistrer mes préférences
         </Button>
       </div>
     </div>

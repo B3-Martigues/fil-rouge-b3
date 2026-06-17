@@ -29,6 +29,9 @@ const ForgotPassword = lazy(
 );
 const ResetPassword = lazy(() => import("../domains/auth/pages/ResetPassword"));
 const Profile = lazy(() => import("../domains/user/pages/Profile"));
+const AccountPageShell = lazy(
+  () => import("../domains/user/components/AccountPageShell"),
+);
 const ChangePassword = lazy(
   () => import("../domains/user/components/ChangePassword"),
 );
@@ -58,6 +61,8 @@ const OrganizationProfile = lazy(
 );
 const Favorites = lazy(() => import("../domains/user/pages/Favorites"));
 const History = lazy(() => import("../domains/user/pages/History"));
+const Notifications = lazy(() => import("../domains/user/pages/Notifications"));
+const UserEvents = lazy(() => import("../domains/user/pages/UserEvents"));
 const Onboarding = lazy(() => import("../domains/user/pages/Onboarding"));
 const ProfilePreferences = lazy(
   () => import("../domains/user/pages/ProfilePreferences"),
@@ -74,13 +79,13 @@ type FormModalLocationState = {
 };
 
 const formModalRoutes = [
-  { path: ROUTES.PUBLIC.FORGOT_PASSWORD, label: "Mot de passe oublie" },
-  { path: ROUTES.PUBLIC.RESET_PASSWORD, label: "Reinitialisation du mot de passe" },
+  { path: ROUTES.PUBLIC.FORGOT_PASSWORD, label: "Mot de passe oublié" },
+  { path: ROUTES.PUBLIC.RESET_PASSWORD, label: "Réinitialisation du mot de passe" },
   { path: ROUTES.USER.CHANGE_PASSWORD, label: "Changement de mot de passe" },
-  { path: ROUTES.USER.PREFERENCES, label: "Preferences utilisateur" },
+  { path: ROUTES.USER.PREFERENCES, label: "Préférences utilisateur" },
   { path: ROUTES.USER.BECOME_ORGANIZER, label: "Devenir organisateur" },
-  { path: ROUTES.USER.CREATE_ORGANIZATION, label: "Nouvelle organisation" },
-  { path: ROUTES.ORGANIZATION.CREATE, label: "Nouvel evenement" },
+  { path: ROUTES.USER.CREATE_ORGANIZATION, label: "Ajouter une organisation" },
+  { path: ROUTES.ORGANIZATION.CREATE, label: "Ajouter un événement" },
 ] as const;
 
 const getFormModalLabel = (pathname: string) =>
@@ -170,6 +175,23 @@ const RequireUserPreferences = ({ children }: Props) => {
   return children;
 };
 
+const RequireUserOrganizer = ({ children }: Props) => {
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const organizers = useDataStore((s) => s.organizers);
+  const userId = currentUser?.role === "user" ? currentUser.user_id : undefined;
+  const hasOrganizations =
+    !!userId &&
+    organizers.some(
+      (organizer) => organizer.user_id === userId && !organizer.deleted_at,
+    );
+
+  if (!hasOrganizations) {
+    return <Navigate to={ROUTES.USER.PROFILE} replace />;
+  }
+
+  return children;
+};
+
 const routeFallback = (
   <div className="route-loading" role="status">
     Chargement...
@@ -224,36 +246,84 @@ const Router = () => {
         <Route
           element={
             <PrivateRoute>
-              <RoleRoute role="user">
+              <RoleRoute roles={["user", "admin", "moderator"]}>
                 <PrivateLayout />
               </RoleRoute>
             </PrivateRoute>
           }
         >
-          <Route
-            path={ROUTES.USER.PROFILE}
-            element={
-              <RequireUserPreferences>
-                <Profile />
-              </RequireUserPreferences>
-            }
-          />
-          <Route
-            path={ROUTES.USER.FAVORITES}
-            element={
-              <RequireUserPreferences>
-                <Favorites />
-              </RequireUserPreferences>
-            }
-          />
-          <Route
-            path={ROUTES.USER.HISTORY}
-            element={
-              <RequireUserPreferences>
-                <History />
-              </RequireUserPreferences>
-            }
-          />
+          <Route element={<AccountPageShell />}>
+            <Route
+              path={ROUTES.USER.PROFILE}
+              element={
+                <RequireUserPreferences>
+                  <Profile />
+                </RequireUserPreferences>
+              }
+            />
+            <Route
+              path={ROUTES.USER.FAVORITES}
+              element={
+                <RoleRoute role="user">
+                  <RequireUserPreferences>
+                    <Favorites />
+                  </RequireUserPreferences>
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={ROUTES.USER.HISTORY}
+              element={
+                <RoleRoute role="user">
+                  <RequireUserPreferences>
+                    <History />
+                  </RequireUserPreferences>
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={ROUTES.USER.NOTIFICATIONS}
+              element={
+                <RoleRoute role="user">
+                  <RequireUserPreferences>
+                    <Notifications />
+                  </RequireUserPreferences>
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={ROUTES.USER.PREFERENCES}
+              element={
+                <RoleRoute role="user">
+                  <ProfilePreferences />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={ROUTES.USER.ORGANIZATIONS}
+              element={
+                <RoleRoute role="user">
+                  <RequireUserPreferences>
+                    <RequireUserOrganizer>
+                      <OrganizationsPage />
+                    </RequireUserOrganizer>
+                  </RequireUserPreferences>
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={ROUTES.USER.EVENTS}
+              element={
+                <RoleRoute role="user">
+                  <RequireUserPreferences>
+                    <RequireUserOrganizer>
+                      <UserEvents />
+                    </RequireUserOrganizer>
+                  </RequireUserPreferences>
+                </RoleRoute>
+              }
+            />
+          </Route>
           <Route
             path={ROUTES.USER.CHANGE_PASSWORD}
             element={
@@ -264,22 +334,12 @@ const Router = () => {
           />
           <Route path={ROUTES.USER.ONBOARDING} element={<Onboarding />} />
           <Route
-            path={ROUTES.USER.PREFERENCES}
-            element={<ProfilePreferences />}
-          />
-          <Route
-            path={ROUTES.USER.ORGANIZATIONS}
-            element={
-              <RequireUserPreferences>
-                <OrganizationsPage />
-              </RequireUserPreferences>
-            }
-          />
-          <Route
             path={ROUTES.USER.ORGANIZATION_DETAIL}
             element={
               <RequireUserPreferences>
-                <OrganizationDetailPage />
+                <RequireUserOrganizer>
+                  <OrganizationDetailPage />
+                </RequireUserOrganizer>
               </RequireUserPreferences>
             }
           />

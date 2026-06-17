@@ -41,7 +41,7 @@ export const usersMock: User[] = [
   {
     id: 5,
     account_id: 5,
-    username: "Moderateur",
+    username: "Modérateur",
     role_id: ROLE_IDS.moderator,
     role: "moderator",
     created_at: "2026-05-23T09:35:00.000Z",
@@ -50,7 +50,7 @@ export const usersMock: User[] = [
   {
     id: 6,
     account_id: 6,
-    username: "Modo Evenements",
+    username: "Modo Événements",
     role_id: ROLE_IDS.moderator,
     role: "moderator",
     created_at: "2026-05-24T08:35:00.000Z",
@@ -77,7 +77,7 @@ export const usersMock: User[] = [
   {
     id: 10,
     account_id: 10,
-    username: "Eclat Culture",
+    username: "Éclat Culture",
     role_id: ROLE_IDS.organization,
     role: "organization",
     created_at: "2026-05-19T08:00:00.000Z",

@@ -3,6 +3,7 @@
 
 .event-card {
   display: grid;
+  grid-template-rows: auto 1fr;
   overflow: hidden;
 
   @include surface;
@@ -38,6 +39,7 @@
 
   &__content {
     display: grid;
+    grid-template-rows: auto auto minmax(4.2em, auto) 1fr auto auto;
     gap: 12px;
     padding: 16px;
   }
@@ -79,7 +81,13 @@
   }
 
   p {
+    display: -webkit-box;
+    min-height: 4.2em;
+    overflow: hidden;
     color: var(--text-p);
+    line-height: 1.4;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
   }
 
   &__details {
@@ -102,5 +110,9 @@
 
   &__ticketing-link {
     justify-self: start;
+  }
+
+  &__actions {
+    align-self: end;
   }
 }

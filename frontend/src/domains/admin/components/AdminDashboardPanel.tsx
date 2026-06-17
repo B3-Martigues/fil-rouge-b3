@@ -250,7 +250,7 @@ const emptyEventDraft = (organizationId?: number): EventDraft => ({
   latitude: "",
   longitude: "",
   address: "",
-  category_slugs: ["culture"],
+  category_slugs: [],
   city: "",
   postal_code: "",
   image: "",
