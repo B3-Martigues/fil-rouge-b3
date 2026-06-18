@@ -25,10 +25,6 @@ export type GeoPoint = {
   longitude: number;
 };
 
-export function isUpcomingEvent(endDate: string): boolean {
-  return new Date(endDate) >= new Date();
-}
-
 export function getEventStatus(
   event: Pick<Event, "start_date" | "end_date">,
   referenceDate = new Date(),

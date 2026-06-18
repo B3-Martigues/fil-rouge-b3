@@ -5,12 +5,22 @@ import {
   ShieldCheck,
   UsersRound,
 } from "lucide-react";
+import { NavLink } from "react-router-dom";
 
+import LogoutButton from "../../../domains/auth/components/LogoutButton";
 import useModeratorPermissions from "../../../domains/moderator/hooks/useModeratorPermissions";
 import { ROUTES } from "../../constants/routes";
+import HeaderWeather from "./HeaderWeather";
 import StaffAccountHeader from "./StaffAccountHeader";
+import ThemeToggle from "./ThemeToggle";
 
-export default function HeaderModerator() {
+type HeaderModeratorProps = {
+  showAccountHeader?: boolean;
+};
+
+export default function HeaderModerator({
+  showAccountHeader = false,
+}: HeaderModeratorProps) {
   const { can } = useModeratorPermissions();
   const canReviewEvents = can("review_events");
   const canModerateEvents = can("moderate_events");
@@ -22,6 +32,7 @@ export default function HeaderModerator() {
       label: "Moderation",
       route: ROUTES.MODERATOR.DASHBOARD,
       Icon: ShieldCheck,
+      end: true,
       isVisible: true,
     },
     {
@@ -50,10 +61,30 @@ export default function HeaderModerator() {
     },
   ] as const;
 
+  const visibleTabs = moderatorTabs.filter((tab) => tab.isVisible);
+
+  if (showAccountHeader) {
+    return (
+      <StaffAccountHeader
+        ariaLabel="Navigation moderation"
+        tabs={visibleTabs}
+      />
+    );
+  }
+
   return (
-    <StaffAccountHeader
-      ariaLabel="Navigation moderation"
-      tabs={moderatorTabs.filter((tab) => tab.isVisible)}
-    />
+    <header className="role-header">
+      <nav className="role-header__nav">
+        <NavLink to={ROUTES.PUBLIC.HOME}>Accueil</NavLink>
+        {visibleTabs.map(({ label, route }) => (
+          <NavLink key={route} to={route}>
+            {label}
+          </NavLink>
+        ))}
+        <HeaderWeather />
+        <ThemeToggle />
+        <LogoutButton />
+      </nav>
+    </header>
   );
 }

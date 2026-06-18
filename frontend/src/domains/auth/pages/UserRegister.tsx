@@ -1,7 +1,0 @@
-import { Navigate } from "react-router-dom";
-
-import { ROUTES } from "../../../shared/constants/routes";
-
-export default function UserRegister() {
-  return <Navigate to={ROUTES.PUBLIC.REGISTER} replace />;
-}

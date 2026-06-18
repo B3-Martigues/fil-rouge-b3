@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
+import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
 import {
@@ -125,7 +126,7 @@ export default function UserProfileForm() {
           void dispatchNotification(
             createPasswordChangedNotification({
               user: notificationUser,
-              profileUrl: "/profile",
+              profileUrl: ROUTES.USER.PROFILE,
             }),
           );
         }
@@ -155,7 +156,7 @@ export default function UserProfileForm() {
     }
     logout();
     toast.success("Compte supprime");
-    navigate("/login");
+    navigate(ROUTES.PUBLIC.LOGIN);
   };
 
   return (

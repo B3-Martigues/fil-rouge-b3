@@ -64,8 +64,6 @@ export const eventFormSchema = z
     },
   );
 
-export type EventFormSchema = z.infer<typeof eventFormSchema>;
-
 export const getZodFieldErrors = <Fields extends string>(
   result: { success: true } | { success: false; error: z.ZodError },
 ) => {

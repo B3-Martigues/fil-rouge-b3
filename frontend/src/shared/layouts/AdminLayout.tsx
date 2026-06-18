@@ -10,7 +10,7 @@ export default function AdminLayout() {
 
   return (
     <>
-      <Header key={location.pathname} />
+      <Header key={location.pathname} showStaffAccountHeader />
       <main>
         <Outlet />
       </main>

@@ -83,11 +83,11 @@ Chaque domaine contient sa propre logique métier afin de garder une architectur
 Le dossier `shared` contient les briques réutilisées dans toute l'application :
 
 - Composants UI : `Button`, `Input`, `Select`, `Textarea`, `Checkbox`, `StatusBadge`
-- Composants de feedback : `Loader`, `ErrorMessage`, `SuccessMessage`, `EmptyState`
+- Composants de feedback : `ErrorMessage`, `SuccessMessage`, `EmptyState`
 - Layouts : public, privé, administrateur, modérateur et organisation
 - Composants de structure : headers, pages, cards, toolbars, panels
 - Constantes de routes et stores partagés
-- Services et utilitaires, notamment la météo
+- Hooks et utilitaires, notamment la météo et les helpers de compte
 - Styles globaux, tokens, mixins, formulaires, cartes et layouts
 
 ## Gestion des rôles

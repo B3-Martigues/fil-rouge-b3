@@ -7,48 +7,22 @@ import useModeratorPermissions from "../../../domains/moderator/hooks/useModerat
 import Button from "../ui/Button";
 import { ROUTES } from "../../constants/routes";
 import useDataStore from "../../store/dataStore";
+import {
+  accountRoleLabels,
+  formatMemberSince,
+  getAccountInitials,
+} from "../../utils/account";
 
 type StaffAccountTab = {
   label: string;
   route: string;
   Icon: LucideIcon;
+  end?: boolean;
 };
 
 type Props = {
   ariaLabel: string;
   tabs: readonly StaffAccountTab[];
-};
-
-const roleLabels = {
-  admin: "Administrateur",
-  moderator: "Moderateur",
-  organization: "Organisation",
-  user: "Utilisateur",
-} as const;
-
-const getInitials = (name?: string | null) => {
-  if (!name) return "U";
-
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-};
-
-const formatMemberSince = (value?: string | null) => {
-  if (!value) return "date inconnue";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return "date inconnue";
-
-  return new Intl.DateTimeFormat("fr-FR", {
-    month: "long",
-    year: "numeric",
-  }).format(date);
 };
 
 export default function StaffAccountHeader({ ariaLabel, tabs }: Props) {
@@ -68,7 +42,9 @@ export default function StaffAccountHeader({ ariaLabel, tabs }: Props) {
   );
   const displayName = currentUser?.username ?? "Utilisateur";
   const email = currentUser?.login_email ?? "Compte utilisateur";
-  const roleLabel = currentUser ? roleLabels[currentUser.role] : "Utilisateur";
+  const roleLabel = currentUser
+    ? accountRoleLabels[currentUser.role]
+    : "Utilisateur";
   const memberSince = formatMemberSince(account?.created_at ?? user?.created_at);
   const staffScopeLabel =
     currentUser?.role === "admin"
@@ -117,7 +93,7 @@ export default function StaffAccountHeader({ ariaLabel, tabs }: Props) {
         <div className="account-shell__sticky">
           <div className="account-summary">
             <div className="account-summary__avatar" aria-hidden="true">
-              {getInitials(displayName)}
+              {getAccountInitials(displayName)}
             </div>
             <div className="account-summary__identity">
               <strong>{displayName}</strong>
@@ -149,13 +125,14 @@ export default function StaffAccountHeader({ ariaLabel, tabs }: Props) {
           </div>
 
           <nav className="account-tabs account-tabs--role" aria-label={ariaLabel}>
-            {tabs.map(({ label, route, Icon }) => (
+            {tabs.map(({ label, route, Icon, end }) => (
               <NavLink
                 className={({ isActive }) =>
                   ["account-tabs__item", isActive ? "is-active" : ""]
                     .filter(Boolean)
                     .join(" ")
                 }
+                end={end}
                 key={route}
                 to={route}
               >

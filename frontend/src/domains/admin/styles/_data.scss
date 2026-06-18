@@ -70,10 +70,14 @@
 .admin-table {
   display: grid;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
 
   [role="rowgroup"] {
     display: grid;
     gap: 8px;
+    min-width: 0;
+    max-width: 100%;
   }
 
   [role="cell"],
@@ -88,6 +92,10 @@
       minmax(150px, 0.9fr) minmax(220px, 1.1fr);
     align-items: center;
     gap: 10px;
+    box-sizing: border-box;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
     min-height: 48px;
     padding: 10px 12px;
     border: 1px solid var(--border);
@@ -249,7 +257,9 @@
   }
 }
 
-@include respond-below($bp-sm) {
+@mixin admin-data-mobile {
+  .admin-table--accounts .admin-table__row,
+  .admin-table--events .admin-table__row,
   .admin-table__row {
     grid-template-columns: 1fr;
   }
@@ -290,4 +300,12 @@
       }
     }
   }
+}
+
+@include respond-below($bp-sm) {
+  @include admin-data-mobile;
+}
+
+@media (max-device-width: $bp-sm) {
+  @include admin-data-mobile;
 }

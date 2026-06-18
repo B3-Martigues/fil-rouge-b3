@@ -16,6 +16,11 @@ import { FormModalLink } from "../../../shared/components/forms/FormModalLink";
 import Button from "../../../shared/components/ui/Button";
 import { ROUTES } from "../../../shared/constants/routes";
 import useDataStore from "../../../shared/store/dataStore";
+import {
+  accountRoleLabels,
+  formatMemberSince,
+  getAccountInitials,
+} from "../../../shared/utils/account";
 import useAuthStore from "../../auth/store/authStore";
 import useModeratorPermissions from "../../moderator/hooks/useModeratorPermissions";
 import { getNotificationTypeConfig } from "../../notification/mocks/notification-types.mock";
@@ -83,42 +88,10 @@ const accountSections = [
 
 const organizerOnlySections: AccountSection[] = ["organizations", "events"];
 
-const roleLabels = {
-  admin: "Administrateur",
-  moderator: "Modérateur",
-  organization: "Organisation",
-  user: "Utilisateur",
-} as const;
-
 const getActiveAccountSection = (pathname: string): AccountSection => {
   const activeSection = accountSections.find((section) => section.route === pathname);
 
   return activeSection?.key ?? "profile";
-};
-
-const getInitials = (name?: string | null) => {
-  if (!name) return "U";
-
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-};
-
-const formatMemberSince = (value?: string | null) => {
-  if (!value) return "date inconnue";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return "date inconnue";
-
-  return new Intl.DateTimeFormat("fr-FR", {
-    month: "long",
-    year: "numeric",
-  }).format(date);
 };
 
 export default function AccountPageShell() {
@@ -154,7 +127,9 @@ export default function AccountPageShell() {
   const memberSince = formatMemberSince(account?.created_at ?? user?.created_at);
   const displayName = currentUser?.username ?? "Utilisateur";
   const email = currentUser?.login_email ?? "Compte utilisateur";
-  const roleLabel = currentUser ? roleLabels[currentUser.role] : "Utilisateur";
+  const roleLabel = currentUser
+    ? accountRoleLabels[currentUser.role]
+    : "Utilisateur";
   const activeSection = getActiveAccountSection(location.pathname);
   const isStaffAccount =
     currentUser?.role === "admin" || currentUser?.role === "moderator";
@@ -211,7 +186,7 @@ export default function AccountPageShell() {
       <div className="account-shell__sticky">
         <div className="account-summary">
           <div className="account-summary__avatar" aria-hidden="true">
-            {getInitials(displayName)}
+            {getAccountInitials(displayName)}
           </div>
           <div className="account-summary__identity">
             <strong>{displayName}</strong>

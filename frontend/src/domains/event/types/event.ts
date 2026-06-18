@@ -1,4 +1,4 @@
-import type { EventCategoryName, EventCategoryOption } from "./event-categories";
+import type { EventCategoryName } from "./event-categories";
 
 export type Event = {
   id: number;
@@ -23,8 +23,4 @@ export type Event = {
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;
-};
-
-export type EventWithCategories = Event & {
-  categories: EventCategoryOption[];
 };

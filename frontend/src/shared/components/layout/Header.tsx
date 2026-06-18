@@ -14,7 +14,11 @@ const accountTypeLabels = {
   user: "Compte utilisateur",
 } as const;
 
-export default function Header() {
+type HeaderProps = {
+  showStaffAccountHeader?: boolean;
+};
+
+export default function Header({ showStaffAccountHeader = false }: HeaderProps) {
   const { currentUser, isAuthenticated, role } = useAuthStore();
   const organizations = useDataStore((s) => s.organizations);
 
@@ -33,8 +37,12 @@ export default function Header() {
   const accountType = role ? accountTypeLabels[role] : "Compte connecte";
 
   const headerByRole = () => {
-    if (role === "admin") return <HeaderAdmin />;
-    if (role === "moderator") return <HeaderModerator />;
+    if (role === "admin") {
+      return <HeaderAdmin showAccountHeader={showStaffAccountHeader} />;
+    }
+    if (role === "moderator") {
+      return <HeaderModerator showAccountHeader={showStaffAccountHeader} />;
+    }
     if (role === "organization") return <HeaderOrganization />;
 
     return <HeaderUser />;
