@@ -11,14 +11,17 @@ export default function useFavorites() {
   const userId =
     isAuthenticated && currentUser?.role === "user" ? currentUser.user_id : undefined;
 
-  const favorites = useMemo(
+  const favoriteEntries = useMemo(
     () =>
       userId
         ? favoriteRows
             .filter((favorite) => favorite.user_id === userId && !favorite.deleted_at)
-            .map((favorite) => favorite.event_id)
         : [],
     [favoriteRows, userId],
+  );
+  const favorites = useMemo(
+    () => favoriteEntries.map((favorite) => favorite.event_id),
+    [favoriteEntries],
   );
 
   const toggleFavorite = (eventId: number) => {
@@ -31,6 +34,7 @@ export default function useFavorites() {
 
   return {
     favorites,
+    favoriteEntries,
     toggleFavorite,
     isFavorite,
   };

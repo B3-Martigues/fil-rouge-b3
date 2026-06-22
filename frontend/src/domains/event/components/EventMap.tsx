@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, useMap, ZoomControl } from "react-leaflet";
 
 import EventMarker from "./EventMarker";
 import UserLocationMarker from "./UserLocationMarker";
@@ -29,6 +29,91 @@ type SelectedEventFocusProps = {
 
 const SELECTED_EVENT_ZOOM = 16;
 const HOME_MAP_READY_EVENT = "mappening:home-map-ready";
+const DESKTOP_MEDIA_QUERY = "(min-width: 761px)";
+const MOBILE_SHEET_SELECTOR = ".events-list";
+
+const getDesktopSidebarRightEdge = (mapContainer: HTMLElement) => {
+  if (!window.matchMedia(DESKTOP_MEDIA_QUERY).matches) return 0;
+
+  const sidebar = document.querySelector<HTMLElement>(".events-list");
+  const sidebarRect = sidebar?.getBoundingClientRect();
+  const mapRect = mapContainer.getBoundingClientRect();
+
+  if (!sidebarRect || sidebarRect.width <= 0) return 0;
+
+  const sidebarRightInMap = Math.max(
+    sidebarRect.right - mapRect.left,
+    sidebarRect.width,
+  );
+
+  return Math.max(0, Math.min(mapRect.width, sidebarRightInMap));
+};
+
+const getMobileBottomSheetTop = (
+  mapContainer: HTMLElement,
+  mapHeight: number,
+) => {
+  if (window.matchMedia(DESKTOP_MEDIA_QUERY).matches) return mapHeight;
+
+  const sheet = document.querySelector<HTMLElement>(MOBILE_SHEET_SELECTOR);
+  const mapRect = mapContainer.getBoundingClientRect();
+
+  if (!sheet) return mapHeight;
+
+  const sheetRect = sheet.getBoundingClientRect();
+
+  if (!sheetRect || sheetRect.width <= 0 || sheetRect.height <= 0) {
+    return mapHeight;
+  }
+
+  const overlapsMapHorizontally =
+    sheetRect.left < mapRect.right && sheetRect.right > mapRect.left;
+
+  if (!overlapsMapHorizontally) return mapHeight;
+
+  const currentVisibleHeight = Math.max(
+    0,
+    mapRect.bottom - Math.max(mapRect.top, sheetRect.top),
+  );
+  const isOpenSheet =
+    sheet.classList.contains("events-list--expanded") ||
+    sheet.classList.contains("events-list--detail");
+  const finalVisibleHeight = isOpenSheet
+    ? Math.min(sheetRect.height, mapHeight)
+    : currentVisibleHeight;
+  const sheetVisibleHeight = Math.max(currentVisibleHeight, finalVisibleHeight);
+
+  return Math.max(0, mapHeight - sheetVisibleHeight);
+};
+
+const getOffsetFocusCenter = (
+  map: ReturnType<typeof useMap>,
+  event: MappableEvent,
+  zoom: number,
+) => {
+  const mapSize = map.getSize();
+  const mapContainer = map.getContainer();
+  const visibleLeft = getDesktopSidebarRightEdge(mapContainer);
+  const visibleBottom = getMobileBottomSheetTop(mapContainer, mapSize.y);
+
+  if (
+    visibleLeft <= 0 &&
+    visibleBottom >= mapSize.y
+  ) {
+    return [event.latitude, event.longitude] as [number, number];
+  }
+
+  const desiredMarkerX = visibleLeft + (mapSize.x - visibleLeft) / 2;
+  const desiredMarkerY = visibleBottom / 2;
+  const centerX = mapSize.x / 2;
+  const centerY = mapSize.y / 2;
+  const horizontalOffset = desiredMarkerX - centerX;
+  const verticalOffset = desiredMarkerY - centerY;
+  const eventPoint = map.project([event.latitude, event.longitude], zoom);
+  const centerPoint = eventPoint.subtract([horizontalOffset, verticalOffset]);
+
+  return map.unproject(centerPoint, zoom);
+};
 
 function SelectedEventFocus({
   event,
@@ -51,11 +136,10 @@ function SelectedEventFocus({
 
     onFocusStart();
     map.closePopup();
-    map.flyTo(
-      [event.latitude, event.longitude],
-      Math.max(map.getZoom(), SELECTED_EVENT_ZOOM),
-      { animate: true, duration: 0.7 },
-    );
+    const targetZoom = Math.max(map.getZoom(), SELECTED_EVENT_ZOOM);
+    const targetCenter = getOffsetFocusCenter(map, event, targetZoom);
+
+    map.flyTo(targetCenter, targetZoom, { animate: true, duration: 0.7 });
     map.once("moveend", openPopup);
 
     const fallbackId = window.setTimeout(openPopup, 900);
@@ -81,7 +165,9 @@ export default function EventMap({
   const [openPopupEventId, setOpenPopupEventId] = useState<number | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
   const [areTilesLoaded, setAreTilesLoaded] = useState(false);
+  const [shouldFitInitialLocation, setShouldFitInitialLocation] = useState(false);
   const hasAnnouncedReady = useRef(false);
+  const hasFittedInitialLocation = useRef(false);
   const activeOrganizationsById = useMemo(
     () =>
       new Map(
@@ -146,6 +232,16 @@ export default function EventMap({
   const handleTilesLoaded = useCallback(() => {
     setAreTilesLoaded(true);
   }, []);
+  const handleInitialFitDone = useCallback(() => {
+    setShouldFitInitialLocation(false);
+  }, []);
+
+  useEffect(() => {
+    if (!userPosition || hasFittedInitialLocation.current) return;
+
+    hasFittedInitialLocation.current = true;
+    setShouldFitInitialLocation(true);
+  }, [userPosition]);
 
   useEffect(() => {
     if (!isMapReady || !areTilesLoaded || hasAnnouncedReady.current) return;
@@ -167,15 +263,21 @@ export default function EventMap({
       center={[43.2965, 5.3698]}
       className="event-map"
       zoom={13}
+      zoomControl={false}
       scrollWheelZoom={true}
       whenReady={handleMapReady}
     >
+      <ZoomControl position="bottomright" />
       <TileLayer
         attribution="&copy; OpenStreetMap contributors"
         eventHandlers={{ load: handleTilesLoaded }}
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <MapFitBounds enabled={selectedEventId == null} points={mapPoints} />
+      <MapFitBounds
+        enabled={shouldFitInitialLocation && selectedEventId == null}
+        points={mapPoints}
+        onFitDone={handleInitialFitDone}
+      />
       <SelectedEventFocus
         event={selectedEvent}
         requestId={selectedEventRequestId}

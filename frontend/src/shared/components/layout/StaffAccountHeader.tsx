@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, LogOut, ShieldCheck, type LucideIcon } from "lucide-react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 
 import useAuthStore from "../../../domains/auth/store/authStore";
-import useModeratorPermissions from "../../../domains/moderator/hooks/useModeratorPermissions";
 import Button from "../ui/Button";
 import { ROUTES } from "../../constants/routes";
 import useDataStore from "../../store/dataStore";
@@ -14,25 +13,34 @@ import {
 } from "../../utils/account";
 
 type StaffAccountTab = {
+  activePaths?: readonly string[];
   label: string;
   route: string;
   Icon: LucideIcon;
+  sectionTitle?: string;
+  sectionTitles?: Partial<Record<string, string>>;
   end?: boolean;
 };
 
 type Props = {
   ariaLabel: string;
+  sectionAction?: ReactNode;
   tabs: readonly StaffAccountTab[];
 };
 
-export default function StaffAccountHeader({ ariaLabel, tabs }: Props) {
+export default function StaffAccountHeader({
+  ariaLabel,
+  sectionAction,
+  tabs,
+}: Props) {
   const headerRef = useRef<HTMLElement | null>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
+  const location = useLocation();
   const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.currentUser);
   const logout = useAuthStore((s) => s.logout);
-  const { permissions } = useModeratorPermissions();
   const accounts = useDataStore((s) => s.accounts);
+  const moderationReports = useDataStore((s) => s.moderationReports);
   const users = useDataStore((s) => s.users);
   const user = users.find(
     (item) => item.id === currentUser?.user_id && !item.deleted_at,
@@ -46,12 +54,23 @@ export default function StaffAccountHeader({ ariaLabel, tabs }: Props) {
     ? accountRoleLabels[currentUser.role]
     : "Utilisateur";
   const memberSince = formatMemberSince(account?.created_at ?? user?.created_at);
+  const handledReportCount = moderationReports.filter(
+    (report) =>
+      report.handled_by_user_id === currentUser?.user_id &&
+      (report.status === "resolved" || report.status === "dismissed"),
+  ).length;
   const staffScopeLabel =
     currentUser?.role === "admin"
       ? "Acces complet a la plateforme"
-      : `${permissions.length} permission${permissions.length > 1 ? "s" : ""} active${
-          permissions.length > 1 ? "s" : ""
-        }`;
+      : `${handledReportCount} signalement${
+          handledReportCount > 1 ? "s" : ""
+        } traite${handledReportCount > 1 ? "s" : ""}`;
+  const activeTab = tabs.find(
+    ({ activePaths, route }) =>
+      location.pathname === route || activePaths?.includes(location.pathname),
+  );
+  const activeSectionTitle =
+    activeTab?.sectionTitles?.[location.pathname] ?? activeTab?.sectionTitle;
 
   const handleLogout = () => {
     logout();
@@ -117,7 +136,7 @@ export default function StaffAccountHeader({ ariaLabel, tabs }: Props) {
               <span className="account-summary__member-since">
                 Membre depuis {memberSince}
               </span>
-              <span>
+              <span className="account-summary__member-since">
                 <ShieldCheck size={16} aria-hidden="true" />
                 {staffScopeLabel}
               </span>
@@ -125,10 +144,15 @@ export default function StaffAccountHeader({ ariaLabel, tabs }: Props) {
           </div>
 
           <nav className="account-tabs account-tabs--role" aria-label={ariaLabel}>
-            {tabs.map(({ label, route, Icon, end }) => (
+            {tabs.map(({ activePaths, label, route, Icon, end }) => (
               <NavLink
                 className={({ isActive }) =>
-                  ["account-tabs__item", isActive ? "is-active" : ""]
+                  [
+                    "account-tabs__item",
+                    isActive || activePaths?.includes(location.pathname)
+                      ? "is-active"
+                      : "",
+                  ]
                     .filter(Boolean)
                     .join(" ")
                 }
@@ -141,6 +165,19 @@ export default function StaffAccountHeader({ ariaLabel, tabs }: Props) {
               </NavLink>
             ))}
           </nav>
+
+          {activeSectionTitle && (
+            <div className="account-shell__section-header">
+              <h2 className="account-shell__section-title">
+                {activeSectionTitle}
+              </h2>
+              {sectionAction && (
+                <div className="account-shell__section-action">
+                  {sectionAction}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </section>
       <div

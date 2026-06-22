@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
-import logoDark from "../../../assets/logo/logo_dark.svg";
-import logoLight from "../../../assets/logo/logo_light.svg";
+import logoDark from "../../../assets/logo/logo-dark.svg";
+import logoLight from "../../../assets/logo/logo-light.svg";
 
 type AppSplashProps = {
   isReady: boolean;

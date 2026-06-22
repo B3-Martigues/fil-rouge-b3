@@ -6,6 +6,7 @@ import EmptyState from "../../../shared/components/feedback/EmptyState";
 import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
 import FormModal from "../../../shared/components/forms/FormModal";
 import { FormModalLink } from "../../../shared/components/forms/FormModalLink";
+import ImageField from "../../../shared/components/forms/ImageField";
 import ActionRow from "../../../shared/components/layout/ActionRow";
 import Toolbar from "../../../shared/components/layout/Toolbar";
 import Button from "../../../shared/components/ui/Button";
@@ -343,12 +344,17 @@ export default function OrganizationEvents() {
 
               return (
               <article className="organization-review" key={event.id}>
+                <StatusBadge
+                  className="organization-review__status"
+                  variant={event.is_active ? "active" : "pending"}
+                >
+                  {event.is_active ? "Publie" : "En attente"}
+                </StatusBadge>
                 <div className="organization-review__media">
                   <img src={event.image} alt={`Visuel ${event.title}`} />
                 </div>
 
                 <div className="organization-review__content">
-                  <>
                       <div className="organization-review__header">
                         <div>
                           <h3>{event.title}</h3>
@@ -437,8 +443,6 @@ export default function OrganizationEvents() {
                           </Button>
                         </div>
                       </div>
-                    </>
-
                 </div>
               </article>
               );
@@ -578,15 +582,12 @@ function OrganizationEventEditor({
           />
         </FormField>
 
-        <FormField label="Image" htmlFor="organization-event-image">
-          <Input
-            id="organization-event-image"
-            value={draft.image}
-            onChange={(event) =>
-              setDraft({ ...draft, image: event.target.value })
-            }
-          />
-        </FormField>
+        <ImageField
+          className="admin-form-grid__wide"
+          id="organization-event-image"
+          value={draft.image}
+          onChange={(value) => setDraft({ ...draft, image: value })}
+        />
 
         <FormField label="Prix" htmlFor="organization-event-price">
           <Input

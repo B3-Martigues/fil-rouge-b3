@@ -17,7 +17,6 @@ export default function useCurrentWeather() {
 
   useEffect(() => {
     let isMounted = true;
-    let geolocationSettled = false;
     const controller = new AbortController();
 
     const failWeather = (message: string) => {
@@ -33,22 +32,9 @@ export default function useCurrentWeather() {
       return;
     }
 
-    const geolocationTimeoutId = window.setTimeout(() => {
-      if (geolocationSettled) return;
-
-      geolocationSettled = true;
-      failWeather("Position indisponible");
-    }, GEOLOCATION_TIMEOUT_MS);
-    const clearGeolocationTimeout = () => {
-      window.clearTimeout(geolocationTimeoutId);
-    };
-
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        if (!isMounted || geolocationSettled) return;
-
-        geolocationSettled = true;
-        clearGeolocationTimeout();
+        if (!isMounted) return;
 
         try {
           const data = await fetchWeather({
@@ -83,10 +69,6 @@ export default function useCurrentWeather() {
         }
       },
       () => {
-        if (!isMounted || geolocationSettled) return;
-
-        geolocationSettled = true;
-        clearGeolocationTimeout();
         failWeather("Position indisponible");
       },
       {
@@ -98,7 +80,6 @@ export default function useCurrentWeather() {
 
     return () => {
       isMounted = false;
-      clearGeolocationTimeout();
       controller.abort();
     };
   }, []);

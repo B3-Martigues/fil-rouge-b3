@@ -14,19 +14,7 @@ type Props = {
   event: Event & { latitude: number; longitude: number };
 };
 
-const getSourceHref = (source?: string | null) => {
-  const value = source?.trim();
-  if (!value || /\s/.test(value)) return null;
-
-  if (URL.canParse(value)) return value;
-
-  const sourceWithProtocol = `https://${value}`;
-  return URL.canParse(sourceWithProtocol) ? sourceWithProtocol : null;
-};
-
 export default function EventPopup({ event }: Props) {
-  const sourceLabel = event.source?.trim();
-  const sourceHref = getSourceHref(sourceLabel);
   const ticketingHref = getTicketingHref(event.ticketing_link);
 
   return (
@@ -68,19 +56,6 @@ export default function EventPopup({ event }: Props) {
             Billetterie
           </a>
         )}
-        {sourceLabel && sourceHref ? (
-          <a
-            href={sourceHref}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Voir la source
-          </a>
-        ) : sourceLabel ? (
-          <p>
-            <strong>Source :</strong> {sourceLabel}
-          </p>
-        ) : null}
         <a
           className="btn"
           href={`https://www.google.com/maps/dir/?api=1&destination=${event.latitude},${event.longitude}`}

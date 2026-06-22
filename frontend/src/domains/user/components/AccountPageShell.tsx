@@ -10,7 +10,15 @@ import {
   ShieldCheck,
   UserRound,
 } from "lucide-react";
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import {
+  Link,
+  Navigate,
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 
 import { FormModalLink } from "../../../shared/components/forms/FormModalLink";
 import Button from "../../../shared/components/ui/Button";
@@ -22,7 +30,6 @@ import {
   getAccountInitials,
 } from "../../../shared/utils/account";
 import useAuthStore from "../../auth/store/authStore";
-import useModeratorPermissions from "../../moderator/hooks/useModeratorPermissions";
 import { getNotificationTypeConfig } from "../../notification/mocks/notification-types.mock";
 
 type AccountSection =
@@ -46,7 +53,7 @@ const accountSections = [
     key: "preferences",
     label: "Paramètres",
     title: "Mes paramètres",
-    route: ROUTES.USER.PREFERENCES,
+    route: ROUTES.USER.PARAMETERS,
     Icon: Settings2,
   },
   {
@@ -99,13 +106,13 @@ export default function AccountPageShell() {
   const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.currentUser);
   const logout = useAuthStore((s) => s.logout);
-  const { permissions } = useModeratorPermissions();
   const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
   const organizations = useDataStore((s) => s.organizations);
   const organizers = useDataStore((s) => s.organizers);
   const events = useDataStore((s) => s.events);
   const notifications = useDataStore((s) => s.notifications);
+  const moderationReports = useDataStore((s) => s.moderationReports);
   const userId = currentUser?.user_id;
   const user = users.find((item) => item.id === userId && !item.deleted_at);
   const account = accounts.find(
@@ -133,20 +140,33 @@ export default function AccountPageShell() {
   const activeSection = getActiveAccountSection(location.pathname);
   const isStaffAccount =
     currentUser?.role === "admin" || currentUser?.role === "moderator";
+  const staffProfileRoute =
+    currentUser?.role === "admin"
+      ? ROUTES.ADMIN.PROFILE
+      : ROUTES.MODERATOR.PROFILE;
+  const staffPreferencesRoute =
+    currentUser?.role === "admin"
+      ? ROUTES.ADMIN.PARAMETERS
+      : ROUTES.MODERATOR.PARAMETERS;
   const staffDashboardRoute =
     currentUser?.role === "admin"
       ? ROUTES.ADMIN.DASHBOARD
       : ROUTES.MODERATOR.DASHBOARD;
   const staffDashboardLabel =
     currentUser?.role === "admin"
-      ? "Acceder au panel admin"
+      ? "Acceder a l'administration"
       : "Acceder a la moderation";
+  const handledReportCount = moderationReports.filter(
+    (report) =>
+      report.handled_by_user_id === currentUser?.user_id &&
+      (report.status === "resolved" || report.status === "dismissed"),
+  ).length;
   const staffScopeLabel =
     currentUser?.role === "admin"
       ? "Acces complet a la plateforme"
-      : `${permissions.length} permission${permissions.length > 1 ? "s" : ""} active${
-          permissions.length > 1 ? "s" : ""
-        }`;
+      : `${handledReportCount} signalement${
+          handledReportCount > 1 ? "s" : ""
+        } traite${handledReportCount > 1 ? "s" : ""}`;
   const activeSectionTitle =
     accountSections.find((section) => section.key === activeSection)?.title ??
     "Compte";
@@ -155,7 +175,9 @@ export default function AccountPageShell() {
       ? accountSections.filter(
           (section) => hasOrganizations || !organizerOnlySections.includes(section.key),
         )
-      : accountSections.filter((section) => section.key === "profile");
+      : accountSections.filter((section) =>
+          ["profile", "preferences"].includes(section.key),
+        );
   const unreadNotificationCount = notifications.filter((notification) => {
     const notificationTypeConfig = getNotificationTypeConfig(
       notification.notification_type_id,
@@ -172,6 +194,18 @@ export default function AccountPageShell() {
     logout();
     navigate(ROUTES.PUBLIC.LOGIN, { replace: true });
   };
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 });
+  }, [location.pathname]);
+
+  if (isStaffAccount && location.pathname === ROUTES.USER.PROFILE) {
+    return <Navigate to={staffProfileRoute} replace />;
+  }
+
+  if (isStaffAccount && location.pathname === ROUTES.USER.PARAMETERS) {
+    return <Navigate to={staffPreferencesRoute} replace />;
+  }
 
   return (
     <section className="account-shell" aria-labelledby="account-title">

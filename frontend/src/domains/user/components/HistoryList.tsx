@@ -3,7 +3,7 @@ import { Trash2 } from "lucide-react";
 import Button from "../../../shared/components/ui/Button";
 import useAuthStore from "../../auth/store/authStore";
 import useEventDistance from "../../event/hooks/useEventDistance";
-import { formatDateTime } from "../../event/utils/event";
+import { formatDateTimeWithAt } from "../../event/utils/event";
 import useDataStore from "../../../shared/store/dataStore";
 import type { History as HistoryEntry } from "../types/history";
 import EventListingCard from "./EventListingCard";
@@ -70,7 +70,7 @@ export default function History() {
                 distanceInKilometers={getEventDistance(event)}
                 meta={
                   <time dateTime={history.visited_at}>
-                    Consulté le {formatDateTime(history.visited_at)}
+                    Consulté le {formatDateTimeWithAt(history.visited_at)}
                   </time>
                 }
                 actions={

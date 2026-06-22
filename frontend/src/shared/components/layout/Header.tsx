@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import useAuthStore from "../../../domains/auth/store/authStore";
 import useDataStore from "../../store/dataStore";
 
@@ -16,9 +18,13 @@ const accountTypeLabels = {
 
 type HeaderProps = {
   showStaffAccountHeader?: boolean;
+  staffHeaderAction?: ReactNode;
 };
 
-export default function Header({ showStaffAccountHeader = false }: HeaderProps) {
+export default function Header({
+  showStaffAccountHeader = false,
+  staffHeaderAction,
+}: HeaderProps) {
   const { currentUser, isAuthenticated, role } = useAuthStore();
   const organizations = useDataStore((s) => s.organizations);
 
@@ -38,10 +44,20 @@ export default function Header({ showStaffAccountHeader = false }: HeaderProps) 
 
   const headerByRole = () => {
     if (role === "admin") {
-      return <HeaderAdmin showAccountHeader={showStaffAccountHeader} />;
+      return (
+        <HeaderAdmin
+          showAccountHeader={showStaffAccountHeader}
+          staffHeaderAction={staffHeaderAction}
+        />
+      );
     }
     if (role === "moderator") {
-      return <HeaderModerator showAccountHeader={showStaffAccountHeader} />;
+      return (
+        <HeaderModerator
+          showAccountHeader={showStaffAccountHeader}
+          staffHeaderAction={staffHeaderAction}
+        />
+      );
     }
     if (role === "organization") return <HeaderOrganization />;
 

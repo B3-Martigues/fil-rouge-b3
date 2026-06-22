@@ -1,4 +1,10 @@
-import { useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { toast } from "react-toastify";
 
 import OrganizationRegisterForm from "../../auth/components/OrganizationRegisterForm";
@@ -7,6 +13,7 @@ import CategorySelect from "../../event/components/CategorySelect";
 import EmptyState from "../../../shared/components/feedback/EmptyState";
 import DecisionReasonModal from "../../../shared/components/forms/DecisionReasonModal";
 import FormModal from "../../../shared/components/forms/FormModal";
+import ImageField from "../../../shared/components/forms/ImageField";
 import ActionRow from "../../../shared/components/layout/ActionRow";
 import PanelStats from "../../../shared/components/layout/PanelStats";
 import Toolbar from "../../../shared/components/layout/Toolbar";
@@ -19,6 +26,8 @@ import Select from "../../../shared/components/ui/Select";
 import StatusBadge from "../../../shared/components/ui/StatusBadge";
 import Textarea from "../../../shared/components/ui/Textarea";
 import { ROUTES } from "../../../shared/constants/routes";
+import { useStaffHeaderAction } from "../../../shared/layouts/StaffHeaderActionContext";
+import { accountRoleLabels } from "../../../shared/utils/account";
 import useAuthStore from "../../auth/store/authStore";
 import {
   createAdministrativeAccountNotification,
@@ -111,6 +120,7 @@ type EventDraft = Omit<
 
 type AdminView = "dashboard" | "accounts" | "events";
 type AccountStatusFilter = "all" | "active" | "pending" | "suspended";
+type EventStatusFilter = "all" | "pending" | "deleted" | "reported" | "published";
 type AccountSort = "username-asc" | "username-desc" | "role-asc";
 type EventSort = "date-asc" | "date-desc" | "title-asc" | "title-desc" | "city-asc";
 
@@ -291,7 +301,23 @@ const getAccountAdminStatus = (account: AccountSummary) => {
   };
 };
 
-const getEventAdminStatus = (event: Event) => {
+const getEventAdminStatus = (event: Event, hasOpenReport = false) => {
+  if (event.deleted_at) {
+    return {
+      label: "Supprime",
+      value: "deleted" as const,
+      variant: "danger" as const,
+    };
+  }
+
+  if (hasOpenReport) {
+    return {
+      label: "Signale",
+      value: "reported" as const,
+      variant: "warning" as const,
+    };
+  }
+
   if (isEventSuspended(event)) {
     const suspendedUntil = event.suspended_until
       ? new Date(event.suspended_until).toLocaleDateString("fr-FR")
@@ -307,7 +333,7 @@ const getEventAdminStatus = (event: Event) => {
   if (event.is_active) {
     return {
       label: "Publie",
-      value: "active" as const,
+      value: "published" as const,
       variant: "active" as const,
     };
   }
@@ -341,6 +367,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const organizationsData = useDataStore((s) => s.organizations);
   const organizersData = useDataStore((s) => s.organizers);
   const eventsData = useDataStore((s) => s.events);
+  const moderationReports = useDataStore((s) => s.moderationReports);
   const addAccount = useDataStore((s) => s.addAccount);
   const updateAccount = useDataStore((s) => s.updateAccount);
   const deleteAccountFromStore = useDataStore((s) => s.deleteAccount);
@@ -380,6 +407,8 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const [eventCategoryFilter, setEventCategoryFilter] =
     useState<EventCategory | "all">("all");
   const [eventCityFilter, setEventCityFilter] = useState("all");
+  const [eventStatusFilter, setEventStatusFilter] =
+    useState<EventStatusFilter>("all");
   const [eventSort, setEventSort] = useState<EventSort>("date-asc");
   const [decisionRequest, setDecisionRequest] =
     useState<AdminDecisionRequest | null>(null);
@@ -390,7 +419,10 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
 
   const activeOrganizationsData = organizationsData.filter((organization) => !organization.deleted_at);
   const activeEventsData = eventsData.filter((event) => !event.deleted_at);
-  const firstOrganizationId = activeOrganizationsData[0]?.id;
+  const firstOrganizationId = useMemo(
+    () => organizationsData.find((organization) => !organization.deleted_at)?.id,
+    [organizationsData],
+  );
 
   const hasDuplicateAccountEmail = (email: string, currentAccountId?: number) =>
     accountsData.some(
@@ -637,14 +669,31 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   );
 
   const eventCities = Array.from(
-    new Set(activeEventsData.map((event) => event.city.trim()).filter(Boolean)),
+    new Set(eventsData.map((event) => event.city.trim()).filter(Boolean)),
   ).sort((firstCity, secondCity) =>
     firstCity.localeCompare(secondCity, "fr-FR"),
   );
 
-  const filteredEvents = activeEventsData
+  const reportedEventIds = useMemo(
+    () =>
+      new Set(
+        moderationReports
+          .filter(
+            (report) =>
+              report.target_type === "event" &&
+              (report.status === "open" || report.status === "reviewing"),
+          )
+          .map((report) => report.target_id),
+      ),
+    [moderationReports],
+  );
+
+  const filteredEvents = eventsData
     .filter((event) => {
-      const eventStatus = getEventAdminStatus(event);
+      const eventStatus = getEventAdminStatus(
+        event,
+        reportedEventIds.has(event.id),
+      );
       const matchesSearch = normalizeText(
         [
           event.title,
@@ -666,8 +715,10 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         getEventCategories(event).includes(eventCategoryFilter);
       const matchesCity =
         eventCityFilter === "all" || event.city === eventCityFilter;
+      const matchesStatus =
+        eventStatusFilter === "all" || eventStatus.value === eventStatusFilter;
 
-      return matchesSearch && matchesCategory && matchesCity;
+      return matchesSearch && matchesCategory && matchesCity && matchesStatus;
     })
     .sort((firstEvent, secondEvent) => {
       if (eventSort === "date-desc") {
@@ -706,13 +757,13 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     setOrganizationDraft(organization ? toOrganizationDraft(organization) : null);
   };
 
-  const startUserCreate = () => {
+  const startUserCreate = useCallback(() => {
     setEditingUserId(null);
     setOrganizationDraft(null);
     setAccountCreateRole("user");
     setIsCreatingUser(true);
     setUserDraft(emptyUserDraft());
-  };
+  }, []);
 
   const closeUserForm = () => {
     setEditingUserId(null);
@@ -1032,11 +1083,11 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     setEventDraft(toEventDraft(event));
   };
 
-  const startEventCreate = () => {
+  const startEventCreate = useCallback(() => {
     setEditingEventId(null);
     setIsCreatingEvent(true);
     setEventDraft(emptyEventDraft(firstOrganizationId));
-  };
+  }, [firstOrganizationId]);
 
   const closeEventForm = () => {
     setEditingEventId(null);
@@ -1257,6 +1308,28 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const isAccountsView = view === "accounts";
   const isEventsView = view === "events";
   const currentViewContent = viewContent[view];
+  const { setAction: setStaffHeaderAction } = useStaffHeaderAction();
+  const staffHeaderAction = useMemo<ReactNode | null>(() => {
+    if (isAccountsView) {
+      return (
+        <Button type="button" onClick={startUserCreate}>
+          Ajouter
+        </Button>
+      );
+    }
+
+    if (isEventsView) {
+      return (
+        <Button type="button" onClick={startEventCreate}>
+          Ajouter
+        </Button>
+      );
+    }
+
+    return null;
+  }, [isAccountsView, isEventsView, startEventCreate, startUserCreate]);
+  const shouldRenderLocalActionHeader =
+    !setStaffHeaderAction && (isAccountsView || isEventsView);
   const adminStats = [
     {
       label: "Comptes",
@@ -1267,26 +1340,29 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     { label: "Evenements", to: ROUTES.ADMIN.EVENTS, value: activeEventsData.length },
   ];
 
-  return (
-    <div className="admin-panel">
-      <section className="admin-panel__header">
-        <div className="admin-panel__heading">
-          <h2>{currentViewContent.title}</h2>
-          {isAccountsView && (
-            <Button type="button" onClick={startUserCreate}>
-              Ajouter
-            </Button>
-          )}
-          {isEventsView && (
-            <Button type="button" onClick={startEventCreate}>
-              Ajouter
-            </Button>
-          )}
-        </div>
-        <p>{currentViewContent.description}</p>
-      </section>
+  useEffect(() => {
+    if (!setStaffHeaderAction) return;
 
-      <PanelStats ariaLabel="Navigation admin" stats={adminStats} />
+    setStaffHeaderAction(staffHeaderAction);
+
+    return () => setStaffHeaderAction(null);
+  }, [setStaffHeaderAction, staffHeaderAction]);
+
+  return (
+    <div className="admin-panel" aria-label={currentViewContent.title}>
+      {shouldRenderLocalActionHeader && (
+        <section className="admin-panel__header admin-panel__header--actions">
+          <div className="admin-panel__heading">
+            {staffHeaderAction}
+          </div>
+        </section>
+      )}
+
+      <PanelStats
+        ariaLabel="Navigation administration"
+        className="panel-stats--administration"
+        stats={adminStats}
+      />
 
       {isAccountsView && (
         <section className="admin-panel__grid">
@@ -1353,35 +1429,43 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
               <EmptyState message="Aucun compte ne correspond aux filtres." />
             ) : (
               <div className="admin-table admin-table--accounts" role="table" aria-label="Comptes">
-                <div className="admin-table__row admin-table__row--head" role="row">
-                  <span role="columnheader">Nom</span>
-                  <span role="columnheader">Email</span>
-                  <span role="columnheader">Role</span>
-                  <span role="columnheader">Statut</span>
-                  <span role="columnheader">Actions</span>
-                </div>
                 <div role="rowgroup">
                   {filteredUsers.map((user) => {
                     const accountStatus = getAccountAdminStatus(user);
 
                     return (
-                      <div className="admin-table__row" role="row" key={user.account_id}>
+                      <div
+                        className={[
+                          "admin-table__row",
+                          "admin-table__row--with-status",
+                          accountStatus.value === "suspended"
+                            ? "admin-table__row--suspended"
+                            : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        role="row"
+                        key={user.account_id}
+                      >
                         <span role="cell">{user.display_name}</span>
                         <span role="cell">{user.login_email}</span>
-                        <StatusBadge role="cell">
-                          {user.role}
+                        <StatusBadge className="admin-account-role" role="cell">
+                          {accountRoleLabels[user.role]}
                         </StatusBadge>
                         <div className="admin-status-cell" role="cell">
                           <StatusBadge variant={accountStatus.variant}>
                             {accountStatus.label}
                           </StatusBadge>
-                          {accountStatus.value === "suspended" &&
-                            user.suspension_reason && (
-                              <small className="admin-suspension-reason">
-                                Motif: {user.suspension_reason}
-                              </small>
-                            )}
                         </div>
+                        {accountStatus.value === "suspended" &&
+                          user.suspension_reason && (
+                            <small
+                              className="admin-suspension-reason admin-suspension-reason--inline"
+                              role="cell"
+                            >
+                              Motif: {user.suspension_reason}
+                            </small>
+                          )}
                         <div className="admin-actions" role="cell">
                           {accountStatus.value === "suspended" && (
                             <Button
@@ -1482,6 +1566,21 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                 </Select>
               </label>
               <label>
+                Statut
+                <Select
+                  value={eventStatusFilter}
+                  onChange={(event) =>
+                    setEventStatusFilter(event.target.value as EventStatusFilter)
+                  }
+                >
+                  <option value="all">Tous les statuts</option>
+                  <option value="pending">En attente</option>
+                  <option value="deleted">Supprimes</option>
+                  <option value="reported">Signales</option>
+                  <option value="published">Publies</option>
+                </Select>
+              </label>
+              <label>
                 Trier par
                 <Select
                   value={eventSort}
@@ -1504,22 +1603,23 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
               <EmptyState message="Aucun evenement ne correspond aux filtres." />
             ) : (
               <div className="admin-table admin-table--events" role="table" aria-label="Événements">
-                <div className="admin-table__row admin-table__row--head" role="row">
-                  <span role="columnheader">Titre</span>
-                  <span role="columnheader">Categories</span>
-                  <span role="columnheader">Ville</span>
-                  <span role="columnheader">Prix</span>
-                  <span role="columnheader">Dates</span>
-                  <span role="columnheader">Statut</span>
-                  <span role="columnheader">Actions</span>
-                </div>
                 <div role="rowgroup">
                   {filteredEvents.map((event) => {
-                    const eventStatus = getEventAdminStatus(event);
+                    const eventStatus = getEventAdminStatus(
+                      event,
+                      reportedEventIds.has(event.id),
+                    );
                     const ticketingHref = getTicketingHref(event.ticketing_link);
 
                     return (
-                      <div className="admin-table__row" role="row" key={event.id}>
+                      <div
+                        className="admin-table__row admin-table__row--event-card admin-table__row--with-status"
+                        role="row"
+                        key={event.id}
+                      >
+                        <span className="admin-event-image-cell" role="cell">
+                          <img src={event.image} alt={`Visuel ${event.title}`} />
+                        </span>
                         <span role="cell">{event.title}</span>
                         <span role="cell">{getEventCategories(event).join(", ")}</span>
                         <span role="cell">{event.city}</span>
@@ -1566,29 +1666,33 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                               Lever suspension
                             </Button>
                           )}
-                          <Button
-                            variant="secondary"
-                            type="button"
-                            onClick={() => startEventEdit(event)}
-                          >
-                            Modifier
-                          </Button>
-                          <Button
-                            variant="danger"
-                            type="button"
-                            onClick={() =>
-                              openDecisionModal({
-                                action: "event_deleted",
-                                targetId: event.id,
-                                targetType: "event",
-                                title: `Justifier la suppression de ${event.title}`,
-                                onConfirm: (reason) =>
-                                  deleteEvent(event.id, reason),
-                              })
-                            }
-                          >
-                            Supprimer
-                          </Button>
+                          {eventStatus.value !== "deleted" && (
+                            <>
+                              <Button
+                                variant="secondary"
+                                type="button"
+                                onClick={() => startEventEdit(event)}
+                              >
+                                Modifier
+                              </Button>
+                              <Button
+                                variant="danger"
+                                type="button"
+                                onClick={() =>
+                                  openDecisionModal({
+                                    action: "event_deleted",
+                                    targetId: event.id,
+                                    targetType: "event",
+                                    title: `Justifier la suppression de ${event.title}`,
+                                    onConfirm: (reason) =>
+                                      deleteEvent(event.id, reason),
+                                  })
+                                }
+                              >
+                                Supprimer
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
                     );
@@ -2084,13 +2188,12 @@ function EventEditor({
           }
         />
       </FormField>
-      <FormField label="Image" htmlFor="admin-event-image">
-        <Input
-          id="admin-event-image"
-          value={draft.image}
-          onChange={(event) => setDraft({ ...draft, image: event.target.value })}
-        />
-      </FormField>
+      <ImageField
+        className="admin-form-grid__wide"
+        id="admin-event-image"
+        value={draft.image}
+        onChange={(value) => setDraft({ ...draft, image: value })}
+      />
       <FormField label="Prix" htmlFor="admin-event-price">
         <Input
           id="admin-event-price"

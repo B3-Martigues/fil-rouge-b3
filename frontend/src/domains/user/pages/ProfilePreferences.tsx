@@ -1,7 +1,11 @@
 import ProfilePreferencesForm from "../components/ProfilePreferencesForm";
 import ThemeToggle from "../../../shared/components/layout/ThemeToggle";
+import useAuthStore from "../../auth/store/authStore";
 
 export default function ProfilePreferences() {
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const canEditEventPreferences = currentUser?.role === "user";
+
   return (
     <section className="account-settings">
       <div className="account-settings__theme">
@@ -11,7 +15,7 @@ export default function ProfilePreferences() {
         </div>
         <ThemeToggle />
       </div>
-      <ProfilePreferencesForm />
+      {canEditEventPreferences && <ProfilePreferencesForm />}
     </section>
   );
 }

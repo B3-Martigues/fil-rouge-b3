@@ -5,6 +5,8 @@
   position: relative;
   display: inline-flex;
   align-items: center;
+  margin-top: 4px;
+  
 
   &__trigger {
     position: relative;
@@ -24,10 +26,17 @@
       top: -6px;
       right: -6px;
       display: inline-flex;
+      flex: 0 0 20px;
       align-items: center;
       justify-content: center;
       width: 20px;
+      min-width: 20px;
+      max-width: 20px;
       height: 20px;
+      min-height: 20px;
+      max-height: 20px;
+      aspect-ratio: 1 / 1;
+      box-sizing: border-box;
       padding: 0;
       border-radius: 50%;
       color: var(--color-inverse);

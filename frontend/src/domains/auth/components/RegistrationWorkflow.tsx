@@ -436,6 +436,13 @@ export default function RegistrationWorkflow() {
             {serverError && <ErrorMessage message={serverError} />}
 
             <ActionRow className="form-step-actions" align="center">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => navigate(ROUTES.PUBLIC.LOGIN)}
+              >
+                Annuler
+              </Button>
               <Button type="submit">Continuer</Button>
             </ActionRow>
           </form>

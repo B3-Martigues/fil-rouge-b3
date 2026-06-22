@@ -8,6 +8,7 @@ import type { EventCategory } from "../../event/types/event-categories";
 import type { Event } from "../../event/types/event";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
+import ImageField from "../../../shared/components/forms/ImageField";
 import Input from "../../../shared/components/ui/Input";
 import Textarea from "../../../shared/components/ui/Textarea";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
@@ -29,9 +30,6 @@ export default function OrganizationDashboard() {
   const [form, setForm] = useState<EventForm>(emptyEventForm);
   const [errors, setErrors] = useState<EventFormErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
-  const imagePreviewUrl = form.image.trim();
-  const canPreviewImage =
-    imagePreviewUrl !== "" && URL.canParse(imagePreviewUrl);
 
   const updateField = <Key extends keyof EventForm>(
     field: Key,
@@ -299,31 +297,13 @@ export default function OrganizationDashboard() {
               />
             </FormField>
 
-            <div className="organization-event-form__wide organization-event-form__image-field">
-              <FormField
-                label="Image"
-                htmlFor="event-image"
-                error={errors.image}
-              >
-                <Input
-                  id="event-image"
-                  type="url"
-                  value={form.image}
-                  hasError={!!errors.image}
-                  aria-describedby={
-                    errors.image ? "event-image-error" : undefined
-                  }
-                  onChange={(event) => updateField("image", event.target.value)}
-                />
-              </FormField>
-
-              <div className="organization-event-form__image-preview">
-                <span>Apercu de l'image</span>
-                {canPreviewImage && (
-                  <img src={imagePreviewUrl} alt="" loading="lazy" />
-                )}
-              </div>
-            </div>
+            <ImageField
+              className="organization-event-form__wide"
+              id="event-image"
+              value={form.image}
+              error={errors.image}
+              onChange={(value) => updateField("image", value)}
+            />
 
             <FormField label="Prix" htmlFor="event-price" error={errors.price}>
               <Input

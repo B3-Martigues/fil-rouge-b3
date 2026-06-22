@@ -167,11 +167,9 @@
 }
 
 .organization-setup,
-.organizations-page,
 .organization-detail {
   display: grid;
   gap: 20px;
-  padding: 24px;
   text-align: left;
 
   @include respond-below($bp-sm) {

@@ -2,12 +2,13 @@ import { Trash2 } from "lucide-react";
 
 import Button from "../../../shared/components/ui/Button";
 import useEventDistance from "../../event/hooks/useEventDistance";
+import { formatDateTimeWithAt } from "../../event/utils/event";
 import useDataStore from "../../../shared/store/dataStore";
 import useFavorites from "../hooks/useFavorites";
 import EventListingCard from "./EventListingCard";
 
 export default function Favorites() {
-  const { favorites, toggleFavorite } = useFavorites();
+  const { favoriteEntries, favorites, toggleFavorite } = useFavorites();
   const events = useDataStore((s) => s.events);
   const organizations = useDataStore((s) => s.organizations);
   const { getEventDistance } = useEventDistance();
@@ -23,6 +24,9 @@ export default function Favorites() {
       !event.deleted_at &&
       activeOrganizationIds.has(event.organization_id),
   );
+  const favoriteEntryByEventId = new Map(
+    favoriteEntries.map((favorite) => [favorite.event_id, favorite]),
+  );
 
   if (favoriteEvents.length === 0) {
     return (
@@ -35,23 +39,34 @@ export default function Favorites() {
   return (
     <div className="user-favorites">
       <div className="user-events-list__grid">
-        {favoriteEvents.map((event) => (
-          <EventListingCard
-            key={event.id}
-            event={event}
-            distanceInKilometers={getEventDistance(event)}
-            actions={
-              <Button
-                icon={<Trash2 size={18} aria-hidden="true" />}
-                type="button"
-                variant="danger"
-                onClick={() => toggleFavorite(event.id)}
-              >
-                Supprimer
-              </Button>
-            }
-          />
-        ))}
+        {favoriteEvents.map((event) => {
+          const favoriteCreatedAt = favoriteEntryByEventId.get(event.id)?.created_at;
+
+          return (
+            <EventListingCard
+              key={event.id}
+              event={event}
+              distanceInKilometers={getEventDistance(event)}
+              meta={
+                favoriteCreatedAt ? (
+                  <time dateTime={favoriteCreatedAt}>
+                    Ajouté le {formatDateTimeWithAt(favoriteCreatedAt)}
+                  </time>
+                ) : undefined
+              }
+              actions={
+                <Button
+                  icon={<Trash2 size={18} aria-hidden="true" />}
+                  type="button"
+                  variant="danger"
+                  onClick={() => toggleFavorite(event.id)}
+                >
+                  Supprimer
+                </Button>
+              }
+            />
+          );
+        })}
       </div>
     </div>
   );

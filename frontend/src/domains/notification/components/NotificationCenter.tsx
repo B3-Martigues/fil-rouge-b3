@@ -11,11 +11,20 @@ export default function NotificationCenter() {
   const panelId = "notification-center-panel";
   const currentUser = useAuthStore((s) => s.currentUser);
   const notifications = useDataStore((s) => s.notifications);
+  const syncTodaysFavoriteEventNotifications = useDataStore(
+    (s) => s.syncTodaysFavoriteEventNotifications,
+  );
   const [isOpen, setIsOpen] = useState(false);
   const centerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const userId = currentUser?.user_id;
+
+  useEffect(() => {
+    if (userId) {
+      syncTodaysFavoriteEventNotifications(userId);
+    }
+  }, [syncTodaysFavoriteEventNotifications, userId]);
 
   useEffect(() => {
     if (!isOpen) return;

@@ -23,6 +23,7 @@
   --account-gutter: clamp(16px, 5vw, 32px);
 
   position: relative;
+  isolation: isolate;
   display: grid;
   box-sizing: border-box;
   gap: 18px;
@@ -46,6 +47,7 @@
   overflow-y: auto;
   background: var(--bg);
   padding-bottom: 16px;
+  width: 100%;
 
   .account-shell__header,
   .account-shell__sticky {
@@ -64,6 +66,23 @@
 
   .account-tabs--role .account-tabs__item {
     min-height: 58px;
+  }
+}
+
+@media (max-width: 768px) {
+  .account-shell--role-header .account-tabs--role,
+  .account-tabs.account-tabs--role {
+    grid-auto-columns: minmax(92px, 28%);
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    justify-content: start;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+  }
+
+  .account-shell--role-header .account-tabs--role .account-tabs__item,
+  .account-tabs.account-tabs--role .account-tabs__item {
+    scroll-snap-align: start;
   }
 }
 
@@ -138,14 +157,57 @@
   padding: 0 0 8px;
   background: var(--bg);
   backdrop-filter: blur(14px);
+
+  &::before,
+  &::after {
+    position: absolute;
+    right: 0;
+    left: 0;
+    z-index: 0;
+    background: var(--bg);
+    content: "";
+    pointer-events: none;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  &::before {
+    bottom: 100%;
+    height: 18px;
+  }
+
+  &::after {
+    top: 100%;
+    height: 12px;
+    box-shadow: 0 10px 18px -16px var(--color-floating-shadow);
+  }
+}
+
+.account-shell__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 0;
+  min-width: 0;
 }
 
 .account-shell__section-title {
-  margin: 4px 0 0;
+  min-width: 0;
+  margin: 0;
   color: var(--text-h);
   font-size: clamp(22px, 6vw, 28px);
   line-height: 1.15;
   letter-spacing: 0;
+}
+
+.account-shell__section-action {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
 }
 
 .account-summary {
@@ -345,10 +407,17 @@
   top: 5px;
   right: 8px;
   display: inline-flex;
+  flex: 0 0 20px;
   align-items: center;
   justify-content: center;
   width: 20px;
+  min-width: 20px;
+  max-width: 20px;
   height: 20px;
+  min-height: 20px;
+  max-height: 20px;
+  aspect-ratio: 1 / 1;
+  box-sizing: border-box;
   padding: 0;
   border: 2px solid var(--bg);
   border-radius: 50%;
@@ -361,6 +430,8 @@
 }
 
 .account-shell__content {
+  position: relative;
+  z-index: 0;
   min-width: 0;
   min-height: 50svh;
   animation: account-section-enter 180ms ease both;
@@ -385,6 +456,7 @@
 .account-settings {
   display: grid;
   gap: 18px;
+  padding-top: 4px;
 }
 
 .account-settings__theme {
@@ -422,7 +494,6 @@
 .user-profile-form {
   display: grid;
   gap: 14px;
-  max-width: 520px;
   margin: 0 auto;
   width: 100%;
 }
@@ -445,9 +516,13 @@
 
 .user-favorites__grid,
 .user-events-list__grid {
+  --event-card-min-height: 430px;
+
   display: grid;
+  grid-auto-rows: minmax(var(--event-card-min-height), 1fr);
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 18px;
+  align-items: stretch;
 
   > .event-card {
     height: 100%;
@@ -514,11 +589,6 @@
 .user-organizations {
   display: grid;
   gap: 16px;
-  padding: 24px;
-
-  @include respond-below($bp-sm) {
-    padding: 16px;
-  }
 
   &__header,
   &__events-title,
@@ -607,7 +677,7 @@
     gap: 8px;
     min-height: 0;
     padding-top: 0;
-    padding-bottom: 12px;
+    padding-bottom: 4px;
 
     .account-shell__header,
     .account-shell__sticky {
@@ -623,7 +693,7 @@
     }
 
     .account-shell__sticky {
-      padding: 0 0 8px;
+      padding: 0 0 4px;
       box-shadow: none;
 
       &::before {
@@ -635,7 +705,7 @@
       grid-auto-columns: minmax(82px, 23%);
       grid-auto-flow: column;
       grid-template-columns: none;
-      justify-content: start;
+      justify-content: space-between;
       padding: 0 0 4px;
     }
 
@@ -669,7 +739,7 @@
     margin-right: 0;
     margin-left: 0;
     overflow-x: auto;
-    padding: 0 0 4px;
+    padding: 0 0 4px 6px;
     scroll-snap-type: x proximity;
   }
 
@@ -697,6 +767,17 @@
   .user-history {
     gap: 14px;
     padding: 4px 0 0;
+  }
+
+  .user-organization__title,
+  .user-organization-event__header {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+  }
+
+  .user-organization__title h4,
+  .user-organization-event__header h5 {
+    min-width: 0;
   }
 
   .user-profile-form {
@@ -730,6 +811,20 @@
   }
 }
 
+.staff-layout {
+  .user-profile,
+  .account-settings {
+    padding: 0 24px 24px;
+  }
+
+  @include respond-below($bp-sm) {
+    .user-profile,
+    .account-settings {
+      padding: 0 16px 16px;
+    }
+  }
+}
+
 @include respond-below(380px) {
   .account-shell__header {
     grid-template-columns: auto minmax(0, 1fr);
@@ -741,6 +836,10 @@
 
   .account-summary__meta {
     grid-template-columns: 1fr;
+  }
+
+  .account-summary__meta--organizer {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .account-tabs__item {

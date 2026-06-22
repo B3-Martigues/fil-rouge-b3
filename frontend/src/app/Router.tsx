@@ -6,6 +6,7 @@ import {
   Routes,
   useLocation,
   useNavigate,
+  useParams,
   type Location,
 } from "react-router-dom";
 
@@ -82,7 +83,7 @@ const formModalRoutes = [
   { path: ROUTES.PUBLIC.FORGOT_PASSWORD, label: "Mot de passe oublié" },
   { path: ROUTES.PUBLIC.RESET_PASSWORD, label: "Réinitialisation du mot de passe" },
   { path: ROUTES.USER.CHANGE_PASSWORD, label: "Changement de mot de passe" },
-  { path: ROUTES.USER.PREFERENCES, label: "Préférences utilisateur" },
+  { path: ROUTES.USER.PARAMETERS, label: "Paramètres utilisateur" },
   { path: ROUTES.USER.BECOME_ORGANIZER, label: "Devenir organisateur" },
   { path: ROUTES.USER.CREATE_ORGANIZATION, label: "Ajouter une organisation" },
   { path: ROUTES.ORGANIZATION.CREATE, label: "Ajouter un événement" },
@@ -95,6 +96,49 @@ const getFormModalLabel = (pathname: string) =>
 
 const toLocationPath = (location: Location) =>
   `${location.pathname}${location.search}${location.hash}`;
+
+const legacyUserRedirects = [
+  { from: ROUTES.LEGACY_USER.PROFILE, to: ROUTES.USER.PROFILE },
+  { from: ROUTES.LEGACY_USER.FAVORITES, to: ROUTES.USER.FAVORITES },
+  { from: ROUTES.LEGACY_USER.HISTORY, to: ROUTES.USER.HISTORY },
+  { from: ROUTES.LEGACY_USER.NOTIFICATIONS, to: ROUTES.USER.NOTIFICATIONS },
+  { from: ROUTES.LEGACY_USER.PREFERENCES, to: ROUTES.USER.PARAMETERS },
+  { from: ROUTES.LEGACY_USER.ORGANIZATIONS, to: ROUTES.USER.ORGANIZATIONS },
+  { from: ROUTES.LEGACY_USER.EVENTS, to: ROUTES.USER.EVENTS },
+  { from: ROUTES.LEGACY_USER.CHANGE_PASSWORD, to: ROUTES.USER.CHANGE_PASSWORD },
+  {
+    from: ROUTES.LEGACY_USER.BECOME_ORGANIZER,
+    to: ROUTES.USER.BECOME_ORGANIZER,
+  },
+  {
+    from: ROUTES.LEGACY_USER.CREATE_ORGANIZATION,
+    to: ROUTES.USER.CREATE_ORGANIZATION,
+  },
+] as const;
+
+const legacyAdminRedirects = [
+  { from: ROUTES.LEGACY_ADMIN.DASHBOARD, to: ROUTES.ADMIN.DASHBOARD },
+  { from: ROUTES.LEGACY_ADMIN.EVENTS, to: ROUTES.ADMIN.EVENTS },
+  { from: ROUTES.LEGACY_ADMIN.PROFILE, to: ROUTES.ADMIN.PROFILE },
+  { from: ROUTES.LEGACY_ADMIN.PREFERENCES, to: ROUTES.ADMIN.PARAMETERS },
+  { from: ROUTES.LEGACY_ADMIN.USERS, to: ROUTES.ADMIN.USERS },
+] as const;
+
+const legacyModeratorRedirects = [
+  { from: ROUTES.LEGACY_MODERATOR.DASHBOARD, to: ROUTES.MODERATOR.DASHBOARD },
+  { from: ROUTES.LEGACY_MODERATOR.EVENTS, to: ROUTES.MODERATOR.EVENTS },
+  {
+    from: ROUTES.LEGACY_MODERATOR.ORGANIZATIONS,
+    to: ROUTES.MODERATOR.ORGANIZATIONS,
+  },
+  { from: ROUTES.LEGACY_MODERATOR.ACCOUNTS, to: ROUTES.MODERATOR.ACCOUNTS },
+  { from: ROUTES.LEGACY_MODERATOR.REPORTS, to: ROUTES.MODERATOR.REPORTS },
+  { from: ROUTES.LEGACY_MODERATOR.PROFILE, to: ROUTES.MODERATOR.PROFILE },
+  {
+    from: ROUTES.LEGACY_MODERATOR.PREFERENCES,
+    to: ROUTES.MODERATOR.PARAMETERS,
+  },
+] as const;
 
 const PrivateRoute = ({ children }: Props) => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -192,6 +236,45 @@ const RequireUserOrganizer = ({ children }: Props) => {
   return children;
 };
 
+const LegacyUserRouteRedirect = ({ to }: { to: string }) => {
+  const location = useLocation();
+
+  return (
+    <Navigate to={`${to}${location.search}${location.hash}`} replace />
+  );
+};
+
+const LegacyRouteRedirect = ({ to }: { to: string }) => {
+  const location = useLocation();
+
+  return <Navigate to={`${to}${location.search}${location.hash}`} replace />;
+};
+
+const LegacyUserOrganizationRedirect = () => {
+  const { organizationId } = useParams();
+
+  return (
+    <LegacyUserRouteRedirect
+      to={ROUTES.USER.ORGANIZATION_DETAIL.replace(
+        ":organizationId",
+        organizationId ?? "",
+      )}
+    />
+  );
+};
+
+const StaffPanelSection = ({
+  children,
+  title,
+}: {
+  children: ReactNode;
+  title: string;
+}) => (
+  <section className="staff-panel-page" aria-label={title}>
+    <div className="staff-panel-page__content">{children}</div>
+  </section>
+);
+
 const routeFallback = (
   <div className="route-loading" role="status">
     Chargement...
@@ -252,6 +335,21 @@ const Router = () => {
             </PrivateRoute>
           }
         >
+          <Route
+            path={ROUTES.USER.ACCOUNT}
+            element={<Navigate to={ROUTES.USER.PROFILE} replace />}
+          />
+          {legacyUserRedirects.map((route) => (
+            <Route
+              element={<LegacyUserRouteRedirect to={route.to} />}
+              key={route.from}
+              path={route.from}
+            />
+          ))}
+          <Route
+            path={ROUTES.LEGACY_USER.ORGANIZATION_DETAIL}
+            element={<LegacyUserOrganizationRedirect />}
+          />
           <Route element={<AccountPageShell />}>
             <Route
               path={ROUTES.USER.PROFILE}
@@ -292,9 +390,9 @@ const Router = () => {
               }
             />
             <Route
-              path={ROUTES.USER.PREFERENCES}
+              path={ROUTES.USER.PARAMETERS}
               element={
-                <RoleRoute role="user">
+                <RoleRoute roles={["user", "admin", "moderator"]}>
                   <ProfilePreferences />
                 </RoleRoute>
               }
@@ -362,6 +460,13 @@ const Router = () => {
             </PrivateRoute>
           }
         >
+          {legacyAdminRedirects.map((route) => (
+            <Route
+              element={<LegacyRouteRedirect to={route.to} />}
+              key={route.from}
+              path={route.from}
+            />
+          ))}
           <Route
             path={ROUTES.ADMIN.DASHBOARD}
             element={<AdminDashboard view="accounts" />}
@@ -371,8 +476,20 @@ const Router = () => {
             element={<AdminDashboard view="events" />}
           />
           <Route
-            path={ROUTES.ADMIN.USERS}
-            element={<AdminDashboard view="accounts" />}
+            path={ROUTES.ADMIN.PROFILE}
+            element={
+              <StaffPanelSection title="Profil">
+                <Profile />
+              </StaffPanelSection>
+            }
+          />
+          <Route
+            path={ROUTES.ADMIN.PARAMETERS}
+            element={
+              <StaffPanelSection title="Paramètres">
+                <ProfilePreferences />
+              </StaffPanelSection>
+            }
           />
         </Route>
 
@@ -385,6 +502,13 @@ const Router = () => {
             </PrivateRoute>
           }
         >
+          {legacyModeratorRedirects.map((route) => (
+            <Route
+              element={<LegacyRouteRedirect to={route.to} />}
+              key={route.from}
+              path={route.from}
+            />
+          ))}
           <Route
             path={ROUTES.MODERATOR.DASHBOARD}
             element={<ModeratorDashboard view="accounts" />}
@@ -404,6 +528,22 @@ const Router = () => {
           <Route
             path={ROUTES.MODERATOR.REPORTS}
             element={<ModeratorDashboard view="reports" />}
+          />
+          <Route
+            path={ROUTES.MODERATOR.PROFILE}
+            element={
+              <StaffPanelSection title="Profil">
+                <Profile />
+              </StaffPanelSection>
+            }
+          />
+          <Route
+            path={ROUTES.MODERATOR.PARAMETERS}
+            element={
+              <StaffPanelSection title="Paramètres">
+                <ProfilePreferences />
+              </StaffPanelSection>
+            }
           />
         </Route>
 
@@ -459,10 +599,10 @@ const Router = () => {
                 }
               />
               <Route
-                path={ROUTES.USER.PREFERENCES}
+                path={ROUTES.USER.PARAMETERS}
                 element={
                   <PrivateRoute>
-                    <RoleRoute role="user">
+                    <RoleRoute roles={["user", "admin", "moderator"]}>
                       <ProfilePreferences />
                     </RoleRoute>
                   </PrivateRoute>

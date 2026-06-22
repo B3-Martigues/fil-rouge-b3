@@ -1,19 +1,27 @@
-/**
- * Layout pour l'administration.
- */
+import { useMemo, useState, type ReactNode } from "react";
+import { Outlet } from "react-router-dom";
 
-import { Outlet, useLocation } from "react-router-dom";
 import Header from "../components/layout/Header";
+import { StaffHeaderActionProvider } from "./StaffHeaderActionContext";
 
 export default function AdminLayout() {
-  const location = useLocation();
+  const [staffHeaderAction, setStaffHeaderAction] = useState<ReactNode | null>(
+    null,
+  );
+  const staffHeaderActionContext = useMemo(
+    () => ({ setAction: setStaffHeaderAction }),
+    [],
+  );
 
   return (
-    <>
-      <Header key={location.pathname} showStaffAccountHeader />
-      <main>
+    <StaffHeaderActionProvider value={staffHeaderActionContext}>
+      <Header
+        showStaffAccountHeader
+        staffHeaderAction={staffHeaderAction}
+      />
+      <main className="staff-layout">
         <Outlet />
       </main>
-    </>
+    </StaffHeaderActionProvider>
   );
 }

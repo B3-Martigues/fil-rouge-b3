@@ -4,6 +4,7 @@
 .event-card {
   display: grid;
   grid-template-rows: auto 1fr;
+  min-height: var(--event-card-min-height, 100%);
   overflow: hidden;
 
   @include surface;
@@ -41,6 +42,7 @@
     display: grid;
     grid-template-rows: auto auto minmax(4.2em, auto) 1fr auto auto;
     gap: 12px;
+    min-height: 0;
     padding: 16px;
   }
 
@@ -65,12 +67,18 @@
 
   &__tags {
     display: flex;
+    flex: 1 1 auto;
     flex-wrap: wrap;
     gap: 6px;
+    min-width: 0;
   }
 
   &__tag {
     line-height: 1.25;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   h3 {

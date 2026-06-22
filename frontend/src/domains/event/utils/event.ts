@@ -133,12 +133,26 @@ export function formatDateTime(date: string | Date): string {
   return new Date(date).toLocaleString("fr-FR", dateTimeFormatOptions);
 }
 
+export function formatDateTimeWithAt(date: string | Date): string {
+  return `${formatDate(date)} à ${formatHour(date)}`;
+}
+
 function formatDate(date: string | Date): string {
   return new Date(date).toLocaleDateString("fr-FR", dateFormatOptions);
 }
 
 function formatTime(date: string | Date): string {
   return new Date(date).toLocaleTimeString("fr-FR", timeFormatOptions);
+}
+
+function formatHour(date: string | Date): string {
+  const value = new Date(date);
+  const hours = String(value.getHours()).padStart(2, "0");
+  const minutes = value.getMinutes();
+
+  return minutes === 0
+    ? `${hours}h`
+    : `${hours}h${String(minutes).padStart(2, "0")}`;
 }
 
 function isSameLocalDay(firstDate: Date, secondDate: Date): boolean {
