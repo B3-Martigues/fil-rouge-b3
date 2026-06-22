@@ -3,6 +3,8 @@
 
 .event-card {
   display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: var(--event-card-min-height, 100%);
   overflow: hidden;
 
   @include surface;
@@ -38,7 +40,9 @@
 
   &__content {
     display: grid;
+    grid-template-rows: auto auto minmax(4.2em, auto) 1fr auto auto;
     gap: 12px;
+    min-height: 0;
     padding: 16px;
   }
 
@@ -51,13 +55,30 @@
     color: var(--text-p);
     font-size: 14px;
 
-    span {
+    span,
+    .event-card__tag {
       padding: 4px 8px;
       border: 1px solid var(--border);
       border-radius: 999px;
       color: var(--text-h);
       background: var(--social-bg);
     }
+  }
+
+  &__tags {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  &__tag {
+    line-height: 1.25;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   h3 {
@@ -68,7 +89,13 @@
   }
 
   p {
+    display: -webkit-box;
+    min-height: 4.2em;
+    overflow: hidden;
     color: var(--text-p);
+    line-height: 1.4;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
   }
 
   &__details {
@@ -91,5 +118,9 @@
 
   &__ticketing-link {
     justify-self: start;
+  }
+
+  &__actions {
+    align-self: end;
   }
 }

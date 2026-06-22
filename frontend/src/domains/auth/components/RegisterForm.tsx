@@ -161,7 +161,7 @@ export default function RegisterForm({
   };
 
   return (
-    <div>
+    <div className={mode === "admin" ? "admin-embedded-form" : undefined}>
       <h1>{title}</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate>

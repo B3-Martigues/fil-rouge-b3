@@ -1,38 +1,80 @@
+import {
+  Settings2,
+  ShieldAlert,
+  UserRound,
+} from "lucide-react";
+import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 
 import LogoutButton from "../../../domains/auth/components/LogoutButton";
-import useModeratorPermissions from "../../../domains/moderator/hooks/useModeratorPermissions";
-import NotificationCenter from "../../../domains/notification/components/NotificationCenter";
 import { ROUTES } from "../../constants/routes";
 import HeaderWeather from "./HeaderWeather";
+import StaffAccountHeader from "./StaffAccountHeader";
 import ThemeToggle from "./ThemeToggle";
 
-export default function HeaderModerator() {
-  const { can } = useModeratorPermissions();
-  const canReviewEvents = can("review_events");
-  const canModerateEvents = can("moderate_events");
-  const canReviewOrganizations = can("review_organizations");
-  const canSuspendAccounts = can("suspend_accounts");
-  const canManageReports = can("manage_reports");
+type HeaderModeratorProps = {
+  staffHeaderAction?: ReactNode;
+  showAccountHeader?: boolean;
+};
+
+export default function HeaderModerator({
+  staffHeaderAction,
+  showAccountHeader = false,
+}: HeaderModeratorProps) {
+  const moderatorTabs = [
+    {
+      activePaths: [
+        ROUTES.MODERATOR.DASHBOARD,
+        ROUTES.MODERATOR.EVENTS,
+        ROUTES.MODERATOR.ORGANIZATIONS,
+        ROUTES.MODERATOR.ACCOUNTS,
+        ROUTES.MODERATOR.REPORTS,
+      ],
+      label: "Administration",
+      route: ROUTES.MODERATOR.DASHBOARD,
+      Icon: ShieldAlert,
+      sectionTitles: {
+        [ROUTES.MODERATOR.DASHBOARD]: "Moderation des utilisateurs",
+        [ROUTES.MODERATOR.EVENTS]: "Moderation des evenements",
+        [ROUTES.MODERATOR.ORGANIZATIONS]: "Moderation des organizations",
+        [ROUTES.MODERATOR.ACCOUNTS]: "Moderation des utilisateurs",
+        [ROUTES.MODERATOR.REPORTS]: "Signalements",
+      },
+      end: true,
+    },
+    {
+      label: "Profil",
+      route: ROUTES.MODERATOR.PROFILE,
+      Icon: UserRound,
+      sectionTitle: "Mon profil",
+    },
+    {
+      label: "Parametres",
+      route: ROUTES.MODERATOR.PARAMETERS,
+      Icon: Settings2,
+      sectionTitle: "Mes parametres",
+    },
+  ] as const;
+
+  if (showAccountHeader) {
+    return (
+      <StaffAccountHeader
+        ariaLabel="Navigation moderation"
+        sectionAction={staffHeaderAction}
+        tabs={moderatorTabs}
+      />
+    );
+  }
 
   return (
     <header className="role-header">
       <nav className="role-header__nav">
         <NavLink to={ROUTES.PUBLIC.HOME}>Accueil</NavLink>
-        <NavLink to={ROUTES.MODERATOR.DASHBOARD}>Moderation</NavLink>
-        {(canReviewEvents || canModerateEvents) && (
-          <NavLink to={ROUTES.MODERATOR.EVENTS}>Evenements</NavLink>
-        )}
-        {(canReviewOrganizations || canSuspendAccounts) && (
-          <NavLink to={ROUTES.MODERATOR.ORGANIZATIONS}>Organisations</NavLink>
-        )}
-        {canSuspendAccounts && (
-          <NavLink to={ROUTES.MODERATOR.ACCOUNTS}>Comptes</NavLink>
-        )}
-        {canManageReports && (
-          <NavLink to={ROUTES.MODERATOR.REPORTS}>Signalements</NavLink>
-        )}
-        <NotificationCenter />
+        {moderatorTabs.map(({ label, route }) => (
+          <NavLink key={route} to={route}>
+            {label}
+          </NavLink>
+        ))}
         <HeaderWeather />
         <ThemeToggle />
         <LogoutButton />

@@ -1,18 +1,20 @@
+import { Trash2 } from "lucide-react";
+
+import Button from "../../../shared/components/ui/Button";
 import useAuthStore from "../../auth/store/authStore";
-import {
-  formatDateTime,
-  formatEventDateRange,
-  formatEventPrice,
-  getTicketingHref,
-} from "../../event/utils/event";
+import useEventDistance from "../../event/hooks/useEventDistance";
+import { formatDateTimeWithAt } from "../../event/utils/event";
 import useDataStore from "../../../shared/store/dataStore";
 import type { History as HistoryEntry } from "../types/history";
+import EventListingCard from "./EventListingCard";
 
 export default function History() {
   const user = useAuthStore((s) => s.currentUser);
   const histories = useDataStore((s) => s.histories);
   const events = useDataStore((s) => s.events);
   const organizations = useDataStore((s) => s.organizations);
+  const removeHistory = useDataStore((s) => s.removeHistory);
+  const { getEventDistance } = useEventDistance();
   const activeOrganizationIds = new Set(
     organizations
       .filter((organization) => organization.is_active && !organization.deleted_at)
@@ -53,59 +55,41 @@ export default function History() {
     );
 
   return (
-    <div>
-      <h1>Mon historique</h1>
-
+    <div className="user-history">
       {userHistory.length === 0 ? (
         <p>Aucun événement consulté pour le moment.</p>
       ) : (
-        <div className="events-list__grid">
-          {userHistory.map(({ history, event }) =>
-            event ? (
-              <article className="event-card" key={event.id}>
-                <img
-                  className="event-card__image"
-                  src={event.image}
-                  alt=""
-                  loading="lazy"
-                />
-                <div className="event-card__content">
-                  <div className="event-card__meta">
-                    <span>{event.category_slugs.join(", ")}</span>
-                    <time dateTime={history.visited_at}>
-                      Consulte le {formatDateTime(history.visited_at)}
-                    </time>
-                  </div>
-                  <h3>{event.title}</h3>
-                  <p>{event.description}</p>
-                  <dl className="event-card__details">
-                    <div>
-                      <dt>Debut / fin</dt>
-                      <dd>{formatEventDateRange(event)}</dd>
-                    </div>
-                    <div>
-                      <dt>Ville</dt>
-                      <dd>{event.city}</dd>
-                    </div>
-                    <div>
-                      <dt>Prix</dt>
-                      <dd>{formatEventPrice(event.price)}</dd>
-                    </div>
-                  </dl>
-                  {getTicketingHref(event.ticketing_link) && (
-                    <a
-                      className="btn btn--secondary event-card__ticketing-link"
-                      href={getTicketingHref(event.ticketing_link) ?? undefined}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Billetterie
-                    </a>
-                  )}
-                </div>
-              </article>
-            ) : null,
-          )}
+        <div className="user-events-list__grid">
+          {userHistory.map(({ history, event }) => {
+            if (!event) return null;
+
+            return (
+              <EventListingCard
+                key={event.id}
+                event={event}
+                distanceInKilometers={getEventDistance(event)}
+                meta={
+                  <time dateTime={history.visited_at}>
+                    Consulté le {formatDateTimeWithAt(history.visited_at)}
+                  </time>
+                }
+                actions={
+                  <Button
+                    icon={<Trash2 size={18} aria-hidden="true" />}
+                    type="button"
+                    variant="danger"
+                    onClick={() => {
+                      if (user?.user_id) {
+                        removeHistory(user.user_id, event.id);
+                      }
+                    }}
+                  >
+                    Supprimer
+                  </Button>
+                }
+              />
+            );
+          })}
         </div>
       )}
     </div>

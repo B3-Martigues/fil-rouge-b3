@@ -10,15 +10,6 @@ import {
   toAuthenticatedUser,
 } from "../../user/types/user";
 
-export const AUTH_API_MODE = "mock" as const;
-
-export const AUTH_API_ENDPOINTS = {
-  login: "/auth/login",
-  me: "/auth/me",
-  forgotPassword: "/auth/forgot-password",
-  resetPassword: "/auth/reset-password",
-} as const;
-
 export type LoginCredentials = {
   login_email: string;
   password: string;

@@ -5,8 +5,8 @@ import Header from "../components/layout/Header";
 export default function ModeratorLayout() {
   return (
     <>
-      <Header />
-      <main>
+      <Header showStaffAccountHeader />
+      <main className="staff-layout">
         <Outlet />
       </main>
     </>

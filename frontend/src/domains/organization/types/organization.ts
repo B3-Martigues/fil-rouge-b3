@@ -1,4 +1,4 @@
-import type { OrganizationCategoryName, OrganizationCategoryOption } from "./organization-categories";
+import type { OrganizationCategoryName } from "./organization-categories";
 
 export type Organization = {
   id: number;
@@ -23,9 +23,3 @@ export type Organization = {
   deleted_at?: string | null;
   category_slugs: OrganizationCategoryName[];
 };
-
-export type OrganizationWithCategories = Organization & {
-  categories: OrganizationCategoryOption[];
-};
-
-export type AuthenticatedOrganization = Organization;

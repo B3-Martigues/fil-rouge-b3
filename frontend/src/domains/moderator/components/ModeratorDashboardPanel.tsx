@@ -30,7 +30,6 @@ import {
   createEventDeletedNotification,
   createEventHiddenNotification,
   createEventRejectedNotification,
-  createEventWithdrawnAfterReportNotification,
   createReportUsefulNotification,
 } from "../../notification/services/notificationFactory";
 import type { Account, AccountSummary, User } from "../../user/types/user";
@@ -45,6 +44,7 @@ import useDataStore, {
   buildAccountSummaries,
 } from "../../../shared/store/dataStore";
 import { ROUTES } from "../../../shared/constants/routes";
+import { accountRoleLabels } from "../../../shared/utils/account";
 
 type ModeratorView = "dashboard" | "events" | "organizations" | "accounts" | "reports";
 
@@ -69,12 +69,8 @@ type HandledReportStatus = Extract<
   ModerationReport["status"],
   "resolved" | "dismissed"
 >;
-type ModerationEventFilter = "all" | "pending" | "published" | "suspended";
 type ModerationEventSort = "date-asc" | "date-desc" | "title-asc" | "city-asc";
-type ModerationOrganizationFilter = "all" | "pending" | "active" | "suspended";
-type ModerationAccountFilter = "all" | "active" | "suspended";
 type ModerationAccountSort = "name-asc" | "name-desc" | "email-asc";
-type ModerationReportFilter = "all" | ModerationReport["status"];
 type ModerationReportPriorityFilter = "all" | ModerationReport["priority"];
 type ModerationReportSort = "newest" | "oldest" | "priority";
 
@@ -115,13 +111,6 @@ const viewContent: Record<
     title: "Signalements",
     description: "Suivi des signalements en attente, en cours et traites.",
   },
-};
-
-const accountRoleLabels: Record<AccountSummary["role"], string> = {
-  admin: "Admin",
-  moderator: "Moderateur",
-  organization: "Organization",
-  user: "Utilisateur",
 };
 
 const reportStatusLabels: Record<ModerationReport["status"], string> = {
@@ -249,25 +238,19 @@ export default function ModeratorDashboard({
     Record<number, string>
   >({});
   const [eventSearch, setEventSearch] = useState("");
-  const [eventFilter, setEventFilter] = useState<ModerationEventFilter>("all");
   const [eventSort, setEventSort] = useState<ModerationEventSort>("date-asc");
   const [organizationSearch, setOrganizationSearch] = useState("");
-  const [organizationFilter, setOrganizationFilter] =
-    useState<ModerationOrganizationFilter>("all");
   const [organizationSort, setOrganizationSort] =
     useState<ModerationAccountSort>("name-asc");
   const [accountSearch, setAccountSearch] = useState("");
-  const [accountFilter, setAccountFilter] =
-    useState<ModerationAccountFilter>("all");
   const [accountSort, setAccountSort] =
     useState<ModerationAccountSort>("name-asc");
   const [reportSearch, setReportSearch] = useState("");
-  const [reportFilter, setReportFilter] =
-    useState<ModerationReportFilter>("all");
   const [reportPriorityFilter, setReportPriorityFilter] =
     useState<ModerationReportPriorityFilter>("all");
   const [reportSort, setReportSort] =
     useState<ModerationReportSort>("newest");
+  const [openedReportId, setOpenedReportId] = useState<number | null>(null);
   const [decisionRequest, setDecisionRequest] =
     useState<ModeratorDecisionRequest | null>(null);
   const [decisionReason, setDecisionReason] = useState("");
@@ -566,7 +549,7 @@ export default function ModeratorDashboard({
     );
   };
 
-  const withdrawReportedEventAndNotifyOrganization = (
+  const suspendReportedEventAndNotifyOrganization = (
     report: ModerationReport,
     moderatorMessage: string,
   ) => {
@@ -582,16 +565,18 @@ export default function ModeratorDashboard({
 
     if (!organization) return;
 
-    recordDecision("event_deleted", "event", event.id, moderatorMessage);
-    deleteEvent(event.id);
+    const suspendedUntil = createSuspendedUntil(30);
+
+    suspendEvent(event.id, moderatorMessage, suspendedUntil);
+    recordDecision("event_hidden", "event", event.id, moderatorMessage);
 
     getOrganizerUsers(organization.id).forEach((user) => {
       void dispatchNotification(
-        createEventWithdrawnAfterReportNotification({
+        createEventHiddenNotification({
           organization,
           event,
           user,
-          moderatorMessage,
+          reason: moderatorMessage,
         }),
       );
     });
@@ -830,6 +815,23 @@ export default function ModeratorDashboard({
     }
   };
 
+  const applyDismissedReportTargetAction = (report: ModerationReport) => {
+    if (report.target_type !== "event") return;
+
+    const reportedEvent = events.find((event) => event.id === report.target_id);
+
+    if (!reportedEvent) return;
+
+    if (reportedEvent.deleted_at) {
+      restoreEvent(reportedEvent.id);
+      return;
+    }
+
+    if (isEventSuspended(reportedEvent)) {
+      liftEventSuspension(reportedEvent.id);
+    }
+  };
+
   const handleReportStatus = (
     report: ModerationReport,
     status: ModerationReport["status"],
@@ -852,6 +854,10 @@ export default function ModeratorDashboard({
       resolution_note: handledOutcome ? decisionMessage : null,
     });
 
+    if (status === "reviewing") {
+      setOpenedReportId(report.id);
+    }
+
     if (handledOutcome) {
       recordDecision(
         handledOutcome.action,
@@ -860,12 +866,19 @@ export default function ModeratorDashboard({
         decisionMessage,
       );
       clearReportDecisionMessage(report.id);
+      setOpenedReportId((currentId) =>
+        currentId === report.id ? null : currentId,
+      );
     }
 
     if (status === "resolved") {
       notifyUsefulReport(report, decisionMessage);
-      withdrawReportedEventAndNotifyOrganization(report, decisionMessage);
+      suspendReportedEventAndNotifyOrganization(report, decisionMessage);
       applyResolvedReportTargetAction(report, decisionMessage);
+    }
+
+    if (status === "dismissed") {
+      applyDismissedReportTargetAction(report);
     }
 
     toast.success("Signalement mis a jour");
@@ -931,36 +944,42 @@ export default function ModeratorDashboard({
       ].join(" "),
     ).includes(normalizeText(search));
 
+  const matchesOrganizationAccountSearch = (
+    account: AccountSummary,
+    search: string,
+  ) => {
+    const organization = account.organization_id
+      ? organizations.find((item) => item.id === account.organization_id)
+      : null;
+
+    return normalizeText(
+      [
+        account.display_name,
+        account.login_email,
+        organization?.contact_email ?? "",
+      ].join(" "),
+    ).includes(normalizeText(search));
+  };
+
   const filterAccounts = (
     activeItems: AccountSummary[],
     suspendedItems: AccountSummary[],
-    filter: ModerationAccountFilter | ModerationOrganizationFilter,
     search: string,
     sort: ModerationAccountSort,
+    matchesSearch: (account: AccountSummary, search: string) => boolean =
+      matchesAccountSearch,
   ) => {
-    const sourceItems =
-      filter === "active"
-        ? activeItems
-        : filter === "suspended"
-          ? suspendedItems
-          : [...activeItems, ...suspendedItems];
+    const sourceItems = [...activeItems, ...suspendedItems];
 
     return sortAccounts(
-      sourceItems.filter((account) => matchesAccountSearch(account, search)),
+      sourceItems.filter((account) => matchesSearch(account, search)),
       sort,
     );
   };
 
   const filteredEvents = (() => {
     const eventSearchText = normalizeText(eventSearch);
-    const sourceEvents =
-      eventFilter === "pending"
-        ? pendingEvents
-        : eventFilter === "published"
-          ? publishedEvents
-          : eventFilter === "suspended"
-            ? suspendedEvents
-            : [...pendingEvents, ...publishedEvents, ...suspendedEvents];
+    const sourceEvents = [...pendingEvents, ...publishedEvents, ...suspendedEvents];
 
     return sourceEvents
       .filter((event) =>
@@ -1013,10 +1032,7 @@ export default function ModeratorDashboard({
 
   const filteredOrganizations = (() => {
     const organizationSearchText = normalizeText(organizationSearch);
-    const sourceOrganizations =
-      organizationFilter === "active" || organizationFilter === "suspended"
-        ? []
-        : pendingOrganizations;
+    const sourceOrganizations = pendingOrganizations;
 
     return [...sourceOrganizations]
       .filter((organization) =>
@@ -1024,10 +1040,6 @@ export default function ModeratorDashboard({
           [
             organization.name,
             organization.contact_email,
-            organization.description ?? "",
-            organization.city,
-            organization.postal_code,
-            organization.siret ?? "",
           ].join(" "),
         ).includes(organizationSearchText),
       )
@@ -1040,18 +1052,17 @@ export default function ModeratorDashboard({
   const filteredOrganizationAccounts = filterAccounts(
     organizationAccountsToModerate,
     suspendedOrganizationAccounts,
-    organizationFilter,
     organizationSearch,
     organizationSort,
+    matchesOrganizationAccountSearch,
   );
   const filteredOrganizers = organizerRows
-    .filter(({ member, user, account, organization }) =>
+    .filter(({ account, organization }) =>
       normalizeText(
         [
-          user?.username ?? "",
           account?.login_email ?? "",
           organization?.name ?? "",
-          member.job_role ?? "",
+          organization?.contact_email ?? "",
         ].join(" "),
       ).includes(normalizeText(organizationSearch)),
     )
@@ -1065,7 +1076,6 @@ export default function ModeratorDashboard({
   const filteredUserAccounts = filterAccounts(
     userAccountsToModerate,
     suspendedUserAccounts,
-    accountFilter,
     accountSearch,
     accountSort,
   );
@@ -1087,8 +1097,6 @@ export default function ModeratorDashboard({
 
     return moderationReports
       .filter((report) => {
-        const matchesStatus =
-          reportFilter === "all" || report.status === reportFilter;
         const matchesPriority =
           reportPriorityFilter === "all" ||
           report.priority === reportPriorityFilter;
@@ -1100,7 +1108,6 @@ export default function ModeratorDashboard({
         );
 
         return (
-          matchesStatus &&
           matchesPriority &&
           normalizeText(
             [
@@ -1205,15 +1212,12 @@ export default function ModeratorDashboard({
   });
 
   return (
-    <div className="admin-panel moderator-panel">
-      <section className="admin-panel__header">
-        <div className="admin-panel__heading">
-          <h2>{currentViewContent.title}</h2>
-        </div>
-        <p>{currentViewContent.description}</p>
-      </section>
-
-      <PanelStats ariaLabel="Navigation moderation" stats={moderatorStats} />
+    <div className="admin-panel moderator-panel" aria-label={currentViewContent.title}>
+      <PanelStats
+        ariaLabel="Navigation moderation"
+        className="panel-stats--moderation"
+        stats={moderatorStats}
+      />
 
       {!canAccessCurrentView && (
         <section className="admin-section admin-section--wide">
@@ -1230,20 +1234,6 @@ export default function ModeratorDashboard({
               placeholder="Titre, ville, organization..."
               onChange={(event) => setEventSearch(event.target.value)}
             />
-          </label>
-          <label>
-            Statut
-            <Select
-              value={eventFilter}
-              onChange={(event) =>
-                setEventFilter(event.target.value as ModerationEventFilter)
-              }
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="pending">A valider</option>
-              <option value="published">Publies</option>
-              <option value="suspended">Suspendus</option>
-            </Select>
           </label>
           <label>
             Trier par
@@ -1264,8 +1254,8 @@ export default function ModeratorDashboard({
 
       {isEventsView && canReviewEvents && (
         <section className="admin-section admin-section--wide">
-          <div className="admin-section__title">
-            <h2>Evenements proposes</h2>
+          <div className="admin-panel__heading admin-section__title">
+            <h2>Evenements en attente</h2>
             <span className="admin-count">{filteredPendingEvents.length}</span>
           </div>
 
@@ -1296,7 +1286,7 @@ export default function ModeratorDashboard({
 
       {isEventsView && canModerateEvents && (
         <section className="admin-section admin-section--wide">
-          <div className="admin-section__title">
+          <div className="admin-panel__heading admin-section__title">
             <h2>Evenements publies</h2>
             <span className="admin-count">{filteredPublishedEvents.length}</span>
           </div>
@@ -1336,7 +1326,7 @@ export default function ModeratorDashboard({
 
       {isEventsView && canModerateEvents && (
         <section className="admin-section admin-section--wide">
-          <div className="admin-section__title">
+          <div className="admin-panel__heading admin-section__title">
             <h2>Evenements suspendus</h2>
             <span className="admin-count">{filteredSuspendedEvents.length}</span>
           </div>
@@ -1371,23 +1361,9 @@ export default function ModeratorDashboard({
             Rechercher
             <Input
               value={organizationSearch}
-              placeholder="Organization, email, SIRET..."
+              placeholder="Organization ou email..."
               onChange={(event) => setOrganizationSearch(event.target.value)}
             />
-          </label>
-          <label>
-            Statut
-            <Select
-              value={organizationFilter}
-              onChange={(event) =>
-                setOrganizationFilter(event.target.value as ModerationOrganizationFilter)
-              }
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="pending">A valider</option>
-              <option value="active">Actifs</option>
-              <option value="suspended">Suspendus</option>
-            </Select>
           </label>
           <label>
             Trier par
@@ -1407,8 +1383,8 @@ export default function ModeratorDashboard({
 
       {isOrganizationsView && canReviewOrganizations && (
         <section className="admin-section admin-section--wide">
-          <div className="admin-section__title">
-            <h2>Comptes organization proposes</h2>
+          <div className="admin-panel__heading admin-section__title">
+            <h2>Organisations en attente</h2>
             <span className="admin-count">{filteredOrganizations.length}</span>
           </div>
 
@@ -1477,19 +1453,6 @@ export default function ModeratorDashboard({
             />
           </label>
           <label>
-            Statut
-            <Select
-              value={accountFilter}
-              onChange={(event) =>
-                setAccountFilter(event.target.value as ModerationAccountFilter)
-              }
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="active">Actifs</option>
-              <option value="suspended">Suspendus</option>
-            </Select>
-          </label>
-          <label>
             Trier par
             <Select
               value={accountSort}
@@ -1546,21 +1509,6 @@ export default function ModeratorDashboard({
             />
           </label>
           <label>
-            Statut
-            <Select
-              value={reportFilter}
-              onChange={(event) =>
-                setReportFilter(event.target.value as ModerationReportFilter)
-              }
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="open">En attente</option>
-              <option value="reviewing">En cours</option>
-              <option value="resolved">Confirmes</option>
-              <option value="dismissed">Restaures</option>
-            </Select>
-          </label>
-          <label>
             Priorite
             <Select
               value={reportPriorityFilter}
@@ -1594,11 +1542,6 @@ export default function ModeratorDashboard({
 
       {isReportsView && canManageReports && (
         <section className="admin-section admin-section--wide">
-          <div className="admin-section__title">
-            <h2>Signalements</h2>
-            <span className="admin-count">{filteredReports.length}</span>
-          </div>
-
           {filteredReports.length === 0 ? (
             <EmptyState message="Aucun signalement." />
           ) : (
@@ -1611,8 +1554,14 @@ export default function ModeratorDashboard({
                 organizations={organizations}
                 accountSummaries={accountSummaries}
                 users={users}
+                openedReportId={openedReportId}
                 decisionMessages={reportDecisionMessages}
                 onDecisionMessageChange={updateReportDecisionMessage}
+                onToggleDetails={(reportId) =>
+                  setOpenedReportId((currentId) =>
+                    currentId === reportId ? null : reportId,
+                  )
+                }
                 onStatusChange={handleReportStatus}
               />
               <ReportGroup
@@ -1623,8 +1572,14 @@ export default function ModeratorDashboard({
                 organizations={organizations}
                 accountSummaries={accountSummaries}
                 users={users}
+                openedReportId={openedReportId}
                 decisionMessages={reportDecisionMessages}
                 onDecisionMessageChange={updateReportDecisionMessage}
+                onToggleDetails={(reportId) =>
+                  setOpenedReportId((currentId) =>
+                    currentId === reportId ? null : reportId,
+                  )
+                }
                 onStatusChange={handleReportStatus}
               />
               <ReportGroup
@@ -1635,8 +1590,14 @@ export default function ModeratorDashboard({
                 organizations={organizations}
                 accountSummaries={accountSummaries}
                 users={users}
+                openedReportId={openedReportId}
                 decisionMessages={reportDecisionMessages}
                 onDecisionMessageChange={updateReportDecisionMessage}
+                onToggleDetails={(reportId) =>
+                  setOpenedReportId((currentId) =>
+                    currentId === reportId ? null : reportId,
+                  )
+                }
                 onStatusChange={handleReportStatus}
               />
             </div>
@@ -1646,7 +1607,7 @@ export default function ModeratorDashboard({
 
       {isReportsView && canManageReports && (
         <section className="admin-section admin-section--wide">
-          <div className="admin-section__title">
+          <div className="admin-panel__heading admin-section__title">
             <h2>Journal des decisions</h2>
             <span className="admin-count">{filteredDecisions.length}</span>
           </div>
@@ -1744,6 +1705,9 @@ function EventModerationCard({
 
   return (
     <article className="organization-review">
+      <StatusBadge className="organization-review__status" variant="pending">
+        En attente
+      </StatusBadge>
       <div className="organization-review__media">
         <img src={event.image} alt={`Visuel ${event.title}`} />
       </div>
@@ -1753,7 +1717,6 @@ function EventModerationCard({
             <h3>{event.title}</h3>
             <p>{event.description}</p>
           </div>
-          <StatusBadge variant="pending">En attente</StatusBadge>
         </div>
         <dl className="organization-review__details">
           <div>
@@ -1761,7 +1724,7 @@ function EventModerationCard({
             <dd>{organizationName}</dd>
           </div>
           <div>
-            <dt>Debut / fin</dt>
+            <dt>Horaires de l'evenement</dt>
             <dd>{formatEventDateRange(event)}</dd>
           </div>
           <div>
@@ -1789,7 +1752,7 @@ function EventModerationCard({
             </div>
           )}
         </dl>
-        <div className="admin-actions">
+        <div className="admin-actions admin-actions--split">
           <Button type="button" onClick={onApprove}>
             {approveLabel}
           </Button>
@@ -1821,6 +1784,9 @@ function PublishedEventModerationCard({
 
   return (
     <article className="organization-review">
+      <StatusBadge className="organization-review__status" variant="active">
+        Publie
+      </StatusBadge>
       <div className="organization-review__media">
         <img src={event.image} alt={`Visuel ${event.title}`} />
       </div>
@@ -1830,7 +1796,6 @@ function PublishedEventModerationCard({
             <h3>{event.title}</h3>
             <p>{event.description}</p>
           </div>
-          <StatusBadge variant="active">Publie</StatusBadge>
         </div>
         <dl className="organization-review__details">
           <div>
@@ -1838,7 +1803,7 @@ function PublishedEventModerationCard({
             <dd>{organizationName}</dd>
           </div>
           <div>
-            <dt>Debut / fin</dt>
+            <dt>Horaires de l'evenement</dt>
             <dd>{formatEventDateRange(event)}</dd>
           </div>
           <div>
@@ -1900,6 +1865,9 @@ function SuspendedEventModerationCard({
 
   return (
     <article className="organization-review">
+      <StatusBadge className="organization-review__status" variant="suspended">
+        Suspendu
+      </StatusBadge>
       <div className="organization-review__media">
         <img src={event.image} alt={`Visuel ${event.title}`} />
       </div>
@@ -1909,7 +1877,6 @@ function SuspendedEventModerationCard({
             <h3>{event.title}</h3>
             <p>{event.description}</p>
           </div>
-          <StatusBadge variant="suspended">Suspendu</StatusBadge>
         </div>
         <dl className="organization-review__details">
           <div>
@@ -1943,7 +1910,7 @@ function SuspendedEventModerationCard({
             </div>
           )}
         </dl>
-        <div className="admin-actions">
+        <div className="admin-actions admin-actions--split">
           <Button type="button" onClick={onLift}>
             Lever suspension
           </Button>
@@ -1964,6 +1931,9 @@ function OrganizationModerationCard({
 }) {
   return (
     <article className="organization-review">
+      <StatusBadge className="organization-review__status" variant="pending">
+        En attente
+      </StatusBadge>
       <div className="organization-review__media">
         <img src={organization.logo ?? ""} alt={`Logo ${organization.name}`} />
       </div>
@@ -1973,7 +1943,6 @@ function OrganizationModerationCard({
             <h3>{organization.name}</h3>
             <p>{organization.description}</p>
           </div>
-          <StatusBadge variant="pending">En attente</StatusBadge>
         </div>
         <dl className="organization-review__details">
           <div>
@@ -1991,7 +1960,7 @@ function OrganizationModerationCard({
             </dd>
           </div>
         </dl>
-        <div className="admin-actions">
+        <div className="admin-actions admin-actions--split">
           <Button type="button" onClick={onApprove}>
             Valider
           </Button>
@@ -2012,8 +1981,10 @@ function ReportGroup({
   organizations,
   accountSummaries,
   users,
+  openedReportId,
   decisionMessages,
   onDecisionMessageChange,
+  onToggleDetails,
   onStatusChange,
 }: {
   title: string;
@@ -2023,8 +1994,10 @@ function ReportGroup({
   organizations: Organization[];
   accountSummaries: AccountSummary[];
   users: User[];
+  openedReportId: number | null;
   decisionMessages: Record<number, string>;
   onDecisionMessageChange: (reportId: number, message: string) => void;
+  onToggleDetails: (reportId: number) => void;
   onStatusChange: (
     report: ModerationReport,
     status: ModerationReport["status"],
@@ -2058,10 +2031,38 @@ function ReportGroup({
                   ? getUserName(report.handled_by_user_id, users)
                   : "Non assigne"
               }
+              targetEvent={
+                report.target_type === "event"
+                  ? events.find((event) => event.id === report.target_id)
+                  : undefined
+              }
+              targetOrganization={
+                report.target_type === "organization"
+                  ? organizations.find(
+                      (organization) => organization.id === report.target_id,
+                    )
+                  : report.target_type === "event"
+                    ? organizations.find(
+                        (organization) =>
+                          organization.id ===
+                          events.find((event) => event.id === report.target_id)
+                            ?.organization_id,
+                      )
+                    : undefined
+              }
+              targetAccount={
+                report.target_type === "account"
+                  ? accountSummaries.find(
+                      (account) => account.account_id === report.target_id,
+                    )
+                  : undefined
+              }
+              isDetailOpen={openedReportId === report.id}
               decisionMessage={decisionMessages[report.id] ?? ""}
               onDecisionMessageChange={(message) =>
                 onDecisionMessageChange(report.id, message)
               }
+              onToggleDetails={() => onToggleDetails(report.id)}
               onReview={() => onStatusChange(report, "reviewing")}
               onResolve={(message) =>
                 onStatusChange(report, "resolved", message)
@@ -2080,20 +2081,30 @@ function ReportGroup({
 function ReportCard({
   report,
   targetLabel,
+  targetEvent,
+  targetOrganization,
+  targetAccount,
   reporterName,
   handlerName,
+  isDetailOpen,
   decisionMessage,
   onDecisionMessageChange,
+  onToggleDetails,
   onReview,
   onResolve,
   onDismiss,
 }: {
   report: ModerationReport;
   targetLabel: string;
+  targetEvent?: Event;
+  targetOrganization?: Organization;
+  targetAccount?: AccountSummary;
   reporterName: string;
   handlerName: string;
+  isDetailOpen: boolean;
   decisionMessage: string;
   onDecisionMessageChange: (message: string) => void;
+  onToggleDetails: () => void;
   onReview: () => void;
   onResolve: (message: string) => void;
   onDismiss: (message: string) => void;
@@ -2150,43 +2161,129 @@ function ReportCard({
           </div>
         ) : null}
         {!isHandled ? (
-          <>
-            <label className="moderator-reason moderator-report__message">
-              Message du moderateur
-              <Textarea
-                rows={3}
-                placeholder="Expliquez la decision qui sera transmise par notification"
-                value={decisionMessage}
-                onChange={(event) =>
-                  onDecisionMessageChange(event.target.value)
-                }
-              />
-            </label>
-            <div className="admin-actions">
-              {report.status === "open" ? (
-                <Button
-                  variant="secondary"
-                  type="button"
-                  onClick={onReview}
-                >
-                  Prendre en charge
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                onClick={() => onResolve(decisionMessage)}
-              >
-                Marquer suspendu
-              </Button>
-              <Button
-                variant="secondary"
-                type="button"
-                onClick={() => onDismiss(decisionMessage)}
-              >
-                Marquer restaure
+          report.status === "open" ? (
+            <div className="admin-actions admin-actions--split moderator-report__actions">
+              <Button variant="secondary" type="button" onClick={onReview}>
+                Prendre en charge
               </Button>
             </div>
-          </>
+          ) : (
+            <>
+              <div className="admin-actions admin-actions--split moderator-report__actions">
+                <Button variant="secondary" type="button" onClick={onToggleDetails}>
+                  {isDetailOpen ? "Fermer la fiche" : "Ouvrir la fiche"}
+                </Button>
+              </div>
+              {isDetailOpen && (
+                <div className="moderator-report-detail">
+                  <div className="moderator-report-detail__section">
+                    <strong>Evenement signale</strong>
+                    {targetEvent ? (
+                      <dl className="organization-review__details">
+                        <div>
+                          <dt>Nom</dt>
+                          <dd>{targetEvent.title}</dd>
+                        </div>
+                        <div>
+                          <dt>Organisation</dt>
+                          <dd>{targetOrganization?.name ?? "Non renseigne"}</dd>
+                        </div>
+                        <div>
+                          <dt>Horaires</dt>
+                          <dd>{formatEventDateRange(targetEvent)}</dd>
+                        </div>
+                        <div>
+                          <dt>Adresse</dt>
+                          <dd>
+                            {targetEvent.address}, {targetEvent.postal_code}{" "}
+                            {targetEvent.city}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Prix</dt>
+                          <dd>{formatEventPrice(targetEvent.price)}</dd>
+                        </div>
+                        <div>
+                          <dt>Statut</dt>
+                          <dd>
+                            {isEventSuspended(targetEvent)
+                              ? "Suspendu"
+                              : targetEvent.is_active
+                                ? "Publie"
+                                : "En attente"}
+                          </dd>
+                        </div>
+                      </dl>
+                    ) : (
+                      <dl className="organization-review__details">
+                        <div>
+                          <dt>Cible</dt>
+                          <dd>
+                            {targetOrganization?.name ??
+                              targetAccount?.display_name ??
+                              targetLabel}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Type</dt>
+                          <dd>{report.target_type}</dd>
+                        </div>
+                      </dl>
+                    )}
+                  </div>
+
+                  <div className="moderator-report-detail__section">
+                    <strong>Signalement</strong>
+                    <dl className="organization-review__details">
+                      <div>
+                        <dt>Motif</dt>
+                        <dd>{report.reason}</dd>
+                      </div>
+                      <div>
+                        <dt>Complement</dt>
+                        <dd>{report.details}</dd>
+                      </div>
+                      <div>
+                        <dt>Priorite</dt>
+                        <dd>{reportPriorityLabels[report.priority]}</dd>
+                      </div>
+                      <div>
+                        <dt>Signale par</dt>
+                        <dd>{reporterName}</dd>
+                      </div>
+                    </dl>
+                  </div>
+
+                  <label className="moderator-reason moderator-report__message">
+                    Message du moderateur
+                    <Textarea
+                      rows={3}
+                      placeholder="Expliquez la decision qui sera transmise par notification"
+                      value={decisionMessage}
+                      onChange={(event) =>
+                        onDecisionMessageChange(event.target.value)
+                      }
+                    />
+                  </label>
+                  <div className="admin-actions admin-actions--split moderator-report__actions">
+                    <Button
+                      type="button"
+                      onClick={() => onResolve(decisionMessage)}
+                    >
+                      Suspendre
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      type="button"
+                      onClick={() => onDismiss(decisionMessage)}
+                    >
+                      Restaurer
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )
         ) : null}
       </div>
     </article>
@@ -2208,7 +2305,7 @@ function AccountSuspensionSection({
 }) {
   return (
     <section className="admin-section admin-section--wide moderator-account-section">
-      <div className="admin-section__title">
+      <div className="admin-panel__heading admin-section__title">
         <h2>{title}</h2>
         <span className="admin-count">{accounts.length}</span>
       </div>
@@ -2221,16 +2318,10 @@ function AccountSuspensionSection({
           role="table"
           aria-label={title}
         >
-          <div className="admin-table__row admin-table__row--head" role="row">
-            <span role="columnheader">Compte</span>
-            <span role="columnheader">Role</span>
-            <span role="columnheader">Jours</span>
-            <span role="columnheader">Action</span>
-          </div>
           <div role="rowgroup">
             {accounts.map((account) => (
               <div
-                className="admin-table__row moderator-account-row"
+                className="admin-table__row moderator-account-row moderator-account-row--with-role"
                 role="row"
                 key={account.account_id}
               >
@@ -2238,7 +2329,7 @@ function AccountSuspensionSection({
                   <span>{account.display_name}</span>
                   <small>{account.login_email}</small>
                 </div>
-                <StatusBadge role="cell">
+                <StatusBadge className="moderator-account-role" role="cell">
                   {accountRoleLabels[account.role]}
                 </StatusBadge>
                 <label className="moderator-days" role="cell">
@@ -2278,7 +2369,7 @@ function OrganizerAccountsSection({
 }) {
   return (
     <section className="admin-section admin-section--wide moderator-organizers-section">
-      <div className="admin-section__title">
+      <div className="admin-panel__heading admin-section__title">
         <h2>Comptes employes</h2>
         <span className="admin-count">{rows.length}</span>
       </div>
@@ -2291,13 +2382,6 @@ function OrganizerAccountsSection({
           role="table"
           aria-label="Comptes employes"
         >
-          <div className="admin-table__row admin-table__row--head" role="row">
-            <span role="columnheader">Employe</span>
-            <span role="columnheader">Email</span>
-            <span role="columnheader">Organization</span>
-            <span role="columnheader">Poste</span>
-            <span role="columnheader">Statut</span>
-          </div>
           <div role="rowgroup">
             {rows.map(({ member, user, account, organization }) => {
               const isActiveAccount =
@@ -2357,7 +2441,7 @@ function SuspendedAccountsSection({
 
   return (
     <section className="admin-section admin-section--wide moderator-suspended-section">
-      <div className="admin-section__title">
+      <div className="admin-panel__heading admin-section__title">
         <h2>Suspensions en cours</h2>
         <span className="admin-count">{totalSuspendedAccounts}</span>
       </div>
@@ -2387,7 +2471,7 @@ function SuspendedOrganizationsSection({
 }) {
   return (
     <section className="admin-section admin-section--wide moderator-suspended-section">
-      <div className="admin-section__title">
+      <div className="admin-panel__heading admin-section__title">
         <h2>Organizations suspendues</h2>
         <span className="admin-count">{accounts.length}</span>
       </div>
@@ -2418,30 +2502,23 @@ function SuspendedAccountList({
 
   return (
     <div className="moderator-suspended-group">
-      <div className="moderator-suspended-group__title">
-        <h3>{title}</h3>
-        <span className="admin-count">{accounts.length}</span>
-      </div>
       <div
         className="admin-table admin-table--suspended"
         role="table"
         aria-label={`${title} suspendus`}
       >
-        <div className="admin-table__row admin-table__row--head" role="row">
-          <span role="columnheader">Compte</span>
-          <span role="columnheader">Role</span>
-          <span role="columnheader">Fin</span>
-          <span role="columnheader">Motif</span>
-          <span role="columnheader">Action</span>
-        </div>
         <div role="rowgroup">
           {accounts.map((account) => (
-            <div className="admin-table__row" role="row" key={account.account_id}>
+            <div
+              className="admin-table__row moderator-account-row--with-role"
+              role="row"
+              key={account.account_id}
+            >
               <div className="moderator-account-identity" role="cell">
                 <span>{account.display_name}</span>
                 <small>{account.login_email}</small>
               </div>
-              <StatusBadge role="cell">
+              <StatusBadge className="moderator-account-role" role="cell">
                 {accountRoleLabels[account.role]}
               </StatusBadge>
               <span role="cell">Jusqu'au {formatDate(account.suspended_until)}</span>

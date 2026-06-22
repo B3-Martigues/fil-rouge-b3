@@ -8,7 +8,7 @@
   padding: 10px 16px;
   border: 1px solid var(--accent-border);
   border-radius: 6px;
-  color: var(--color-inverse);
+  color: var(--on-primary);
   background: var(--accent);
   font: inherit;
   font-weight: 700;
@@ -29,14 +29,14 @@
 
   &--primary {
     border-color: var(--accent-border);
-    color: var(--color-inverse);
+    color: var(--on-primary);
     background: var(--accent);
   }
 
   &--secondary {
-    border-color: var(--border);
-    color: var(--text-h);
-    background: var(--social-bg);
+    border-color: color-mix(in srgb, var(--secondary) 62%, transparent);
+    color: var(--secondary);
+    background: color-mix(in srgb, var(--secondary) 12%, var(--bg));
   }
 
   &--danger {

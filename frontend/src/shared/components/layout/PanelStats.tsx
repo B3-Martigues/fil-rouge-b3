@@ -10,12 +10,19 @@ export type PanelStat = {
 
 type PanelStatsProps = {
   ariaLabel: string;
+  className?: string;
   stats: PanelStat[];
 };
 
-export default function PanelStats({ ariaLabel, stats }: PanelStatsProps) {
+export default function PanelStats({
+  ariaLabel,
+  className,
+  stats,
+}: PanelStatsProps) {
+  const classes = ["panel-stats", className].filter(Boolean).join(" ");
+
   return (
-    <nav className="panel-stats" aria-label={ariaLabel}>
+    <nav className={classes} aria-label={ariaLabel}>
       {stats.map((stat) => (
         <NavLink
           className={({ isActive }) =>

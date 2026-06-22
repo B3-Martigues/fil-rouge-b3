@@ -1,36 +1,36 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
-/**Type repésentant la location GPS utilisateur */
 export type UserPosition = {
   latitude: number;
   longitude: number;
 };
 
-/**Hook de récupération de la géolocalisation utilisateur */
 export default function useUserLocation() {
-  /**Position actuelle de l' utilisateur */
   const [position, setPosition] = useState<UserPosition | null>(null);
-
-  /**Erreur éventuelle liée à la géolocalisation */
   const [error, setError] = useState<string | null>(null);
-
-  /**Etat de chargement */
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    /**Vérifie si la géolocalisation est supportée */
+    let isMounted = true;
+
     if (!navigator.geolocation) {
-      setTimeout(() => {// setTimeout - utilisé pour éviter le warning React
-        setError("La géolocalisation n'est pas supportée");
+      const unsupportedTimeoutId = window.setTimeout(() => {
+        if (!isMounted) return;
+
+        setError("La geolocalisation n'est pas supportee");
         setLoading(false);
       }, 0);
 
-      return;
+      return () => {
+        isMounted = false;
+        window.clearTimeout(unsupportedTimeoutId);
+      };
     }
 
-    /**Récupération de la géolocalisation utilisateur */
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        if (!isMounted) return;
+
         setPosition({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
@@ -38,10 +38,17 @@ export default function useUserLocation() {
         setLoading(false);
       },
       (err) => {
+        if (!isMounted) return;
+
         setError(err.message);
         setLoading(false);
       },
     );
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
   return { position, error, loading };
 }

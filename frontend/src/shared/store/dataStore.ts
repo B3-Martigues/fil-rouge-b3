@@ -154,6 +154,7 @@ type DataState = {
 
   toggleFavorite: (userId: number, eventId: number) => void;
   recordHistory: (userId: number, eventId: number) => void;
+  removeHistory: (userId: number, eventId: number) => void;
   setUserEventPreferences: (
     userId: number,
     categories: EventCategoryName[],
@@ -1124,6 +1125,16 @@ const useDataStore = create<DataState>()(
             ],
           };
         }),
+      removeHistory: (userId, eventId) =>
+        set((state) => ({
+          histories: state.histories.map((history) =>
+            history.user_id === userId &&
+            history.event_id === eventId &&
+            !history.deleted_at
+              ? { ...history, deleted_at: now() }
+              : history,
+          ),
+        })),
       setUserEventPreferences: (userId, categories) =>
         set((state) => {
           const filtered = state.userEventPreferences.filter(

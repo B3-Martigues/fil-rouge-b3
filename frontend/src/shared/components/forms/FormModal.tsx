@@ -95,6 +95,10 @@ export default function FormModal({
         role="dialog"
         tabIndex={-1}
       >
+        <div className="form-modal__mobile-bar">
+          <strong>{ariaLabel}</strong>
+          <span aria-hidden="true" />
+        </div>
         <Button
           aria-label="Fermer le formulaire"
           className="form-modal__close"

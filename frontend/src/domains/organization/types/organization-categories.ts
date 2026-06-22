@@ -20,12 +20,3 @@ export const CATEGORIES = ORGANIZATION_CATEGORIES;
 
 export type OrganizationCategoryName = (typeof ORGANIZATION_CATEGORIES)[number];
 export type CategoryName = OrganizationCategoryName;
-export type OrganizationCategory = OrganizationCategoryName;
-
-export type OrganizationCategoryOption = {
-  id: number;
-  name: OrganizationCategoryName;
-  slug: string;
-};
-
-export type CategoryOption = OrganizationCategoryOption;

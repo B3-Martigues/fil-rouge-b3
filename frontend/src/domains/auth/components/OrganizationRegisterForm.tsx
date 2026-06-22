@@ -277,7 +277,7 @@ export default function OrganizationRegisterForm({
   };
 
   return (
-    <div>
+    <div className={mode === "admin" ? "admin-embedded-form" : undefined}>
       <h1>{title}</h1>
 
       <ol className="form-stepper" aria-label="Progression du formulaire">

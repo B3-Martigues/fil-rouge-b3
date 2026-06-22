@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
+import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
 import {
@@ -80,12 +81,12 @@ export default function ChangePassword() {
       void dispatchNotification(
         createPasswordChangedNotification({
           user: notificationUser,
-          profileUrl: "/profile",
+          profileUrl: ROUTES.USER.PROFILE,
         }),
       );
 
       toast.success("Mot de passe mis a jour");
-      navigate("/profile");
+      navigate(ROUTES.USER.PROFILE);
     } catch {
       setServerError("Erreur lors du changement de mot de passe");
     } finally {

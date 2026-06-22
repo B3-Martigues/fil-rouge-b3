@@ -89,7 +89,7 @@ export const accountsMock: Account[] = [
     password_hash: password,
     is_active: true,
     suspended_until: "2026-07-01T09:00:00.000Z",
-    suspension_reason: "Test de suspension temporaire d'un moderateur.",
+    suspension_reason: "Test de suspension temporaire d'un modérateur.",
     created_at: "2026-05-25T09:00:00.000Z",
     updated_at: "2026-06-01T09:00:00.000Z",
   },

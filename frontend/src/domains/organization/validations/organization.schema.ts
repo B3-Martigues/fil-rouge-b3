@@ -55,4 +55,3 @@ export const organizationFormSchema = z.object({
     .min(1, "Selectionnez au moins une categorie"),
 });
 
-export type OrganizationFormSchema = z.infer<typeof organizationFormSchema>;

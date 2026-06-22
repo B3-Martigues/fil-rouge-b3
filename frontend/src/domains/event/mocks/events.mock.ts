@@ -1,14 +1,26 @@
 import type { Event } from "../types/event-categories";
 
+const buildEventDate = (
+  dayOffset: number,
+  hours: number,
+  minutes = 0,
+): string => {
+  const date = new Date();
+  date.setDate(date.getDate() + dayOffset);
+  date.setHours(hours, minutes, 0, 0);
+
+  return date.toISOString();
+};
+
 export const eventsMock: Event[] = [
   {
     id: 1001,
     organization_id: 101,
     title: "Jazz sur le Vieux-Port",
     description:
-      "Concert en plein air avec trois formations jazz locales et vue sur le Vieux-Port.",
-    start_date: "2026-06-04T18:30:00.000Z",
-    end_date: "2026-06-04T22:30:00.000Z",
+      "Concert en plein air aujourd'hui avec trois formations jazz locales et vue sur le Vieux-Port.",
+    start_date: buildEventDate(0, 8),
+    end_date: buildEventDate(0, 23, 59),
     latitude: 43.2965,
     longitude: 5.3698,
     address: "Quai du Port",
@@ -28,9 +40,9 @@ export const eventsMock: Event[] = [
     organization_id: 102,
     title: "Marche gourmand de Provence",
     description:
-      "Food trucks, producteurs locaux, degustations et animations culinaires toute la journee.",
-    start_date: "2026-06-06T09:00:00.000Z",
-    end_date: "2026-06-06T18:00:00.000Z",
+      "Food trucks, producteurs locaux, degustations et animations culinaires demain toute la journee.",
+    start_date: buildEventDate(1, 9),
+    end_date: buildEventDate(1, 18),
     latitude: 43.5297,
     longitude: 5.4474,
     address: "Cours Mirabeau",
@@ -51,8 +63,8 @@ export const eventsMock: Event[] = [
     title: "Randonnee crepusculaire dans les Calanques",
     description:
       "Sortie accompagnee au coucher du soleil, niveau facile, depart depuis Cassis.",
-    start_date: "2026-06-08T16:00:00.000Z",
-    end_date: "2026-06-08T20:30:00.000Z",
+    start_date: buildEventDate(3, 16),
+    end_date: buildEventDate(3, 20, 30),
     latitude: 43.214,
     longitude: 5.539,
     address: "Port de Cassis",
@@ -73,8 +85,8 @@ export const eventsMock: Event[] = [
     title: "Expo photo: Marseille de nuit",
     description:
       "Exposition immersive dediee aux paysages urbains et aux ports illumines.",
-    start_date: "2026-06-12T17:00:00.000Z",
-    end_date: "2026-06-12T21:00:00.000Z",
+    start_date: buildEventDate(4, 17),
+    end_date: buildEventDate(4, 21),
     latitude: 43.3007,
     longitude: 5.3806,
     address: "41 rue Jobin",
@@ -95,8 +107,8 @@ export const eventsMock: Event[] = [
     title: "Atelier cuisine mediterraneenne",
     description:
       "Session passee pour tester l'affichage de l'historique et des événements termines.",
-    start_date: "2026-05-24T13:00:00.000Z",
-    end_date: "2026-05-24T16:00:00.000Z",
+    start_date: buildEventDate(-7, 13),
+    end_date: buildEventDate(-7, 16),
     latitude: 43.5263,
     longitude: 5.4454,
     address: "18 rue des Cordeliers",
@@ -117,8 +129,8 @@ export const eventsMock: Event[] = [
     title: "Atelier design solidaire",
     description:
       "Evenement propose par une organization encore en attente de validation administrateur.",
-    start_date: "2026-06-10T08:00:00.000Z",
-    end_date: "2026-06-10T11:30:00.000Z",
+    start_date: buildEventDate(2, 8),
+    end_date: buildEventDate(2, 11, 30),
     latitude: 43.3442,
     longitude: 5.4075,
     address: "44 boulevard Baille",
@@ -139,8 +151,8 @@ export const eventsMock: Event[] = [
     title: "Conference web et accessibilite",
     description:
       "Rencontre technique sans coordonnees GPS pour verifier l'affichage liste sans marker carte.",
-    start_date: "2026-06-14T15:00:00.000Z",
-    end_date: "2026-06-14T17:00:00.000Z",
+    start_date: buildEventDate(5, 15),
+    end_date: buildEventDate(5, 17),
     latitude: null,
     longitude: null,
     address: "La Coque, Place Henri Verneuil",
@@ -161,8 +173,8 @@ export const eventsMock: Event[] = [
     title: "Course annulee du bord de mer",
     description:
       "Evenement soft-deleted pour verifier qu'il ne ressort ni dans la liste ni dans la carte.",
-    start_date: "2026-06-18T07:00:00.000Z",
-    end_date: "2026-06-18T10:00:00.000Z",
+    start_date: buildEventDate(7, 7),
+    end_date: buildEventDate(7, 10),
     latitude: 43.1749,
     longitude: 5.6044,
     address: "Plage de la Ciotat",

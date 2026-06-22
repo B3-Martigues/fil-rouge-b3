@@ -84,7 +84,7 @@ export const emptyOrganizationForm = (): OrganizationForm => ({
   logo: "",
   contact_phone_number: "",
   siret: "",
-  categories: ["culture"],
+  categories: [],
 });
 
 export const emptyEventForm = (): EventForm => ({
@@ -97,7 +97,7 @@ export const emptyEventForm = (): EventForm => ({
   postal_code: "",
   latitude: "",
   longitude: "",
-  categories: ["culture"],
+  categories: [],
   image: "",
   price: "0",
   ticketing_link: "",
@@ -202,7 +202,7 @@ export const getOrganizationStatus = (organization: Organization) => {
   }
 
   if (organization.is_active && organization.is_verified) {
-    return { label: "Validee", variant: "active" as StatusBadgeVariant };
+    return { label: "Active", variant: "active" as StatusBadgeVariant };
   }
 
   return {

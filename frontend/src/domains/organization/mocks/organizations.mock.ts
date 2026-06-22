@@ -4,7 +4,7 @@ export const organizationsMock: Organization[] = [
   {
     id: 101,
     account_id: 10,
-    name: "Eclat Culture",
+    name: "Éclat Culture",
     contact_email: "contact@eclat-culture.fr",
     role_id: 3,
     description:
@@ -12,7 +12,7 @@ export const organizationsMock: Organization[] = [
     website: "https://eclat-culture.fr",
     latitude: 43.2965,
     longitude: 5.3698,
-    address: "12 rue de la Republique",
+    address: "12 rue de la République",
     city: "Marseille",
     postal_code: "13002",
     logo: "https://images.unsplash.com/photo-1517457373958-b7bdd4587205",
@@ -31,7 +31,7 @@ export const organizationsMock: Organization[] = [
     contact_email: "hello@foodlab-provence.fr",
     role_id: 3,
     description:
-      "Organisateur de marches gourmands, ateliers cuisine et rendez-vous food en Provence.",
+      "Organisateur de marchés gourmands, ateliers cuisine et rendez-vous food en Provence.",
     website: "https://foodlab-provence.fr",
     latitude: 43.5297,
     longitude: 5.4474,
@@ -54,7 +54,7 @@ export const organizationsMock: Organization[] = [
     contact_email: "contact@atelier-horizon.fr",
     role_id: 3,
     description:
-      "Jeune structure en attente de validation, specialisee dans les ateliers creatifs.",
+      "Jeune structure en attente de validation, spécialisée dans les ateliers créatifs.",
     website: "https://atelier-horizon.fr",
     latitude: 43.3442,
     longitude: 5.4075,
@@ -77,7 +77,7 @@ export const organizationsMock: Organization[] = [
     contact_email: "contact@outdoor-sud.fr",
     role_id: 3,
     description:
-      "Association sportive locale dediee aux sorties nature et événements plein air.",
+      "Association sportive locale dédiée aux sorties nature et événements plein air.",
     website: "https://outdoor-sud.fr",
     latitude: 43.214,
     longitude: 5.539,

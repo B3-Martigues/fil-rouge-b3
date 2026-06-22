@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import useAuthStore from "../../../domains/auth/store/authStore";
 import useDataStore from "../../store/dataStore";
 
@@ -14,7 +16,15 @@ const accountTypeLabels = {
   user: "Compte utilisateur",
 } as const;
 
-export default function Header() {
+type HeaderProps = {
+  showStaffAccountHeader?: boolean;
+  staffHeaderAction?: ReactNode;
+};
+
+export default function Header({
+  showStaffAccountHeader = false,
+  staffHeaderAction,
+}: HeaderProps) {
   const { currentUser, isAuthenticated, role } = useAuthStore();
   const organizations = useDataStore((s) => s.organizations);
 
@@ -33,8 +43,22 @@ export default function Header() {
   const accountType = role ? accountTypeLabels[role] : "Compte connecte";
 
   const headerByRole = () => {
-    if (role === "admin") return <HeaderAdmin />;
-    if (role === "moderator") return <HeaderModerator />;
+    if (role === "admin") {
+      return (
+        <HeaderAdmin
+          showAccountHeader={showStaffAccountHeader}
+          staffHeaderAction={staffHeaderAction}
+        />
+      );
+    }
+    if (role === "moderator") {
+      return (
+        <HeaderModerator
+          showAccountHeader={showStaffAccountHeader}
+          staffHeaderAction={staffHeaderAction}
+        />
+      );
+    }
     if (role === "organization") return <HeaderOrganization />;
 
     return <HeaderUser />;
@@ -42,10 +66,12 @@ export default function Header() {
 
   return (
     <>
-      <div className="account-type-badge" aria-label="Type de compte connecte">
-        {accountType}
-        {isPendingOrganization ? " - en attente de validation" : ""}
-      </div>
+      {role !== "admin" && role !== "moderator" && (
+        <div className="account-type-badge" aria-label="Type de compte connecte">
+          {accountType}
+          {isPendingOrganization ? " - en attente de validation" : ""}
+        </div>
+      )}
       {headerByRole()}
     </>
   );

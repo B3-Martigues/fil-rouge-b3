@@ -75,6 +75,17 @@
   }
 }
 
+.public-layout {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 100svh;
+
+  > main {
+    flex: 1 1 auto;
+  }
+}
+
 .card {
   @include surface;
 
@@ -204,7 +215,7 @@
 
   &.is-active {
     border-color: var(--accent-border);
-    color: var(--color-inverse);
+    color: var(--on-primary);
     background: var(--accent);
   }
 
@@ -228,6 +239,11 @@
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   margin-bottom: 24px;
+}
+
+.panel-stats--administration,
+.panel-stats--moderation {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .panel-stat {
@@ -254,7 +270,7 @@
 
   &.is-active {
     border-color: var(--accent-border);
-    color: var(--color-inverse);
+    color: var(--on-primary);
     background: var(--accent);
   }
 
@@ -278,11 +294,11 @@
   }
 
   &.is-active &__value {
-    color: var(--color-inverse);
+    color: var(--on-primary);
   }
 
   &.is-active &__detail {
-    color: var(--color-inverse);
+    color: var(--on-primary);
   }
 }
 
@@ -317,6 +333,28 @@
 }
 
 @media (max-width: 760px) {
+  .panel-stats--administration,
+  .panel-stats--moderation {
+    gap: 8px;
+  }
+
+  .panel-stats--administration .panel-stat,
+  .panel-stats--moderation .panel-stat {
+    min-height: 92px;
+    padding: 14px;
+  }
+
+  .panel-stats--administration .panel-stat__value,
+  .panel-stats--moderation .panel-stat__value {
+    font-size: 28px;
+  }
+
+  .panel-stats--administration .panel-stat__label,
+  .panel-stats--moderation .panel-stat__label {
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+
   .panel-tabs {
     gap: 6px;
   }

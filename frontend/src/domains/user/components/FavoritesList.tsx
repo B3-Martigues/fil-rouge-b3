@@ -1,12 +1,17 @@
-import FavoriteButton from "../../event/components/FavoriteButton";
-import { formatEventPrice, getTicketingHref } from "../../event/utils/event";
-import useFavorites from "../hooks/useFavorites";
+import { Trash2 } from "lucide-react";
+
+import Button from "../../../shared/components/ui/Button";
+import useEventDistance from "../../event/hooks/useEventDistance";
+import { formatDateTimeWithAt } from "../../event/utils/event";
 import useDataStore from "../../../shared/store/dataStore";
+import useFavorites from "../hooks/useFavorites";
+import EventListingCard from "./EventListingCard";
 
 export default function Favorites() {
-  const { favorites } = useFavorites();
+  const { favoriteEntries, favorites, toggleFavorite } = useFavorites();
   const events = useDataStore((s) => s.events);
   const organizations = useDataStore((s) => s.organizations);
+  const { getEventDistance } = useEventDistance();
   const activeOrganizationIds = new Set(
     organizations
       .filter((organization) => organization.is_active && !organization.deleted_at)
@@ -19,54 +24,47 @@ export default function Favorites() {
       !event.deleted_at &&
       activeOrganizationIds.has(event.organization_id),
   );
+  const favoriteEntryByEventId = new Map(
+    favoriteEntries.map((favorite) => [favorite.event_id, favorite]),
+  );
 
   if (favoriteEvents.length === 0) {
     return (
       <p className="feedback-message feedback-message--empty">
-        Aucun evenement en favoris
+        Aucun événement en favoris
       </p>
     );
   }
 
   return (
     <div className="user-favorites">
-      <h1>Mes favoris</h1>
-      <h2>Mes événements favoris</h2>
-      <div className="user-favorites__grid">
+      <div className="user-events-list__grid">
         {favoriteEvents.map((event) => {
-          const ticketingHref = getTicketingHref(event.ticketing_link);
+          const favoriteCreatedAt = favoriteEntryByEventId.get(event.id)?.created_at;
 
           return (
-          <article className="event-card" key={event.id}>
-            {event.image && (
-              <img
-                className="event-card__image"
-                src={event.image}
-                alt={event.title}
-              />
-            )}
-            <div className="event-card__content">
-              <h3>{event.title}</h3>
-              <p>{event.description}</p>
-              <dl className="event-card__details">
-                <div>
-                  <dt>Prix</dt>
-                  <dd>{formatEventPrice(event.price)}</dd>
-                </div>
-              </dl>
-              {ticketingHref && (
-                <a
-                  className="btn btn--secondary event-card__ticketing-link"
-                  href={ticketingHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
+            <EventListingCard
+              key={event.id}
+              event={event}
+              distanceInKilometers={getEventDistance(event)}
+              meta={
+                favoriteCreatedAt ? (
+                  <time dateTime={favoriteCreatedAt}>
+                    Ajouté le {formatDateTimeWithAt(favoriteCreatedAt)}
+                  </time>
+                ) : undefined
+              }
+              actions={
+                <Button
+                  icon={<Trash2 size={18} aria-hidden="true" />}
+                  type="button"
+                  variant="danger"
+                  onClick={() => toggleFavorite(event.id)}
                 >
-                  Billetterie
-                </a>
-              )}
-              <FavoriteButton event={event} />
-            </div>
-          </article>
+                  Supprimer
+                </Button>
+              }
+            />
           );
         })}
       </div>
