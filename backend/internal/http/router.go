@@ -94,6 +94,8 @@ func newRouter(
 		SkipPaths: []string{
 			"/api/auth/login",
 			"/api/auth/login/dev",
+			"/api/auth/register/user",
+			"/api/auth/register/organization",
 		},
 		FrontendURL: cfg.FrontendURL,
 	}))
@@ -125,6 +127,8 @@ func newRouter(
 		loginGlobalAccountRateLimiter.Handler(),
 	).Post("/api/auth/login", authHandler.Login)
 	r.With(middleware.NoStore(), loginRateLimiter.Handler()).Post("/api/auth/login/dev", authHandler.DevLogin)
+	r.With(middleware.NoStore(), loginRateLimiter.Handler()).Post("/api/auth/register/user", authHandler.RegisterUser)
+	r.With(middleware.NoStore(), loginRateLimiter.Handler()).Post("/api/auth/register/organization", authHandler.RegisterOrganization)
 	r.With(middleware.NoStore(), refreshRateLimiter.Handler()).Post("/api/auth/refresh", authHandler.Refresh)
 
 	r.Group(func(pr chi.Router) {
@@ -133,6 +137,11 @@ func newRouter(
 
 		pr.Post("/api/auth/logout", authHandler.Logout)
 		pr.Get("/api/auth/me", authHandler.Me)
+		pr.Patch("/api/auth/password", authHandler.ChangePassword)
+		pr.Get("/api/auth/check-role/{role}", authHandler.CheckRole)
+		pr.Get("/api/auth/check-account-type/{accountType}", authHandler.CheckAccountType)
+		pr.Patch("/api/auth/deactivate", authHandler.DeactivateAccount)
+		pr.Delete("/api/auth/account", authHandler.DeleteAccount)
 
 		pr.Group(func(ar chi.Router) {
 			ar.Use(middleware.RequireRole("admin"))

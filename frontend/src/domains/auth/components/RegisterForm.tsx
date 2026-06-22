@@ -25,6 +25,7 @@ import {
 import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
+import { authHttpApi } from "../api/authHttp.api";
 
 // UI
 import Input from "../../../shared/components/ui/Input";
@@ -83,12 +84,26 @@ export default function RegisterForm({
     setServerError(null);
 
     try {
-      if (!isAdminMode) {
-        await new Promise((resolve) => setTimeout(resolve, 800));
-      }
-
       const loginEmail = data.login_email.trim();
       const username = data.username.trim();
+      if (!isAdminMode) {
+        const result = await authHttpApi.registerUser({
+          login_email: loginEmail,
+          username,
+          password: data.password,
+        });
+
+        if (!result.ok) {
+          setServerError(result.error.message);
+          return;
+        }
+
+        login(result.data);
+        toast.success("Compte cree avec succes");
+        navigate(ROUTES.USER.ONBOARDING);
+        return;
+      }
+
       /**Vérification email déjà utilsé */
       const existingAccount = accounts.find(
         (account) =>

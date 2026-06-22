@@ -2,6 +2,11 @@ BEGIN;
 
 DROP TABLE IF EXISTS http_rate_limits;
 DROP TABLE IF EXISTS auth_refresh_tokens;
+DROP TABLE IF EXISTS organizers;
+DROP TABLE IF EXISTS organizations;
 DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS accounts;
+DROP TABLE IF EXISTS roles;
+DROP TABLE IF EXISTS account_types;
 
 COMMIT;

@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import { ROUTES } from "../../../shared/constants/routes";
+import { authHttpApi } from "../../auth/api/authHttp.api";
 import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
 import {
@@ -20,6 +21,7 @@ import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 
 export default function ChangePassword() {
   const user = useAuthStore((s) => s.currentUser);
+  const logout = useAuthStore((s) => s.logout);
   const updateAccount = useDataStore((s) => s.updateAccount);
   const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
@@ -47,12 +49,29 @@ export default function ChangePassword() {
     setServerError(null);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
       if (!user) {
         setServerError("Utilisateur non trouve");
         return;
       }
+
+      if (user.auth_source === "api") {
+        const result = await authHttpApi.changePassword({
+          current_password: data.oldPassword,
+          new_password: data.newPassword,
+        });
+
+        if (!result.ok) {
+          setServerError(result.error.message);
+          return;
+        }
+
+        logout();
+        toast.success("Mot de passe mis a jour. Reconnectez-vous.");
+        navigate(ROUTES.PUBLIC.LOGIN);
+        return;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
       const account = accounts.find((item) => item.id === user.account_id);
       const notificationUser = users.find(

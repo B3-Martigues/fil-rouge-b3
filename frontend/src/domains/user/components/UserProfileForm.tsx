@@ -152,10 +152,19 @@ export default function UserProfileForm() {
   const handleDeleteAccount = async () => {
     if (!user) return;
 
-    if (user.user_id) {
+    if (user.auth_source === "api") {
+      const result = await authHttpApi.deleteAccount();
+      if (!result.ok) {
+        setServerError(result.error.message);
+        setShowDeleteModal(false);
+        return;
+      }
+    } else if (user.user_id) {
       deleteUser(user.user_id);
     }
-    await authHttpApi.logout();
+    if (user.auth_source !== "api") {
+      await authHttpApi.logout();
+    }
     logout();
     toast.success("Compte supprime");
     navigate(ROUTES.PUBLIC.LOGIN);

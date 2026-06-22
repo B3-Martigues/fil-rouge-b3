@@ -20,6 +20,7 @@ import { CATEGORIES } from "../../organization/types/organization-categories";
 import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
+import { authHttpApi } from "../api/authHttp.api";
 import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
 import Checkbox from "../../../shared/components/ui/Checkbox";
@@ -138,16 +139,42 @@ export default function OrganizationRegisterForm({
     setServerError(null);
 
     try {
-      if (!isAdminMode) {
-        await new Promise((resolve) => setTimeout(resolve, 800));
-      }
-
       const loginEmail = data.login_email.trim();
       const memberName = data.member_name.trim();
       const memberJobRole = data.member_job_role.trim();
       const organizationName = data.name.trim();
       const contactEmail = data.contact_email.trim();
       const siret = data.siret.trim();
+      if (!isAdminMode) {
+        const result = await authHttpApi.registerOrganization({
+          login_email: loginEmail,
+          password: data.password,
+          member_name: memberName,
+          member_job_role: memberJobRole,
+          name: organizationName,
+          contact_email: contactEmail,
+          description: data.description.trim(),
+          website: data.website.trim(),
+          address: data.address.trim(),
+          city: data.city.trim(),
+          postal_code: data.postal_code.trim(),
+          logo: data.logo.trim(),
+          contact_phone_number: data.contact_phone_number.trim(),
+          siret,
+        });
+
+        if (!result.ok) {
+          setServerError(result.error.message);
+          setCurrentStep(result.error.code === "conflict" ? 0 : currentStep);
+          return;
+        }
+
+        login(result.data);
+        toast.success("Compte organization cree. En attente de validation");
+        navigate(ROUTES.ORGANIZATION.DASHBOARD);
+        return;
+      }
+
       const existingAccount = accounts.find(
         (account) =>
           normalizeComparable(account.login_email) ===

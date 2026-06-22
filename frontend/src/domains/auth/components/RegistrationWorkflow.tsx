@@ -12,15 +12,11 @@ import FormField from "../../../shared/components/ui/FormField";
 import Input from "../../../shared/components/ui/Input";
 import { ROUTES } from "../../../shared/constants/routes";
 import useDataStore from "../../../shared/store/dataStore";
-import type { Organization } from "../../organization/types/organization";
-import type { Organizer } from "../../organization/types/organizer";
 import { OrganizationFields } from "../../organization/components/OrganizationSetupFlow";
 import {
-  createNextId,
   emptyOrganizationForm,
   emptyOrganizerProfileForm,
   normalizeComparable,
-  parseOptionalCoordinate,
   validateOrganizationForm,
   validateOrganizerProfileForm,
   type OrganizationForm,
@@ -28,11 +24,9 @@ import {
   type OrganizerProfileErrors,
   type OrganizerProfileForm,
 } from "../../organization/utils/organizationWorkflow";
-import { createWelcomeNotification } from "../../notification/services/notificationFactory";
 import PreferencesGrid from "../../user/components/PreferencesGrid";
 import { useUserPreferences } from "../../user/hooks/useUserPreferences";
-import type { Account, User } from "../../user/types/user";
-import { ACCOUNT_TYPE_IDS, ROLE_IDS, toAuthenticatedUser } from "../../user/types/user";
+import { authHttpApi } from "../api/authHttp.api";
 import useAuthStore from "../store/authStore";
 import { registerSchema, type RegisterFormData } from "../validations/register.schema";
 
@@ -63,13 +57,7 @@ export default function RegistrationWorkflow() {
   const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
   const organizations = useDataStore((s) => s.organizations);
-  const organizers = useDataStore((s) => s.organizers);
-  const addAccount = useDataStore((s) => s.addAccount);
-  const addUser = useDataStore((s) => s.addUser);
-  const addOrganization = useDataStore((s) => s.addOrganization);
-  const addOrganizer = useDataStore((s) => s.addOrganizer);
   const setUserEventPreferences = useDataStore((s) => s.setUserEventPreferences);
-  const dispatchNotification = useDataStore((s) => s.dispatchNotification);
   const { preferences, toggle } = useUserPreferences([]);
   const [step, setStep] = useState<WorkflowStep>("user-info");
   const [userDraft, setUserDraft] = useState<RegisterFormData | null>(null);
@@ -135,39 +123,6 @@ export default function RegistrationWorkflow() {
     return null;
   };
 
-  const createAccountAndUser = (data: RegisterFormData) => {
-    const createdAt = new Date().toISOString();
-    const accountId = createNextId(accounts);
-    const userId = createNextId(users);
-    const account: Account = {
-      id: accountId,
-      account_type_id: ACCOUNT_TYPE_IDS.user,
-      account_type: "user",
-      login_email: data.login_email.trim(),
-      password_hash: data.password,
-      is_active: true,
-      created_at: createdAt,
-      updated_at: createdAt,
-      deleted_at: null,
-    };
-    const user: User = {
-      id: userId,
-      account_id: accountId,
-      username: data.username.trim(),
-      role_id: ROLE_IDS.user,
-      role: "user",
-      created_at: createdAt,
-      updated_at: createdAt,
-      deleted_at: null,
-    };
-
-    addAccount(account);
-    addUser(user);
-    setUserEventPreferences(userId, preferences);
-
-    return { account, user, createdAt };
-  };
-
   const completeUserOnlyRegistration = async () => {
     if (!userDraft) return;
 
@@ -183,9 +138,22 @@ export default function RegistrationWorkflow() {
         return;
       }
 
-      const { account, user } = createAccountAndUser(userDraft);
-      void dispatchNotification(createWelcomeNotification({ user }));
-      login(toAuthenticatedUser(account, user));
+      const result = await authHttpApi.registerUser({
+        login_email: userDraft.login_email.trim(),
+        username: userDraft.username.trim(),
+        password: userDraft.password,
+      });
+
+      if (!result.ok) {
+        setStep("user-info");
+        setServerError(result.error.message);
+        return;
+      }
+
+      if (result.data.user_id) {
+        setUserEventPreferences(result.data.user_id, preferences);
+      }
+      login(result.data);
       toast.success("Compte cree avec succes");
       navigate(ROUTES.PUBLIC.HOME, { replace: true });
     } finally {
@@ -260,7 +228,7 @@ export default function RegistrationWorkflow() {
     }
   };
 
-  const completeOrganizerRegistration = () => {
+  const completeOrganizerRegistration = async () => {
     if (!userDraft) return;
 
     setLoading(true);
@@ -283,48 +251,31 @@ export default function RegistrationWorkflow() {
 
       if (Object.keys(organizationValidationErrors).length > 0) return;
 
-      const { account, user, createdAt } = createAccountAndUser(userDraft);
-      const organizationId = createNextId(organizations);
-      const organizerId = createNextId(organizers);
-      const organization: Organization = {
-        id: organizationId,
-        account_id: account.id,
+      const result = await authHttpApi.registerOrganization({
+        login_email: userDraft.login_email.trim(),
+        password: userDraft.password,
+        member_name: userDraft.username.trim(),
+        member_job_role: organizerForm.job_role.trim(),
         name: organizationForm.name.trim(),
         contact_email: organizationForm.contact_email.trim(),
-        role_id: null,
         description: organizationForm.description.trim(),
-        website: organizationForm.website.trim() || null,
-        latitude: parseOptionalCoordinate(organizationForm.latitude),
-        longitude: parseOptionalCoordinate(organizationForm.longitude),
+        website: organizationForm.website.trim(),
         address: organizationForm.address.trim(),
         city: organizationForm.city.trim(),
         postal_code: organizationForm.postal_code.trim(),
-        logo: organizationForm.logo.trim() || null,
-        contact_phone_number: organizationForm.contact_phone_number.trim() || null,
-        siret: organizationForm.siret.trim() || null,
-        is_verified: false,
-        is_active: false,
-        created_at: createdAt,
-        updated_at: createdAt,
-        deleted_at: null,
-        category_slugs: organizationForm.categories,
-      };
-      const organizer: Organizer = {
-        id: organizerId,
-        user_id: user.id,
-        organization_id: organizationId,
-        job_role: organizerForm.job_role.trim(),
-        created_at: createdAt,
-        updated_at: createdAt,
-        deleted_at: null,
-      };
+        logo: organizationForm.logo.trim(),
+        contact_phone_number: organizationForm.contact_phone_number.trim(),
+        siret: organizationForm.siret.trim(),
+      });
 
-      addOrganization(organization);
-      addOrganizer(organizer);
-      void dispatchNotification(createWelcomeNotification({ user, organization }));
-      login(toAuthenticatedUser(account, user));
-      toast.success("Compte cree avec organisation en attente de validation");
-      navigate(ROUTES.PUBLIC.HOME, { replace: true });
+      if (!result.ok) {
+        setServerError(result.error.message);
+        return;
+      }
+
+      login(result.data);
+      toast.success("Compte organisation cree. En attente de validation");
+      navigate(ROUTES.ORGANIZATION.DASHBOARD, { replace: true });
     } finally {
       setLoading(false);
     }

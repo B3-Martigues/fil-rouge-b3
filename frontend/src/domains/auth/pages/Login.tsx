@@ -14,11 +14,10 @@ export default function Login() {
       </div>
 
       <div className="auth-login-stack">
+            <h1 id="login-title" className="login-title">Connexion</h1>
         <section className="auth-login" aria-labelledby="login-title">
           <div className="auth-login__intro">
             <p className="auth-login__brand">Mappening</p>
-            <h1 id="login-title">Connexion</h1>
-            <p>Retrouvez vos evenements, favoris et preferences.</p>
           </div>
 
           <LoginForm />

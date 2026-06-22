@@ -84,18 +84,20 @@ Generer un hash bcrypt depuis `backend/` :
 go run ./hash_password.go
 ```
 
-Inserer ensuite l'utilisateur :
+Inserer ensuite le compte administrateur :
 
 ```sql
-INSERT INTO users (email, password_hash, first_name, last_name, role, is_active)
-VALUES (
-    'admin@example.mappening.fr',
-    '$2a$replace-with-bcrypt-hash',
-    'Admin',
-    'Mappening',
-    'admin',
-    TRUE
-);
+WITH account AS (
+    INSERT INTO accounts (account_type_id, login_email, password_hash, is_active)
+    SELECT id, 'admin@example.mappening.fr', '$2a$replace-with-bcrypt-hash', TRUE
+    FROM account_types
+    WHERE slug = 'admin'
+    RETURNING id
+)
+INSERT INTO users (account_id, username, role_id)
+SELECT account.id, 'Admin Mappening', roles.id
+FROM account
+JOIN roles ON roles.slug = 'admin';
 ```
 
 ## Checklist production
