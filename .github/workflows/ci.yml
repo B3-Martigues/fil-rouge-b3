@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Check tracked environment files
+        run: pwsh -File backend/scripts/check-no-tracked-secrets.ps1
+
+      - name: Check formatting
+        working-directory: backend
+        shell: bash
+        run: |
+          files="$(find . -path './.gocache' -prune -o -name '*.go' -print)"
+          test -z "$(gofmt -l $files)"
+
+      - name: Build
+        working-directory: backend
+        run: go build ./...
+
+      - name: Vet
+        working-directory: backend
+        run: go vet ./...
+
+      - name: Run tests
+        working-directory: backend
+        run: go test -count=1 ./...
+
+      - name: Run race tests
+        working-directory: backend
+        run: go test -race ./...
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.3.0
+
+      - name: Vulnerability check
+        working-directory: backend
+        run: govulncheck ./...

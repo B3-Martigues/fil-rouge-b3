@@ -13,7 +13,7 @@ body.events-home-route {
 
 .events-home {
   --events-desktop-height: 100dvh;
-  --events-searchbar-width: min(420px, 42vw);
+  --events-searchbar-width: 320px;
   --events-sidebar-width: min(
     calc(var(--events-searchbar-width) + 132px),
     calc(100vw - 32px)
@@ -487,7 +487,7 @@ body.events-home-route {
   grid-template-columns: 18px minmax(0, 1fr) 34px;
   align-items: center;
   width: var(--events-searchbar-width);
-  min-width: 280px;
+  min-width: 0;
   height: 42px;
   min-height: 42px;
   padding: 0 4px 0 12px;
@@ -506,6 +506,7 @@ body.events-home-route {
 
   &--active {
     border-color: color-mix(in srgb, var(--secondary) 42%, var(--border));
+    cursor: text;
   }
 
   svg {
@@ -523,6 +524,7 @@ body.events-home-route {
     color: var(--text-h);
     background: transparent;
     box-shadow: none;
+    cursor: text;
     font-size: 15px;
     font-weight: 650;
 
@@ -555,6 +557,7 @@ body.events-home-route {
     min-height: 34px;
     color: var(--text-p);
     background: transparent;
+    cursor: pointer;
   }
 }
 
@@ -612,7 +615,7 @@ body.events-home-route {
 
 .events-sidebar-search {
   width: var(--events-searchbar-width);
-  min-width: 280px;
+  min-width: 0;
   box-shadow: none;
 }
 

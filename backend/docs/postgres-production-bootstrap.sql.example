@@ -1,0 +1,46 @@
+-- Copy this file outside the repository before putting real passwords in it.
+-- Run it as a PostgreSQL administrator against the postgres database.
+
+CREATE ROLE mappening_prod_migrator
+WITH LOGIN
+PASSWORD 'replace-with-a-long-unique-migrator-password'
+NOSUPERUSER
+NOCREATEDB
+NOCREATEROLE
+NOINHERIT;
+
+CREATE ROLE mappening_prod_user
+WITH LOGIN
+PASSWORD 'replace-with-a-long-unique-app-password'
+NOSUPERUSER
+NOCREATEDB
+NOCREATEROLE
+NOINHERIT;
+
+CREATE DATABASE mappening_prod
+WITH OWNER = mappening_prod_migrator
+ENCODING = 'UTF8'
+TEMPLATE = template0;
+
+\connect mappening_prod
+
+REVOKE ALL ON DATABASE mappening_prod FROM PUBLIC;
+GRANT CONNECT ON DATABASE mappening_prod TO mappening_prod_migrator;
+GRANT CONNECT ON DATABASE mappening_prod TO mappening_prod_user;
+
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+GRANT USAGE, CREATE ON SCHEMA public TO mappening_prod_migrator;
+GRANT USAGE ON SCHEMA public TO mappening_prod_user;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE mappening_prod_migrator IN SCHEMA public
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO mappening_prod_user;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE mappening_prod_migrator IN SCHEMA public
+GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO mappening_prod_user;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE mappening_prod_migrator IN SCHEMA public
+GRANT EXECUTE ON FUNCTIONS TO mappening_prod_user;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO mappening_prod_user;
+GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO mappening_prod_user;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO mappening_prod_user;

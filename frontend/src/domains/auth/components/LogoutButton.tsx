@@ -2,6 +2,7 @@
 import { useNavigate } from "react-router-dom";
 
 import useAuthStore from "../store/authStore";
+import { authHttpApi } from "../api/authHttp.api";
 import { ROUTES } from "../../../shared/constants/routes";
 
 /**UI*/
@@ -13,7 +14,8 @@ export default function LogoutButton() {
   const logout = useAuthStore((s) => s.logout);
 
   /**Déconnexion utilisateur  */
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authHttpApi.logout();
     logout();
     toast.success("Déconnexion réussie");
     navigate(ROUTES.PUBLIC.HOME);

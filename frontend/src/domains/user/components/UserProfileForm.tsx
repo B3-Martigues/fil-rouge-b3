@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 
 import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
 import { ROUTES } from "../../../shared/constants/routes";
+import { authHttpApi } from "../../auth/api/authHttp.api";
 import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
 import {
@@ -148,12 +149,13 @@ export default function UserProfileForm() {
     }
   };
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     if (!user) return;
 
     if (user.user_id) {
       deleteUser(user.user_id);
     }
+    await authHttpApi.logout();
     logout();
     toast.success("Compte supprime");
     navigate(ROUTES.PUBLIC.LOGIN);

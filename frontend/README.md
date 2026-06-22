@@ -18,7 +18,9 @@ Le frontend permet notamment :
 - La validation et la modération des comptes, événements et signalements
 - L'administration de la plateforme
 
-**Version actuelle :** le frontend fonctionne avec des données mockées et une persistance locale. Aucune connexion backend réelle n'est encore implémentée.
+**Version actuelle :** l'authentification est branchée sur le backend Go via `/api/auth/*`.
+Les autres domaines métier conservent leurs données mockées et leur persistance locale
+tant que les endpoints événements, organisations et notifications ne sont pas exposés.
 
 Les données temporaires sont principalement stockées dans les dossiers `mocks` des domaines :
 
@@ -145,6 +147,10 @@ Depuis le dossier `frontend` :
 npm install
 npm run dev
 ```
+
+En développement, Vite proxifie `/api` vers `http://127.0.0.1:8080`.
+Laisser `VITE_API_BASE_URL` vide dans `.env.local` pour utiliser ce proxy, ou
+renseigner une origine API complète en déploiement.
 
 Commandes utiles :
 

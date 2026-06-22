@@ -1,0 +1,113 @@
+# Environnements de deploiement
+
+Ce guide explique comment separer `dev`, `staging` et `production`.
+
+L'objectif est d'eviter qu'un environnement local utilise les secrets ou la base
+de production.
+
+## Ressources a separer
+
+Chaque environnement doit avoir :
+
+- une base PostgreSQL dediee
+- un role applicatif dedie
+- un role de migration dedie
+- un `JWT_SECRET` dedie
+- une origine client dediee pour CORS et CSRF
+- un domaine CSRF dedie si le front et l'API sont sur des sous-domaines separes
+
+Ne pas partager :
+
+- la base de production avec le developpement local
+- le secret JWT de production avec un autre environnement
+- les mots de passe PostgreSQL entre plusieurs environnements
+
+## Strategie recommandee
+
+- `dev` : poste local, `.env.local`, base locale
+- `staging` : environnement de validation, secrets dedies, base dediee
+- `production` : environnement public, secrets dedies, base dediee
+
+Le backend charge automatiquement `.env.local` uniquement en environnement de
+developpement. En staging et production, les variables doivent etre injectees
+par l'hebergeur, Docker, systemd ou un gestionnaire de secrets.
+
+## Base PostgreSQL
+
+Le projet distingue deux familles de variables :
+
+- `APP_DB_*` : connexion utilisee par l'API
+- `MIGRATIONS_DB_*` : connexion utilisee pour modifier le schema
+
+Le role applicatif ne doit pas posseder les droits de schema les plus eleves.
+
+## Creation d'une base
+
+Un exemple est fourni dans
+[`../postgres-production-bootstrap.sql.example`](../postgres-production-bootstrap.sql.example).
+
+Procedure :
+
+1. Copier l'exemple hors du depot.
+2. Remplacer les noms et mots de passe.
+3. Executer le script avec un compte PostgreSQL administrateur.
+4. Reporter les valeurs dans les variables `APP_DB_*` et `MIGRATIONS_DB_*`.
+
+Points importants :
+
+- `APP_DB_NAME` et `MIGRATIONS_DB_NAME` pointent vers la meme base.
+- `APP_DB_USER` correspond au role applicatif.
+- `MIGRATIONS_DB_USER` correspond au role de migration.
+- `APP_DB_SSLMODE` et `MIGRATIONS_DB_SSLMODE` ne doivent pas etre `disable` hors dev.
+
+## Migrations
+
+Depuis `backend/` :
+
+```bash
+go run ./cmd/migrate
+```
+
+Flux recommande :
+
+1. Creer la base et les roles.
+2. Injecter les variables `MIGRATIONS_DB_*`.
+3. Lancer les migrations.
+4. Verifier que le schema est present.
+5. Demarrer l'API avec les variables `APP_DB_*`.
+
+## Premier admin
+
+Generer un hash bcrypt depuis `backend/` :
+
+```bash
+go run ./hash_password.go
+```
+
+Inserer ensuite l'utilisateur :
+
+```sql
+INSERT INTO users (email, password_hash, first_name, last_name, role, is_active)
+VALUES (
+    'admin@example.mappening.fr',
+    '$2a$replace-with-bcrypt-hash',
+    'Admin',
+    'Mappening',
+    'admin',
+    TRUE
+);
+```
+
+## Checklist production
+
+1. `ENV=production`
+2. `FRONTEND_URL` en `https://...`
+3. `COOKIE_SECURE=true`
+4. `CSRF_COOKIE_DOMAIN` vide ou limite a un domaine parent controle
+5. `DEV_LOGIN_ENABLED=false`
+6. `TRUSTED_PROXY_CIDRS` limite aux reverse proxies
+7. Reverse proxy configure pour reecrire `X-Forwarded-*`
+8. Base production dediee
+9. Sauvegardes configurees
+10. Migrations executees avant le demarrage de l'API
+11. Premier compte admin cree manuellement

@@ -30,6 +30,7 @@ import {
   getAccountInitials,
 } from "../../../shared/utils/account";
 import useAuthStore from "../../auth/store/authStore";
+import { authHttpApi } from "../../auth/api/authHttp.api";
 import { getNotificationTypeConfig } from "../../notification/mocks/notification-types.mock";
 
 type AccountSection =
@@ -190,7 +191,8 @@ export default function AccountPageShell() {
     );
   }).length;
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authHttpApi.logout();
     logout();
     navigate(ROUTES.PUBLIC.LOGIN, { replace: true });
   };

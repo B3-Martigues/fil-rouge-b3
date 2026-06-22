@@ -1,0 +1,39 @@
+CREATE ROLE mappening_migrator
+WITH LOGIN
+PASSWORD 'mappening_migrator_password'
+NOSUPERUSER
+NOCREATEDB
+NOCREATEROLE
+NOINHERIT;
+
+CREATE ROLE mappening_user
+WITH LOGIN
+PASSWORD 'mappening_app_password'
+NOSUPERUSER
+NOCREATEDB
+NOCREATEROLE
+NOINHERIT;
+
+CREATE DATABASE mappening
+WITH OWNER = mappening_migrator
+ENCODING = 'UTF8'
+TEMPLATE = template0;
+
+\connect mappening
+
+REVOKE ALL ON DATABASE mappening FROM PUBLIC;
+GRANT CONNECT ON DATABASE mappening TO mappening_migrator;
+GRANT CONNECT ON DATABASE mappening TO mappening_user;
+
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+GRANT USAGE, CREATE ON SCHEMA public TO mappening_migrator;
+GRANT USAGE ON SCHEMA public TO mappening_user;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE mappening_migrator IN SCHEMA public
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO mappening_user;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE mappening_migrator IN SCHEMA public
+GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO mappening_user;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE mappening_migrator IN SCHEMA public
+GRANT EXECUTE ON FUNCTIONS TO mappening_user;

@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# ============================================================================
+# Hook pre-commit: prevention des fuites de secrets
+# ============================================================================
+#
+# OBJECTIF:
+#   Bloque les commits contenant des fichiers `.env` sensibles qui ne doivent
+#   jamais etre versionnes.
+#   Cela limite les expositions accidentelles d'identifiants ou de secrets.
+#
+# INSTALLATION:
+#   1. Copier ce fichier dans .git/hooks/pre-commit
+#   2. Le rendre executable: chmod +x .git/hooks/pre-commit
+#
+# CONTOURNEMENT (uniquement pour du debug, non recommande):
+#   git commit --no-verify
+#
+# ============================================================================
+
+set -e
+
+# Liste des fichiers qui ne doivent JAMAIS etre commit
+FORBIDDEN_FILES=(
+    ".env.local"
+    ".env.*.local"
+    ".env.production"
+    ".env.development"
+    ".env.staging"
+)
+
+# Verifie si des fichiers interdits sont presents dans l'index
+BLOCKED_FILES=()
+
+for pattern in "${FORBIDDEN_FILES[@]}"; do
+    # Utilise git diff-index pour verifier les fichiers indexes
+    if git diff-index --cached HEAD --name-only 2>/dev/null | grep -E "${pattern//./\\.}$" >/dev/null 2>&1; then
+        BLOCKED_FILES+=("$pattern")
+    fi
+done
+
+if [ ${#BLOCKED_FILES[@]} -gt 0 ]; then
+    echo "COMMIT BLOQUE: fichiers sensibles detectes dans la zone d'index."
+    echo ""
+    echo "Fichiers qui ne peuvent pas etre commit:"
+    printf "   - %s\n" "${BLOCKED_FILES[@]}"
+    echo ""
+    echo "Raison: ces fichiers contiennent des secrets ou identifiants et ne doivent jamais etre versionnes."
+    echo ""
+    echo "Solution:"
+    echo "   1. Retirer ces fichiers de l'index: git reset HEAD <file>"
+    echo "   2. Utiliser .gitignore pour eviter les prochains commits"
+    echo "   3. Modifier uniquement le template .env.example pour les valeurs par defaut"
+    echo ""
+    echo "Si tu dois contourner ce controle pour un test local:"
+    echo "   git commit --no-verify  (non recommande, reserve au debug)"
+    echo ""
+    exit 1
+fi
+
+# Controle complementaire: aucun secret evident detecte dans les fichiers indexes
+echo "Verification pre-commit OK: aucun secret detecte dans les fichiers indexes."
+exit 0

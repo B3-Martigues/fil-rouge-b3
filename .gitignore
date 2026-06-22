@@ -1,1 +1,73 @@
+# =========================
+# ENV / SECRETS
+# =========================
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# =========================
+# GO
+# =========================
+bin/
+dist/
+vendor/
+
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test & coverage
+*.test
+*.out
+
+# Go workspace
+go.work
+go.work.sum
+
+# =========================
+# LOGS
+# =========================
+*.log
+logs/
+yarn-debug.log*
+yarn-error.log*
+
+# =========================
+# TEMP FILES
+# =========================
 tmp/
+temp/
+.gocache/
+*.tmp
+*.swp
+
+# =========================
+# UPLOADS
+# =========================
+uploads/
+
+# =========================
+# IDE / EDITOR
+# =========================
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+
+# =========================
+# OS FILES
+# =========================
+.DS_Store
+Thumbs.db
+
+# Air (hot reload Go)
+.air/
+tmp/
+
+# Coverage reports (si tu en génères)
+coverage/

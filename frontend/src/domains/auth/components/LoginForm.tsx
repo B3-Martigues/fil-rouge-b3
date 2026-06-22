@@ -13,8 +13,7 @@ import { loginSchema, type LoginFormData } from "../validations/login.schema";
 import useAuthStore from "../store/authStore";
 import { ROUTES } from "../../../shared/constants/routes";
 import type { Role } from "../../user/types/user";
-import { authenticateMockAccount } from "../api/auth.api";
-import useDataStore from "../../../shared/store/dataStore";
+import { authHttpApi } from "../api/authHttp.api";
 
 import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
@@ -31,9 +30,6 @@ const getRedirectPathByRole = (role: Role) => {
 export default function LoginForm() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
-  const accounts = useDataStore((s) => s.accounts);
-  const users = useDataStore((s) => s.users);
-  const organizations = useDataStore((s) => s.organizations);
 
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -52,21 +48,19 @@ export default function LoginForm() {
     setServerError(null);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      const result = authenticateMockAccount(
-        { accounts, users, organizations },
-        data,
-      );
+      const result = await authHttpApi.login({
+        email: data.login_email,
+        password: data.password,
+      });
 
       if (!result.ok) {
-        setServerError(result.message);
+        setServerError(result.error.message);
         return;
       }
 
-      login(result.user);
+      login(result.data);
 
-      navigate(getRedirectPathByRole(result.user.role), { replace: true });
+      navigate(getRedirectPathByRole(result.data.role), { replace: true });
       toast.success("Connexion reussie");
     } finally {
       setLoading(false);

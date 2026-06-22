@@ -109,6 +109,9 @@ export function authenticateMockAccount(
 
   return {
     ok: true,
-    user: authenticatedUser,
+    user: {
+      ...authenticatedUser,
+      auth_source: "mock",
+    },
   };
 }

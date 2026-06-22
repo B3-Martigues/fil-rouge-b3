@@ -150,13 +150,16 @@ const PrivateRoute = ({ children }: Props) => {
   const account = currentUser
     ? accounts.find((item) => item.id === currentUser.account_id)
     : undefined;
+  const isApiBackedSession = currentUser?.auth_source === "api";
   const hasValidAccount =
-    !!account &&
-    account.is_active &&
-    !account.deleted_at &&
-    !isAccountSuspended(account);
+    isApiBackedSession ||
+    (!!account &&
+      account.is_active &&
+      !account.deleted_at &&
+      !isAccountSuspended(account));
   const hasValidProfile =
-    currentUser?.role === "organization"
+    isApiBackedSession ||
+    (currentUser?.role === "organization"
       ? organizations.some(
           (organization) =>
             organization.id === currentUser.organization_id &&
@@ -169,7 +172,7 @@ const PrivateRoute = ({ children }: Props) => {
             user.account_id === currentUser?.account_id &&
             user.role === currentUser?.role &&
             !user.deleted_at,
-        );
+        ));
 
   return isAuthenticated &&
     currentUser &&

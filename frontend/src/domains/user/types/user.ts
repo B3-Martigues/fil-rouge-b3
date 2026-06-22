@@ -85,6 +85,7 @@ export type AuthenticatedUser = {
   user_id?: number;
   organization_id?: number;
   is_verified?: boolean;
+  auth_source?: "mock" | "api";
 };
 
 export function isAccountSuspended(

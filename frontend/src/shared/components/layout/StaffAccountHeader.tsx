@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, LogOut, ShieldCheck, type LucideIcon } from "lucide-react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 
+import { authHttpApi } from "../../../domains/auth/api/authHttp.api";
 import useAuthStore from "../../../domains/auth/store/authStore";
 import Button from "../ui/Button";
 import { ROUTES } from "../../constants/routes";
@@ -72,7 +73,8 @@ export default function StaffAccountHeader({
   const activeSectionTitle =
     activeTab?.sectionTitles?.[location.pathname] ?? activeTab?.sectionTitle;
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authHttpApi.logout();
     logout();
     navigate(ROUTES.PUBLIC.LOGIN, { replace: true });
   };

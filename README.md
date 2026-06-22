@@ -12,6 +12,93 @@ L'application centralise des événements locaux, les affiche sur une carte inte
 
 La documentation détaillée du frontend est disponible dans [`frontend/README.md`](frontend/README.md).
 
+## Installation locale en equipe
+
+Chaque membre de l'equipe utilise sa propre base PostgreSQL locale. Le projet
+partage le `docker-compose.yml`, les migrations SQL, les scripts de seed et les
+valeurs de developpement, mais le fichier `backend/.env.local` et les donnees de
+la base restent propres a chaque machine.
+
+### Prerequis
+
+- Docker Desktop
+- Go 1.25
+- Node.js pour le frontend
+- pgAdmin pour inspecter la base avec une interface graphique
+
+### Demarrage rapide de la base
+
+Depuis la racine du projet :
+
+```powershell
+.\backend\scripts\setup-local-db.ps1
+```
+
+Ce script :
+
+1. cree `backend/.env.local` depuis `backend/.env.example` s'il n'existe pas ;
+2. demarre le conteneur PostgreSQL local ;
+3. attend que PostgreSQL soit pret ;
+4. lance les migrations backend ;
+5. cree ou remet a jour l'admin local de developpement.
+
+Identifiants admin locaux :
+
+```text
+Email: admin@mappening.local
+Mot de passe: AdminPassword123!
+```
+
+### Connexion pgAdmin
+
+Connexion administrateur PostgreSQL :
+
+```text
+Host: localhost
+Port: 55432
+Maintenance database: postgres
+Username: postgres
+Password: postgres
+```
+
+Connexion applicative, identique a celle du backend :
+
+```text
+Host: localhost
+Port: 55432
+Maintenance database: mappening
+Username: mappening_user
+Password: mappening_app_password
+```
+
+Dans pgAdmin, ouvrez le Query Tool sur la base `mappening` et testez :
+
+```sql
+SELECT current_database(), current_user, now();
+```
+
+### Lancer le backend
+
+```powershell
+cd backend
+go run ./cmd/api
+```
+
+Si la connexion est bonne, le backend affiche `application database connected`.
+
+### Reinitialiser sa base locale
+
+Si votre base locale est dans un mauvais etat, vous pouvez supprimer le volume
+Docker puis relancer le setup :
+
+```powershell
+docker compose down -v
+.\backend\scripts\setup-local-db.ps1
+```
+
+Attention : cette commande supprime les donnees PostgreSQL locales de votre
+machine. Elle n'impacte pas les bases locales des autres membres de l'equipe.
+
 ## Objectifs
 
 - Centraliser les événements locaux
