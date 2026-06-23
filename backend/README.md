@@ -19,14 +19,27 @@ Chaque membre de l'equipe travaille avec sa propre base PostgreSQL locale. Les
 migrations et les scripts de seed sont versionnes, mais `backend/.env.local` et
 les donnees PostgreSQL restent locaux et ne doivent pas etre commit.
 
-Depuis la racine du repo, le demarrage recommande est :
+Depuis la racine du repo, une seule commande prepare la base locale puis lance
+l'API :
+
+```powershell
+.\start-backend.ps1
+```
+
+Si vous ne voulez pas remettre a jour l'admin local au demarrage :
+
+```powershell
+.\start-backend.ps1 -SkipSeed
+```
+
+Le script cree `backend/.env.local` si besoin, demarre PostgreSQL, attend le
+healthcheck Docker, lance les migrations, seed l'admin local puis demarre l'API.
+
+Pour preparer uniquement la base sans lancer l'API :
 
 ```powershell
 .\backend\scripts\setup-local-db.ps1
 ```
-
-Le script cree `backend/.env.local` si besoin, demarre PostgreSQL, attend le
-healthcheck Docker, lance les migrations et seed l'admin local.
 
 ### Demarrage manuel
 
