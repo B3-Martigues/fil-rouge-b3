@@ -44,7 +44,7 @@ import FavoriteButton from "../components/FavoriteButton";
 import ReportEventButton from "../components/ReportEventButton";
 import WeatherBadge from "../components/WeatherBadge";
 import useUserLocation from "../hooks/useUserLocation";
-
+import { eventsApi } from "../api/events.api";
 import {
   formatDistance,
   formatEventPrice,
@@ -209,13 +209,38 @@ export default function Home() {
   }, []);
 
   const activeOrganizationsById = useMemo(
-    () =>
-      new Map(
+    () => {
+      const map = new Map<
+        number,
+        {
+          id: number;
+          name: string;
+          is_active: boolean;
+          deleted_at?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+        }
+      >(
         organizations
           .filter((organization) => organization.is_active && !organization.deleted_at)
           .map((organization) => [organization.id, organization]),
-      ),
-    [organizations],
+      );
+
+      events.forEach((event) => {
+        if (event.organization?.is_active && !map.has(event.organization.id)) {
+          map.set(event.organization.id, {
+            id: event.organization.id,
+            name: event.organization.name,
+            is_active: event.organization.is_active,
+            latitude: event.organization.latitude,
+            longitude: event.organization.longitude,
+          });
+        }
+      });
+
+      return map;
+    },
+    [events, organizations],
   );
   const getEventCoordinates = useCallback(
     (event: Event): GeoPoint | null => {
@@ -650,9 +675,22 @@ export default function Home() {
     });
   };
 
-  const selectMobileEvent = (eventId: number, shouldRecordHistory = true) => {
-    if (shouldRecordHistory && currentUser?.role === "user" && currentUser.user_id) {
+  const recordEventVisit = useCallback(
+    (eventId: number) => {
+      if (currentUser?.role !== "user" || !currentUser.user_id) return;
+
       recordHistory(currentUser.user_id, eventId);
+
+      if (currentUser.auth_source === "api") {
+        void eventsApi.recordHistory(eventId);
+      }
+    },
+    [currentUser, recordHistory],
+  );
+
+  const selectMobileEvent = (eventId: number, shouldRecordHistory = true) => {
+    if (shouldRecordHistory) {
+      recordEventVisit(eventId);
     }
 
     setSelectedEventId(eventId);
@@ -664,8 +702,8 @@ export default function Home() {
   };
 
   const selectSidebarEvent = (eventId: number, shouldRecordHistory = true) => {
-    if (shouldRecordHistory && currentUser?.role === "user" && currentUser.user_id) {
-      recordHistory(currentUser.user_id, eventId);
+    if (shouldRecordHistory) {
+      recordEventVisit(eventId);
     }
 
     setSelectedEventId(eventId);
@@ -799,9 +837,7 @@ export default function Home() {
         setOpenEventSections((sections) => ({ ...sections, past: true }));
       }
 
-      if (currentUser?.role === "user" && currentUser.user_id) {
-        recordHistory(currentUser.user_id, requestedEventId);
-      }
+      recordEventVisit(requestedEventId);
 
       setSelectedEventId(requestedEventId);
       if (isMobile) {
@@ -824,12 +860,11 @@ export default function Home() {
       window.clearTimeout(focusTimer);
     };
   }, [
-    currentUser,
     events,
     getEventCoordinates,
     isMobile,
     location.search,
-    recordHistory,
+    recordEventVisit,
   ]);
 
   const renderEventCard = (event: Event) => {

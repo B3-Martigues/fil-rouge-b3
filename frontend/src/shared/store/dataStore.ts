@@ -7,7 +7,6 @@ import { organizersMock } from "../../domains/organization/mocks/organizers.mock
 import { organizationsMock } from "../../domains/organization/mocks/organizations.mock";
 import type { Organization } from "../../domains/organization/types/organization";
 import type { Organizer } from "../../domains/organization/types/organizer";
-import { eventsMock } from "../../domains/event/mocks/events.mock";
 import type { Event } from "../../domains/event/types/event";
 import {
   moderationDecisionsMock,
@@ -119,6 +118,7 @@ type DataState = {
 
   addOrganizer: (organizer: Organizer) => void;
 
+  setEvents: (events: Event[]) => void;
   addEvent: (event: Event) => void;
   updateEvent: (
     eventId: number,
@@ -162,6 +162,8 @@ type DataState = {
 };
 
 const now = () => new Date().toISOString();
+const shouldUsePersistedEvents =
+  (import.meta.env.VITE_EVENTS_API_MODE ?? "http") !== "http";
 
 const isNotDeleted = (record: { deleted_at?: string | null }) =>
   !record.deleted_at;
@@ -367,7 +369,7 @@ const useDataStore = create<DataState>()(
       users: usersMock,
       organizations: organizationsMock,
       organizers: organizersMock,
-      events: eventsMock.map(normalizeEvent),
+      events: [],
       favorites: favoritesMock,
       histories: historiesMock,
       userEventPreferences: userEventPreferencesMock,
@@ -848,6 +850,11 @@ const useDataStore = create<DataState>()(
           organizers: [...state.organizers, organizer],
         })),
 
+      setEvents: (events) =>
+        set(() => ({
+          events: events.map(normalizeEvent),
+        })),
+
       addEvent: (event) =>
         set((state) => ({
           events: [...state.events, event],
@@ -1165,9 +1172,11 @@ const useDataStore = create<DataState>()(
         const persistedOrganizerIds = new Set(
           persistedOrganizers.map((member) => member.id),
         );
-        const events = (persistedData.events ?? currentState.events).map(
-          normalizeEvent,
-        );
+        const events = (
+          shouldUsePersistedEvents
+            ? persistedData.events ?? currentState.events
+            : currentState.events
+        ).map(normalizeEvent);
 
         return {
           ...currentState,

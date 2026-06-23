@@ -72,10 +72,18 @@ export async function apiRequest<Data>(
 ): Promise<ApiResult<Data>> {
   const method = (options.method ?? "GET").toUpperCase();
   const headers = new Headers(options.headers);
+  const isFormDataBody =
+    typeof FormData !== "undefined" && options.body instanceof FormData;
+  const requestBody =
+    options.body === undefined
+      ? undefined
+      : isFormDataBody
+        ? (options.body as BodyInit)
+        : JSON.stringify(options.body);
 
   headers.set("Accept", "application/json");
 
-  if (options.body !== undefined && !headers.has("Content-Type")) {
+  if (options.body !== undefined && !isFormDataBody && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -87,7 +95,7 @@ export async function apiRequest<Data>(
   try {
     const response = await fetch(buildUrl(path), {
       ...options,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: requestBody,
       credentials: "include",
       headers,
       method,

@@ -62,6 +62,7 @@ import {
 import useDataStore, {
   buildAccountSummaries,
 } from "../../../shared/store/dataStore";
+import { isValidUploadedImageValue } from "../../../shared/utils/imageUpload";
 import {
   formatEventPrice,
   formatEventDateRange,
@@ -1168,8 +1169,8 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       return false;
     }
 
-    if (!eventDraft.image.trim() || !URL.canParse(eventDraft.image.trim())) {
-      toast.error("L'URL de l'image est invalide");
+    if (!isValidUploadedImageValue(eventDraft.image)) {
+      toast.error("Ajoutez une image PNG, JPG ou WebP de 1 Mo maximum");
       return false;
     }
 

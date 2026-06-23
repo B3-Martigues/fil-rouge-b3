@@ -63,7 +63,7 @@
     justify-content: center;
     width: 38px;
     height: 38px;
-    margin: 12px 12px 0 0;
+    margin: 12px 12px 12px 0;
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--text-h);
@@ -354,6 +354,36 @@ textarea.input {
   gap: 10px;
   min-width: 0;
   text-align: left;
+
+  &__dropzone {
+    display: grid;
+    gap: 4px;
+    min-height: 72px;
+    padding: 14px;
+    place-items: center;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    color: var(--text-h);
+    background: var(--bg);
+    text-align: center;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--accent-border);
+      background: var(--accent-bg);
+    }
+  }
+
+  &__dropzone-title {
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  &__help {
+    color: var(--text-p);
+    font-size: 13px;
+    font-weight: 600;
+  }
 
   &__preview {
     display: grid;

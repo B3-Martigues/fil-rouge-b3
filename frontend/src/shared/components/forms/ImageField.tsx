@@ -1,8 +1,12 @@
-import type { ChangeEvent } from "react";
+import { useState, type ChangeEvent } from "react";
 
 import Button from "../ui/Button";
 import FormField from "../ui/FormField";
-import Input from "../ui/Input";
+import {
+  getImageUploadError,
+  IMAGE_UPLOAD_ACCEPT,
+  IMAGE_UPLOAD_HELPER_TEXT,
+} from "../../utils/imageUpload";
 
 type Props = {
   className?: string;
@@ -23,17 +27,31 @@ export default function ImageField({
 }: Props) {
   const fileInputId = `${id}-upload`;
   const previewUrl = value.trim();
-  const canPreview = previewUrl !== "" && URL.canParse(previewUrl);
+  const canPreview =
+    previewUrl !== "" && (URL.canParse(previewUrl) || previewUrl.startsWith("/"));
+  const [localError, setLocalError] = useState<string | null>(null);
+  const fieldError = localError ?? error;
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const uploadError = getImageUploadError(file);
+    if (uploadError) {
+      setLocalError(uploadError);
+      event.target.value = "";
+      return;
+    }
+
     const reader = new FileReader();
     reader.addEventListener("load", () => {
       if (typeof reader.result === "string") {
+        setLocalError(null);
         onChange(reader.result);
       }
+    });
+    reader.addEventListener("error", () => {
+      setLocalError("Impossible de lire cette image.");
     });
     reader.readAsDataURL(file);
     event.target.value = "";
@@ -41,16 +59,23 @@ export default function ImageField({
 
   return (
     <div className={["image-field", className].filter(Boolean).join(" ")}>
-      <FormField label={label} htmlFor={id} error={error}>
-        <Input
-          id={id}
-          type="url"
-          value={value}
-          hasError={!!error}
-          aria-describedby={error ? `${id}-error` : undefined}
-          placeholder="https://..."
-          onChange={(event) => onChange(event.target.value)}
+      <FormField label={label} htmlFor={fileInputId} error={fieldError}>
+        <input
+          className="image-field__file"
+          id={fileInputId}
+          type="file"
+          accept={IMAGE_UPLOAD_ACCEPT}
+          aria-describedby={`${id}-help${fieldError ? ` ${fileInputId}-error` : ""}`}
+          onChange={handleFileChange}
         />
+        <label className="image-field__dropzone" htmlFor={fileInputId}>
+          <span className="image-field__dropzone-title">
+            {previewUrl ? "Remplacer l'image" : "Televerser une image"}
+          </span>
+          <span id={`${id}-help`} className="image-field__help">
+            {IMAGE_UPLOAD_HELPER_TEXT}
+          </span>
+        </label>
       </FormField>
 
       <div className="image-field__preview">
@@ -67,19 +92,15 @@ export default function ImageField({
             {previewUrl ? "Remplacer" : "Televerser"}
           </span>
         </label>
-        <input
-          className="image-field__file"
-          id={fileInputId}
-          type="file"
-          accept="image/*"
-          onChange={handleFileChange}
-        />
         {previewUrl ? (
           <Button
             variant="ghost"
             size="sm"
             type="button"
-            onClick={() => onChange("")}
+            onClick={() => {
+              setLocalError(null);
+              onChange("");
+            }}
           >
             Supprimer
           </Button>

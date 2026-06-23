@@ -23,4 +23,13 @@ export type Event = {
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;
+  organization?: {
+    id: number;
+    name: string;
+    is_active: boolean;
+    latitude?: number | null;
+    longitude?: number | null;
+  };
+  favorite_count?: number;
+  history_count?: number;
 };

@@ -13,6 +13,7 @@ import (
 
 	"mappening/internal/auth"
 	"mappening/internal/config"
+	"mappening/internal/events"
 	"mappening/internal/http/middleware"
 	"mappening/internal/users"
 )
@@ -79,7 +80,7 @@ func newRouter(
 	r.Use(middleware.AccessLog(cfg.TrustedProxyCIDRs...))
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{cfg.FrontendURL},
-		AllowedMethods:   []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"X-CSRF-Token", middleware.RequestIDHeader},
 		AllowCredentials: true,
@@ -100,6 +101,8 @@ func newRouter(
 		FrontendURL: cfg.FrontendURL,
 	}))
 
+	r.Handle("/uploads/*", nethttp.StripPrefix("/uploads/", nethttp.FileServer(nethttp.Dir("uploads"))))
+
 	authHandler := auth.Handler{
 		Secret:           cfg.JWTSecret,
 		Issuer:           cfg.JWTIssuer,
@@ -113,6 +116,17 @@ func newRouter(
 		DevLoginEmail:    cfg.DevLoginEmail,
 		Store:            store,
 		UserRepo:         authUserRepo,
+	}
+
+	if db != nil {
+		events.RegisterRoutes(
+			r,
+			events.Handler{
+				Repo:      events.NewRepository(db),
+				UploadDir: "uploads/events",
+			},
+			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo),
+		)
 	}
 
 	r.Get("/api/health", func(w nethttp.ResponseWriter, r *nethttp.Request) {

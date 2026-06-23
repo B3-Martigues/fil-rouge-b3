@@ -127,6 +127,7 @@ body.events-home-route {
   gap: 16px;
   padding: 16px;
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   scrollbar-color: color-mix(in srgb, var(--text-p) 35%, transparent) transparent;
   scrollbar-width: thin;
@@ -536,6 +537,11 @@ body.events-home-route {
 
     &::placeholder {
       color: var(--text-p);
+    }
+
+    &::-webkit-search-cancel-button,
+    &::-webkit-search-decoration {
+      appearance: none;
     }
   }
 
@@ -1586,6 +1592,11 @@ body.events-home-route {
 
     &::placeholder {
       color: var(--text-p);
+    }
+
+    &::-webkit-search-cancel-button,
+    &::-webkit-search-decoration {
+      appearance: none;
     }
   }
 

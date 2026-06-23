@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
+import { eventsApi } from "../../event/api/events.api";
 
 export default function useFavorites() {
   const { currentUser, isAuthenticated } = useAuthStore();
@@ -28,6 +29,13 @@ export default function useFavorites() {
     if (!userId) return;
 
     toggleFavoriteInStore(userId, eventId);
+
+    if (currentUser?.auth_source === "api") {
+      const active = isFavorite(eventId);
+      void (active
+        ? eventsApi.removeFavorite(eventId)
+        : eventsApi.addFavorite(eventId));
+    }
   };
 
   const isFavorite = (eventId: number) => favorites.includes(eventId);

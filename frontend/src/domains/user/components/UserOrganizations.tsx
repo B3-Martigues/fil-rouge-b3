@@ -21,12 +21,14 @@ import ActionRow from "../../../shared/components/layout/ActionRow";
 import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import FormModal from "../../../shared/components/forms/FormModal";
+import ImageField from "../../../shared/components/forms/ImageField";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
 import Input from "../../../shared/components/ui/Input";
 import Select from "../../../shared/components/ui/Select";
 import StatusBadge from "../../../shared/components/ui/StatusBadge";
 import Textarea from "../../../shared/components/ui/Textarea";
+import { isValidUploadedImageValue } from "../../../shared/utils/imageUpload";
 
 type EventForm = {
   title: string;
@@ -151,10 +153,8 @@ const validateEventForm = (form: EventForm): EventFormErrors => {
     errors.longitude = "La longitude doit être comprise entre -180 et 180";
   }
 
-  if (!form.image.trim()) {
-    errors.image = "L'image est requise";
-  } else if (!URL.canParse(form.image.trim())) {
-    errors.image = "L'URL de l'image est invalide";
+  if (!isValidUploadedImageValue(form.image)) {
+    errors.image = "Ajoutez une image PNG, JPG ou WebP de 1 Mo maximum";
   }
 
   const price = Number(form.price.trim());
@@ -703,15 +703,13 @@ function EventEditor({
             onChange={(event) => onFieldChange("longitude", event.target.value)}
           />
         </FormField>
-        <FormField label="Image" htmlFor="member-event-image" error={errors.image}>
-          <Input
-            id="member-event-image"
-            type="url"
-            value={form.image}
-            hasError={!!errors.image}
-            onChange={(event) => onFieldChange("image", event.target.value)}
-          />
-        </FormField>
+        <ImageField
+          className="admin-form-grid__wide"
+          id="member-event-image"
+          value={form.image}
+          error={errors.image}
+          onChange={(value) => onFieldChange("image", value)}
+        />
         <FormField label="Prix" htmlFor="member-event-price" error={errors.price}>
           <Input
             id="member-event-price"

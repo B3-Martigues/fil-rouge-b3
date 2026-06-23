@@ -8,7 +8,10 @@ $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $BackendDir = Join-Path $RepoRoot "backend"
 $EnvExample = Join-Path $BackendDir ".env.example"
 $EnvLocal = Join-Path $BackendDir ".env.local"
-$SeedFile = Join-Path $BackendDir "scripts\seed-local-admin.sql"
+$SeedFiles = @(
+    (Join-Path $BackendDir "scripts\seed-local-admin.sql"),
+    (Join-Path $BackendDir "scripts\seed-local-events.sql")
+)
 
 function Assert-CommandAvailable {
     param(
@@ -73,8 +76,10 @@ try {
 }
 
 if (-not $SkipSeed) {
-    Get-Content -Raw $SeedFile | docker exec -i mappening-postgres psql "postgres://mappening_migrator:mappening_migrator_password@localhost:5432/mappening?sslmode=disable"
-    Assert-LastExitCode "seed local admin"
+    foreach ($SeedFile in $SeedFiles) {
+        Get-Content -Raw $SeedFile | docker exec -i mappening-postgres psql "postgres://mappening_migrator:mappening_migrator_password@localhost:5432/mappening?sslmode=disable"
+        Assert-LastExitCode "seed local data from $(Split-Path $SeedFile -Leaf)"
+    }
 }
 
 Write-Host ""

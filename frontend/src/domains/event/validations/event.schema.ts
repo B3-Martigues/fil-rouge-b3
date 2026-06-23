@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { isValidUploadedImageValue } from "../../../shared/utils/imageUpload";
 import { EVENT_CATEGORIES } from "../types/event-categories";
 import { isValidOptionalUrl } from "../utils/event";
 
@@ -38,7 +39,10 @@ export const eventFormSchema = z
       .string()
       .trim()
       .min(1, "L'image est requise")
-      .refine((value) => URL.canParse(value), "L'URL de l'image est invalide"),
+      .refine(
+        isValidUploadedImageValue,
+        "Ajoutez une image PNG, JPG ou WebP de 1 Mo maximum",
+      ),
     price: z
       .string()
       .trim()

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "react-toastify";
 
 import CategorySelect from "../../event/components/CategorySelect";
+import { eventsApi } from "../../event/api/events.api";
 import EmptyState from "../../../shared/components/feedback/EmptyState";
 import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
 import FormModal from "../../../shared/components/forms/FormModal";
@@ -180,7 +181,7 @@ export default function OrganizationEvents() {
     setEventDraft(null);
   };
 
-  const saveEvent = () => {
+  const saveEvent = async () => {
     if (!editingEventId || !eventDraft || !currentUser?.organization_id) return;
     const originalEvent = organizationEvents.find(
       (event) => event.id === editingEventId,
@@ -200,7 +201,8 @@ export default function OrganizationEvents() {
       return;
     }
 
-    updateEvent(editingEventId, {
+    const nextEvent: Event = {
+      ...originalEvent,
       title: eventDraft.title.trim(),
       description: eventDraft.description.trim(),
       start_date: new Date(eventDraft.start_date).toISOString(),
@@ -217,15 +219,40 @@ export default function OrganizationEvents() {
       source: eventDraft.source?.trim() || "Événement créé par une organisation",
       organization_id: currentUser.organization_id,
       is_active: false,
-    });
+    };
+
+    if (currentUser.auth_source === "api") {
+      const result = await eventsApi.update(editingEventId, nextEvent);
+
+      if (!result.ok) {
+        toast.error(result.error.message);
+        return;
+      }
+
+      updateEvent(editingEventId, {
+        ...result.data,
+        organization_id: currentUser.organization_id,
+      });
+    } else {
+      updateEvent(editingEventId, nextEvent);
+    }
 
     cancelEdit();
     toast.success("Événement mis à jour, en attente de publication");
   };
 
-  const deleteEvent = (eventId: number) => {
+  const deleteEvent = async (eventId: number) => {
     const deletedEvent = organizationEvents.find((event) => event.id === eventId);
     if (!deletedEvent) return;
+
+    if (currentUser?.auth_source === "api") {
+      const result = await eventsApi.remove(eventId);
+
+      if (!result.ok) {
+        toast.error(result.error.message);
+        return;
+      }
+    }
 
     deleteEventFromStore(eventId);
     setPendingDeleteEventId(null);
@@ -263,7 +290,7 @@ export default function OrganizationEvents() {
         onCancel={() => setPendingDeleteEventId(null)}
         onConfirm={() => {
           if (pendingDeleteEventId !== null) {
-            deleteEvent(pendingDeleteEventId);
+            void deleteEvent(pendingDeleteEventId);
           }
         }}
       />
@@ -279,7 +306,7 @@ export default function OrganizationEvents() {
             draft={eventDraft}
             setDraft={setEventDraft}
             onCancel={cancelEdit}
-            onSave={saveEvent}
+            onSave={() => void saveEvent()}
           />
         )}
       </FormModal>

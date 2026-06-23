@@ -6,6 +6,7 @@ import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import EmptyState from "../../../shared/components/feedback/EmptyState";
 import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
 import FormModal from "../../../shared/components/forms/FormModal";
+import ImageField from "../../../shared/components/forms/ImageField";
 import ActionRow from "../../../shared/components/layout/ActionRow";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
@@ -668,15 +669,13 @@ function EventEditor({
           />
         </FormField>
 
-        <FormField label="Image" htmlFor="event-image" error={errors.image}>
-          <Input
-            id="event-image"
-            hasError={!!errors.image}
-            type="url"
-            value={form.image}
-            onChange={(event) => onFieldChange("image", event.target.value)}
-          />
-        </FormField>
+        <ImageField
+          className="organization-form__wide"
+          id="event-image"
+          value={form.image}
+          error={errors.image}
+          onChange={(value) => onFieldChange("image", value)}
+        />
 
         <FormField label="Prix" htmlFor="event-price" error={errors.price}>
           <Input

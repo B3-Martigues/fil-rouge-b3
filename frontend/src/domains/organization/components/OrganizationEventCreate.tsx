@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import CategorySelect from "../../event/components/CategorySelect";
+import { eventsApi } from "../../event/api/events.api";
 import useAuthStore from "../../auth/store/authStore";
 import type { EventCategory } from "../../event/types/event-categories";
 import type { Event } from "../../event/types/event";
@@ -48,7 +49,7 @@ export default function OrganizationDashboard() {
     );
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setServerError(null);
 
@@ -87,7 +88,22 @@ export default function OrganizationDashboard() {
       updated_at: now,
     };
 
-    addEvent(newEvent);
+    if (currentUser.auth_source === "api") {
+      const result = await eventsApi.create(newEvent);
+
+      if (!result.ok) {
+        setServerError(result.error.message);
+        return;
+      }
+
+      addEvent({
+        ...result.data,
+        organization_id: currentUser.organization_id,
+      });
+    } else {
+      addEvent(newEvent);
+    }
+
     setForm(emptyEventForm());
     toast.success("Evenement envoye en attente de publication");
     navigate(ROUTES.ORGANIZATION.EVENTS);
