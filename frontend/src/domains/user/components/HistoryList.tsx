@@ -57,7 +57,9 @@ export default function History() {
   return (
     <div className="user-history">
       {userHistory.length === 0 ? (
-        <p>Aucun événement consulté pour le moment.</p>
+        <p className="feedback-message feedback-message--empty">
+          Aucun événement consulté pour le moment.
+        </p>
       ) : (
         <div className="user-events-list__grid">
           {userHistory.map(({ history, event }) => {
