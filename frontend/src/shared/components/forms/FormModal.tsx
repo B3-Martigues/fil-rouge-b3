@@ -22,6 +22,11 @@ export default function FormModal({
   size = "md",
 }: FormModalProps) {
   const dialogRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -32,7 +37,7 @@ export default function FormModal({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -60,7 +65,7 @@ export default function FormModal({
     window.addEventListener("keydown", onKeyDown);
     requestAnimationFrame(() => {
       const focusableElement = dialogRef.current?.querySelector<HTMLElement>(
-        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        '.form-modal__body input:not([disabled]), .form-modal__body select:not([disabled]), .form-modal__body textarea:not([disabled]), .form-modal__body button:not([disabled]), .form-modal__body a[href], .form-modal__body [tabindex]:not([tabindex="-1"]), button:not([disabled]), a[href]',
       );
 
       focusableElement?.focus();
@@ -73,7 +78,7 @@ export default function FormModal({
         previousActiveElement.focus();
       }
     };
-  }, [onClose, open]);
+  }, [open]);
 
   if (!open) return null;
 

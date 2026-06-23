@@ -874,6 +874,8 @@ func writeDomainError(w http.ResponseWriter, err error) {
 		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, ErrOrganizationInactive):
 		httpx.WriteJSONError(w, http.StatusConflict, err.Error())
+	case errors.Is(err, ErrOrganizationUnverified):
+		httpx.WriteJSONError(w, http.StatusConflict, err.Error())
 	case errors.Is(err, ErrForbidden):
 		httpx.WriteJSONError(w, http.StatusForbidden, err.Error())
 	default:

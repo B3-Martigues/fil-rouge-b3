@@ -161,6 +161,7 @@ export default function OrganizationRegisterForm({
           logo: data.logo.trim(),
           contact_phone_number: data.contact_phone_number.trim(),
           siret,
+          category_slugs: data.categories,
         });
 
         if (!result.ok) {

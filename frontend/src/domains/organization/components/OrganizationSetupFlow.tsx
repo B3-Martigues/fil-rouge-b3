@@ -34,9 +34,6 @@ type Props = {
   mode?: "become" | "create";
 };
 
-const getOrganizationDetailPath = (organizationId: number) =>
-  ROUTES.USER.ORGANIZATION_DETAIL.replace(":organizationId", String(organizationId));
-
 export default function OrganizationSetup({ mode = "become" }: Props) {
   const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -164,7 +161,7 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
     addOrganization(organization);
     addOrganizer(organizer);
     toast.success("Organisation créée et rattachee à votre compte");
-    navigate(getOrganizationDetailPath(organizationId), { replace: true });
+    navigate(ROUTES.USER.ORGANIZATIONS, { replace: true });
   };
 
   if (!currentUser || !userId) {

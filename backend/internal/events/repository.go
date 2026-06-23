@@ -10,13 +10,14 @@ import (
 )
 
 var (
-	ErrEventNotFound        = errors.New("event not found")
-	ErrCategoryNotFound     = errors.New("event category not found")
-	ErrOrganizationNotFound = errors.New("organization not found")
-	ErrOrganizationInactive = errors.New("organization is inactive")
-	ErrForbidden            = errors.New("user cannot manage this organization")
-	ErrFavoriteNotFound     = errors.New("favorite not found")
-	ErrHistoryNotFound      = errors.New("history not found")
+	ErrEventNotFound          = errors.New("event not found")
+	ErrCategoryNotFound       = errors.New("event category not found")
+	ErrOrganizationNotFound   = errors.New("organization not found")
+	ErrOrganizationInactive   = errors.New("organization is inactive")
+	ErrOrganizationUnverified = errors.New("organization is not verified")
+	ErrForbidden              = errors.New("user cannot manage this organization")
+	ErrFavoriteNotFound       = errors.New("favorite not found")
+	ErrHistoryNotFound        = errors.New("history not found")
 )
 
 type Repository struct {
@@ -699,12 +700,13 @@ func (r *Repository) RemoveHistory(ctx context.Context, accountID int64, history
 func (r *Repository) ensureCanManageOrganization(ctx context.Context, accountID int64, role string, organizationID int64) error {
 	var ownerAccountID int64
 	var active bool
+	var verified bool
 	var deletedAt sql.NullTime
 	err := r.db.QueryRowContext(ctx, `
-		SELECT account_id, is_active, deleted_at
+		SELECT account_id, is_active, is_verified, deleted_at
 		FROM organizations
 		WHERE id = $1
-	`, organizationID).Scan(&ownerAccountID, &active, &deletedAt)
+	`, organizationID).Scan(&ownerAccountID, &active, &verified, &deletedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrOrganizationNotFound
@@ -713,6 +715,9 @@ func (r *Repository) ensureCanManageOrganization(ctx context.Context, accountID 
 	}
 	if !active || deletedAt.Valid {
 		return ErrOrganizationInactive
+	}
+	if !verified {
+		return ErrOrganizationUnverified
 	}
 	if strings.EqualFold(role, "admin") || ownerAccountID == accountID {
 		return nil

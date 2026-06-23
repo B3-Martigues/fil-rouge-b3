@@ -58,6 +58,7 @@ export type RegisterOrganizationPayload = {
   logo: string;
   contact_phone_number: string;
   siret: string;
+  category_slugs: string[];
 };
 
 export type ChangePasswordPayload = {

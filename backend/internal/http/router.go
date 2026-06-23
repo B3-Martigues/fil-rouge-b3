@@ -15,6 +15,7 @@ import (
 	"mappening/internal/config"
 	"mappening/internal/events"
 	"mappening/internal/http/middleware"
+	"mappening/internal/organizations"
 	"mappening/internal/users"
 )
 
@@ -119,6 +120,16 @@ func newRouter(
 	}
 
 	if db != nil {
+		organizations.RegisterRoutes(
+			r,
+			organizations.Handler{
+				Service: organizations.Service{
+					Repo: organizations.NewRepository(db),
+				},
+			},
+			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo),
+		)
+
 		events.RegisterRoutes(
 			r,
 			events.Handler{

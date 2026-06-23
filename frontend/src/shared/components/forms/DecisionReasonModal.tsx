@@ -29,7 +29,7 @@ export default function DecisionReasonModal({
   open,
   reason,
   title,
-  variant = "danger",
+  variant = "primary",
 }: DecisionReasonModalProps) {
   return (
     <FormModal ariaLabel={title} open={open} size="sm" onClose={onCancel}>

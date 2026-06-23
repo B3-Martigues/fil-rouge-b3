@@ -34,21 +34,22 @@ type RegisterUserRequestDTO struct {
 }
 
 type RegisterOrganizationRequestDTO struct {
-	LoginEmail         string `json:"login_email"`
-	Email              string `json:"email"`
-	Password           string `json:"password"`
-	MemberName         string `json:"member_name"`
-	MemberJobRole      string `json:"member_job_role"`
-	Name               string `json:"name"`
-	ContactEmail       string `json:"contact_email"`
-	Description        string `json:"description"`
-	Website            string `json:"website"`
-	Address            string `json:"address"`
-	City               string `json:"city"`
-	PostalCode         string `json:"postal_code"`
-	Logo               string `json:"logo"`
-	ContactPhoneNumber string `json:"contact_phone_number"`
-	SIRET              string `json:"siret"`
+	LoginEmail         string   `json:"login_email"`
+	Email              string   `json:"email"`
+	Password           string   `json:"password"`
+	MemberName         string   `json:"member_name"`
+	MemberJobRole      string   `json:"member_job_role"`
+	Name               string   `json:"name"`
+	ContactEmail       string   `json:"contact_email"`
+	Description        string   `json:"description"`
+	Website            string   `json:"website"`
+	Address            string   `json:"address"`
+	City               string   `json:"city"`
+	PostalCode         string   `json:"postal_code"`
+	Logo               string   `json:"logo"`
+	ContactPhoneNumber string   `json:"contact_phone_number"`
+	SIRET              string   `json:"siret"`
+	CategorySlugs      []string `json:"category_slugs"`
 }
 
 type ChangePasswordRequestDTO struct {

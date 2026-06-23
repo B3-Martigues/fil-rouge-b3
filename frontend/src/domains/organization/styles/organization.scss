@@ -217,6 +217,10 @@
 }
 
 .organizations-page {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+
   &__header {
     display: flex;
     flex-wrap: wrap;

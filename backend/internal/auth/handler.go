@@ -281,6 +281,7 @@ func (h Handler) RegisterOrganization(w http.ResponseWriter, r *http.Request) {
 		Logo:               strings.TrimSpace(req.Logo),
 		ContactPhoneNumber: strings.TrimSpace(req.ContactPhoneNumber),
 		SIRET:              strings.TrimSpace(req.SIRET),
+		CategorySlugs:      normalizeSlugs(req.CategorySlugs),
 		IsVerified:         false,
 		IsActive:           false,
 	})
@@ -1063,6 +1064,18 @@ func writeAuthMutationError(w http.ResponseWriter, err error) {
 		httpx.WriteJSONError(w, http.StatusConflict, "username already used")
 		return
 	}
+	if errors.Is(err, users.ErrOrganizationSIRETAlreadyUsed) {
+		httpx.WriteJSONError(w, http.StatusConflict, "organization siret already used")
+		return
+	}
+	if errors.Is(err, users.ErrOrganizationAccountAlreadyUsed) {
+		httpx.WriteJSONError(w, http.StatusConflict, "account already has an organization")
+		return
+	}
+	if errors.Is(err, users.ErrOrganizationCategoryNotFound) {
+		httpx.WriteJSONError(w, http.StatusBadRequest, "organization category not found")
+		return
+	}
 	if errors.Is(err, users.ErrUserNotFound) {
 		httpx.WriteJSONError(w, http.StatusNotFound, "user not found")
 		return
@@ -1070,4 +1083,21 @@ func writeAuthMutationError(w http.ResponseWriter, err error) {
 
 	log.Error().Err(err).Msg("auth mutation failed")
 	httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
+}
+
+func normalizeSlugs(values []string) []string {
+	out := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(strings.ToLower(value))
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }

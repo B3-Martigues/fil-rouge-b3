@@ -9,9 +9,12 @@ import (
 )
 
 var (
-	ErrUserNotFound        = errors.New("user not found")
-	ErrEmailAlreadyUsed    = errors.New("email already used")
-	ErrUsernameAlreadyUsed = errors.New("username already used")
+	ErrUserNotFound                   = errors.New("user not found")
+	ErrEmailAlreadyUsed               = errors.New("email already used")
+	ErrUsernameAlreadyUsed            = errors.New("username already used")
+	ErrOrganizationSIRETAlreadyUsed   = errors.New("organization siret already used")
+	ErrOrganizationAccountAlreadyUsed = errors.New("account already has an organization")
+	ErrOrganizationCategoryNotFound   = errors.New("organization category not found")
 )
 
 type Repository struct {
@@ -33,6 +36,7 @@ type OrganizationRegistration struct {
 	Logo               string
 	ContactPhoneNumber string
 	SIRET              string
+	CategorySlugs      []string
 	IsVerified         bool
 	IsActive           bool
 }
@@ -244,6 +248,10 @@ func (r *Repository) CreateOrganization(ctx context.Context, registration Organi
 	).Scan(&organizationID)
 	if err != nil {
 		return nil, 0, mapOrganizationConstraintError(err)
+	}
+
+	if err := replaceOrganizationCategoriesInTx(ctx, tx, organizationID, registration.CategorySlugs); err != nil {
+		return nil, 0, err
 	}
 
 	_, err = tx.ExecContext(ctx, `
@@ -642,6 +650,13 @@ func mapOrganizationConstraintError(err error) error {
 		strings.Contains(msg, "organizations_contact_email") {
 		return ErrEmailAlreadyUsed
 	}
+	if strings.Contains(msg, "idx_organizations_siret_active") ||
+		strings.Contains(msg, "organizations_siret") {
+		return ErrOrganizationSIRETAlreadyUsed
+	}
+	if strings.Contains(msg, "organizations_account_id_key") {
+		return ErrOrganizationAccountAlreadyUsed
+	}
 
 	return fmt.Errorf("create organization: %w", err)
 }
@@ -649,4 +664,41 @@ func mapOrganizationConstraintError(err error) error {
 func nullIfBlank(value string) sql.NullString {
 	value = strings.TrimSpace(value)
 	return sql.NullString{String: value, Valid: value != ""}
+}
+
+func replaceOrganizationCategoriesInTx(ctx context.Context, tx *sql.Tx, organizationID int64, categorySlugs []string) error {
+	seen := make(map[int64]struct{})
+	for _, slug := range categorySlugs {
+		slug = strings.TrimSpace(strings.ToLower(slug))
+		if slug == "" {
+			continue
+		}
+
+		var categoryID int64
+		err := tx.QueryRowContext(ctx, `
+			SELECT id
+			FROM organization_categories
+			WHERE slug = $1
+		`, slug).Scan(&categoryID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ErrOrganizationCategoryNotFound
+			}
+			return fmt.Errorf("resolve organization category: %w", err)
+		}
+		if _, ok := seen[categoryID]; ok {
+			continue
+		}
+		seen[categoryID] = struct{}{}
+
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO organization_categories_links (organization_id, organization_category_id)
+			VALUES ($1, $2)
+			ON CONFLICT (organization_id, organization_category_id) DO NOTHING
+		`, organizationID, categoryID); err != nil {
+			return fmt.Errorf("create organization category link: %w", err)
+		}
+	}
+
+	return nil
 }

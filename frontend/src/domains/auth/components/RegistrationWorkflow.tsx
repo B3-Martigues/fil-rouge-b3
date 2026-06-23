@@ -266,6 +266,7 @@ export default function RegistrationWorkflow() {
         logo: organizationForm.logo.trim(),
         contact_phone_number: organizationForm.contact_phone_number.trim(),
         siret: organizationForm.siret.trim(),
+        category_slugs: organizationForm.categories,
       });
 
       if (!result.ok) {

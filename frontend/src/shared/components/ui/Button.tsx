@@ -48,7 +48,7 @@ function isRedActionLabel(children: ReactNode): boolean {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 
-  return ["annuler", "supprimer", "deconnexion"].some((word) =>
+  return ["supprimer", "deconnexion"].some((word) =>
     label.includes(word),
   );
 }
