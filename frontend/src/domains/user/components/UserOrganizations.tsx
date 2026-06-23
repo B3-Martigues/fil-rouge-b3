@@ -16,6 +16,7 @@ import {
 } from "../../event/utils/event";
 import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
+import { getCurrentUserOrganizationMemberships } from "../../organization/utils/organizerAccess";
 import ActionRow from "../../../shared/components/layout/ActionRow";
 import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
@@ -197,29 +198,14 @@ export default function UserOrganizations() {
     null,
   );
   const [modalError, setModalError] = useState<string | null>(null);
-  const currentUserId = currentUser?.user_id;
 
   const userOrganizations = useMemo<UserOrganization[]>(() => {
-    if (!currentUserId) return [];
-
-    return organizers
-      .filter(
-        (member) =>
-          member.user_id === currentUserId && !member.deleted_at,
-      )
-      .map((member) => {
-        const organization = allOrganizations.find(
-          (item) => item.id === member.organization_id && !item.deleted_at,
-        );
-
-        if (!organization) return null;
-
-        return {
-          organization,
-        };
-      })
-      .filter((item): item is UserOrganization => item !== null);
-  }, [allOrganizations, organizers, currentUserId]);
+    return getCurrentUserOrganizationMemberships(
+      currentUser,
+      organizers,
+      allOrganizations,
+    ).map(({ organization }) => ({ organization }));
+  }, [allOrganizations, organizers, currentUser]);
 
   const userOrganizationIds = useMemo(
     () => new Set(userOrganizations.map(({ organization }) => organization.id)),

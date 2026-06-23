@@ -3,6 +3,7 @@ package contracts
 type AuthUserDTO struct {
 	ID             int64  `json:"id"`
 	AccountID      int64  `json:"account_id"`
+	UserID         int64  `json:"user_id,omitempty"`
 	Email          string `json:"email"`
 	LoginEmail     string `json:"login_email"`
 	FirstName      string `json:"first_name"`

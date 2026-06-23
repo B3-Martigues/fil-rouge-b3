@@ -65,9 +65,10 @@ func scanUser(scanner interface {
 	Scan(dest ...any) error
 }) (*User, error) {
 	var user User
+	var profileID int64
 	err := scanner.Scan(
 		&user.ID,
-		&user.AccountID,
+		&profileID,
 		&user.Email,
 		&user.PasswordHash,
 		&user.FirstName,
@@ -82,6 +83,8 @@ func scanUser(scanner interface {
 	if err != nil {
 		return nil, err
 	}
+	user.AccountID = user.ID
+	user.ProfileID = profileID
 	if user.LastName == "" {
 		user.LastName = ""
 	}
@@ -164,7 +167,7 @@ func (r *Repository) Create(ctx context.Context, user *User) (int64, error) {
 		_ = tx.Rollback()
 	}()
 
-	id, _, err := createAccountUserInTx(ctx, tx, user)
+	id, profileID, err := createAccountUserInTx(ctx, tx, user)
 	if err != nil {
 		return 0, err
 	}
@@ -172,6 +175,10 @@ func (r *Repository) Create(ctx context.Context, user *User) (int64, error) {
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit create user tx: %w", err)
 	}
+
+	user.ID = id
+	user.AccountID = id
+	user.ProfileID = profileID
 
 	return id, nil
 }

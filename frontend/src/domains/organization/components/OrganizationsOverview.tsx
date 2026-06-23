@@ -13,6 +13,7 @@ import { ROUTES } from "../../../shared/constants/routes";
 import useDataStore from "../../../shared/store/dataStore";
 import useAuthStore from "../../auth/store/authStore";
 import type { Organization } from "../types/organization";
+import { getCurrentUserOrganizationMemberships } from "../utils/organizerAccess";
 import { OrganizationFields } from "./OrganizationSetupFlow";
 import {
   getOrganizationStatus,
@@ -42,18 +43,11 @@ export default function OrganizationsPage() {
   const [pendingDeleteOrganization, setPendingDeleteOrganization] =
     useState<Organization | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
-  const userId = currentUser?.user_id;
-  const userOrganizations = userId
-    ? organizers
-        .filter((organizer) => organizer.user_id === userId && !organizer.deleted_at)
-        .map((organizer) =>
-          organizations.find(
-            (organization) =>
-              organization.id === organizer.organization_id && !organization.deleted_at,
-          ),
-        )
-        .filter((organization): organization is Organization => Boolean(organization))
-    : [];
+  const userOrganizations = getCurrentUserOrganizationMemberships(
+    currentUser,
+    organizers,
+    organizations,
+  ).map(({ organization }) => organization);
 
   const closeOrganizationModal = () => {
     setEditingOrganizationId(null);

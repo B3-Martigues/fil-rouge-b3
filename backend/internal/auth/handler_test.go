@@ -113,6 +113,25 @@ func TestAuthHandler_Login_OK_SetsCookies_AndStore(t *testing.T) {
 	}
 }
 
+func TestToAuthUserDTO_IncludesAccountAndProfileIDs(t *testing.T) {
+	user := &users.User{
+		ID:          42,
+		AccountID:   42,
+		ProfileID:   7,
+		Email:       "user@mappening.local",
+		FirstName:   "User",
+		Role:        "user",
+		AccountType: "user",
+		IsActive:    true,
+	}
+
+	dto := toAuthUserDTO(user)
+
+	if dto.ID != 42 || dto.AccountID != 42 || dto.UserID != 7 {
+		t.Fatalf("unexpected auth ids: %+v", dto)
+	}
+}
+
 func TestAuthHandler_Login_InvalidCredentials_401(t *testing.T) {
 	store := NewRefreshStore()
 	h := Handler{

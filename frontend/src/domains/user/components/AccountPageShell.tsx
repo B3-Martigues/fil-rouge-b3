@@ -32,6 +32,7 @@ import {
 import useAuthStore from "../../auth/store/authStore";
 import { authHttpApi } from "../../auth/api/authHttp.api";
 import { getNotificationTypeConfig } from "../../notification/mocks/notification-types.mock";
+import { getCurrentUserOrganizationMemberships } from "../../organization/utils/organizerAccess";
 
 type AccountSection =
   | "profile"
@@ -119,15 +120,15 @@ export default function AccountPageShell() {
   const account = accounts.find(
     (item) => item.id === currentUser?.account_id && !item.deleted_at,
   );
-  const userOrganizationIds = new Set(
-    organizers
-      .filter((organizer) => organizer.user_id === userId && !organizer.deleted_at)
-      .map((organizer) => organizer.organization_id),
+  const userOrganizationMemberships = getCurrentUserOrganizationMemberships(
+    currentUser,
+    organizers,
+    organizations,
   );
-  const organizationCount = organizations.filter(
-    (organization) =>
-      userOrganizationIds.has(organization.id) && !organization.deleted_at,
-  ).length;
+  const userOrganizationIds = new Set(
+    userOrganizationMemberships.map(({ organization }) => organization.id),
+  );
+  const organizationCount = userOrganizationMemberships.length;
   const createdEventCount = events.filter(
     (event) => userOrganizationIds.has(event.organization_id) && !event.deleted_at,
   ).length;

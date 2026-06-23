@@ -40,6 +40,7 @@ import {
   type OrganizationForm,
   type OrganizationFormErrors,
 } from "../utils/organizationWorkflow";
+import { getCurrentUserOrganizationMemberships } from "../utils/organizerAccess";
 
 export default function OrganizationDetailPage() {
   const navigate = useNavigate();
@@ -54,17 +55,15 @@ export default function OrganizationDetailPage() {
   const updateEvent = useDataStore((s) => s.updateEvent);
   const deleteEvent = useDataStore((s) => s.deleteEvent);
   const parsedOrganizationId = Number(organizationId);
-  const currentUserId = currentUser?.user_id;
-  const organizerLink = organizers.find(
-    (organizer) =>
-      organizer.user_id === currentUserId &&
-      organizer.organization_id === parsedOrganizationId &&
-      !organizer.deleted_at,
+  const membership = getCurrentUserOrganizationMemberships(
+    currentUser,
+    organizers,
+    organizations,
+  ).find(
+    ({ organization }) => organization.id === parsedOrganizationId,
   );
-  const organization = organizations.find(
-    (item) =>
-      item.id === parsedOrganizationId && !!organizerLink && !item.deleted_at,
-  );
+  const organizerLink = membership?.organizer;
+  const organization = membership?.organization;
   const organizationEvents = events
     .filter((event) => event.organization_id === parsedOrganizationId)
     .toSorted(

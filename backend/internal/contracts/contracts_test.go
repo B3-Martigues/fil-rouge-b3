@@ -8,6 +8,8 @@ import (
 func TestAuthUserDTO_JSONContract(t *testing.T) {
 	dto := AuthUserDTO{
 		ID:        42,
+		AccountID: 42,
+		UserID:    7,
 		Email:     "ada@example.test",
 		FirstName: "Ada",
 		LastName:  "Lovelace",
@@ -25,7 +27,7 @@ func TestAuthUserDTO_JSONContract(t *testing.T) {
 		t.Fatalf("unmarshal AuthUserDTO map: %v", err)
 	}
 
-	for _, key := range []string{"id", "email", "first_name", "last_name", "role", "is_active"} {
+	for _, key := range []string{"id", "account_id", "user_id", "email", "first_name", "last_name", "role", "is_active"} {
 		if _, ok := got[key]; !ok {
 			t.Fatalf("expected JSON key %q in %s", key, string(data))
 		}

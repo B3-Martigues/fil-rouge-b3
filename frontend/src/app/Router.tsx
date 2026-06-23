@@ -12,6 +12,7 @@ import {
 
 import useAuthStore from "../domains/auth/store/authStore";
 import { getEventCategoryById } from "../domains/event/types/event-categories";
+import { hasCurrentUserOrganizationMembership } from "../domains/organization/utils/organizerAccess";
 import { isAccountSuspended, type Role } from "../domains/user/types/user";
 import AdminLayout from "../shared/layouts/AdminLayout";
 import OrganizationLayout from "../shared/layouts/OrganizationLayout";
@@ -225,11 +226,13 @@ const RequireUserPreferences = ({ children }: Props) => {
 const RequireUserOrganizer = ({ children }: Props) => {
   const currentUser = useAuthStore((s) => s.currentUser);
   const organizers = useDataStore((s) => s.organizers);
-  const userId = currentUser?.role === "user" ? currentUser.user_id : undefined;
+  const organizations = useDataStore((s) => s.organizations);
   const hasOrganizations =
-    !!userId &&
-    organizers.some(
-      (organizer) => organizer.user_id === userId && !organizer.deleted_at,
+    currentUser?.role === "user" &&
+    hasCurrentUserOrganizationMembership(
+      currentUser,
+      organizers,
+      organizations,
     );
 
   if (!hasOrganizations) {

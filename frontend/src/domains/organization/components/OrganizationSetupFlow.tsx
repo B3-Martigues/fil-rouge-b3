@@ -28,6 +28,7 @@ import {
   type OrganizerProfileErrors,
   type OrganizerProfileForm,
 } from "../utils/organizationWorkflow";
+import { hasCurrentUserOrganizationMembership } from "../utils/organizerAccess";
 
 type Props = {
   mode?: "become" | "create";
@@ -56,9 +57,11 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
   const [serverError, setServerError] = useState<string | null>(null);
 
   const userId = currentUser?.user_id;
-  const hasOrganizations =
-    !!userId &&
-    organizers.some((organizer) => organizer.user_id === userId && !organizer.deleted_at);
+  const hasOrganizations = hasCurrentUserOrganizationMembership(
+    currentUser,
+    organizers,
+    organizations,
+  );
   const title =
     mode === "create" || hasOrganizations
       ? "Ajouter une nouvelle organisation"

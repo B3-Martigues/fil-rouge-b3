@@ -9,6 +9,7 @@ import {
 type BackendAuthUser = {
   id: number;
   account_id?: number;
+  user_id?: number;
   email: string;
   login_email?: string;
   first_name: string;
@@ -78,6 +79,9 @@ const backendRoleToFrontendRole = (role: string): Role => {
   return "user";
 };
 
+const toLocalApiId = (value: number | null | undefined) =>
+  value ? -Math.abs(value) : undefined;
+
 const toAuthenticatedUser = (user: BackendAuthUser): AuthenticatedUser => {
   const role = backendRoleToFrontendRole(user.role);
   const displayName = [user.first_name, user.last_name]
@@ -85,7 +89,8 @@ const toAuthenticatedUser = (user: BackendAuthUser): AuthenticatedUser => {
     .filter(Boolean)
     .join(" ");
   const loginEmail = user.login_email ?? user.email;
-  const accountId = user.account_id ?? user.id;
+  const accountId = toLocalApiId(user.account_id ?? user.id) ?? user.id;
+  const userId = toLocalApiId(user.user_id ?? user.id);
 
   return {
     id: accountId,
@@ -95,8 +100,8 @@ const toAuthenticatedUser = (user: BackendAuthUser): AuthenticatedUser => {
     role_id: ROLE_IDS[role],
     username: user.username || displayName || loginEmail.split("@")[0] || loginEmail,
     is_active: user.is_active,
-    user_id: user.account_id ? user.id : accountId,
-    organization_id: user.organization_id,
+    user_id: userId,
+    organization_id: toLocalApiId(user.organization_id),
     auth_source: "api",
   };
 };

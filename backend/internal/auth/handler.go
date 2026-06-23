@@ -879,6 +879,7 @@ func toAuthUserDTO(user *users.User) contracts.AuthUserDTO {
 	return contracts.AuthUserDTO{
 		ID:          user.ID,
 		AccountID:   accountID,
+		UserID:      user.ProfileID,
 		Email:       user.Email,
 		LoginEmail:  user.Email,
 		FirstName:   user.FirstName,
