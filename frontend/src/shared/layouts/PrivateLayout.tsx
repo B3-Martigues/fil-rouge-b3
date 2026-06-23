@@ -8,6 +8,7 @@ import Header from "../components/layout/Header";
 import { ROUTES } from "../constants/routes";
 
 const accountRoutes = new Set<string>([
+  ROUTES.USER.ONBOARDING,
   ROUTES.USER.PROFILE,
   ROUTES.USER.FAVORITES,
   ROUTES.USER.HISTORY,

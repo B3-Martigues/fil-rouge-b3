@@ -7,7 +7,6 @@
 .user-favorites {
   display: grid;
   gap: 16px;
-  padding: 24px;
   text-align: left;
 
   @include respond-below($bp-sm) {
@@ -202,6 +201,7 @@
   font-size: clamp(22px, 6vw, 28px);
   line-height: 1.15;
   letter-spacing: 0;
+  margin-top: 10px
 }
 
 .account-shell__section-action {
@@ -435,6 +435,7 @@
   min-width: 0;
   min-height: 50svh;
   animation: account-section-enter 180ms ease both;
+  margin-top: 10px;
 
   h2 {
     margin: 0;
@@ -456,7 +457,6 @@
 .account-settings {
   display: grid;
   gap: 18px;
-  padding-top: 4px;
 }
 
 .account-settings__theme {
@@ -486,8 +486,6 @@
 .account-notifications {
   display: grid;
   gap: 12px;
-  max-width: 680px;
-  margin: 0 auto;
   width: 100%;
 }
 

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import type { EventCategoryName } from "../../event/types/event-categories";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
+import ActionRow from "../../../shared/components/layout/ActionRow";
 import Button from "../../../shared/components/ui/Button";
 import { ROUTES } from "../../../shared/constants/routes";
 import useDataStore from "../../../shared/store/dataStore";
@@ -37,13 +38,29 @@ export default function Onboarding() {
   };
 
   return (
-    <div>
-      <h1>Choisis tes centres d'interet</h1>
-      <PreferencesGrid selected={preferences} toggle={handleToggle} />
-      {error && <ErrorMessage message={error} />}
-      <Button type="button" onClick={handleSave}>
-        Continuer
-      </Button>
+    <div className="auth-page auth-page--wide auth-page--register">
+      <div className="auth-mobile-hero">
+        <p className="auth-mobile-hero__brand">Mappening</p>
+        <p>Trouvez les meilleurs evenements autour de vous !</p>
+      </div>
+
+      <div className="auth-login-stack auth-register-stack">
+        <div className="auth-register-stack__header">
+          <h1>Choisis tes centres d'interet</h1>
+        </div>
+
+        <section className="auth-form-section">
+          <h2>Preferences d'evenements</h2>
+          <PreferencesGrid selected={preferences} toggle={handleToggle} />
+          {error && <ErrorMessage message={error} />}
+
+          <ActionRow className="form-step-actions" align="center">
+            <Button type="button" onClick={handleSave}>
+              Continuer
+            </Button>
+          </ActionRow>
+        </section>
+      </div>
     </div>
   );
 }

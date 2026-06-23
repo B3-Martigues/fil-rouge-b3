@@ -79,6 +79,21 @@ SELECT current_database(), current_user, now();
 
 ### Lancer le backend
 
+Depuis la racine du projet, une seule commande prepare la base locale puis lance
+l'API :
+
+```powershell
+.\start-backend.ps1
+```
+
+Si vous ne voulez pas remettre a jour l'admin local au demarrage :
+
+```powershell
+.\start-backend.ps1 -SkipSeed
+```
+
+Commande manuelle equivalente :
+
 ```powershell
 cd backend
 go run ./cmd/api
