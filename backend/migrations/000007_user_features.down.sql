@@ -1,0 +1,6 @@
+BEGIN;
+
+DROP TABLE IF EXISTS user_event_preferences;
+DROP TABLE IF EXISTS password_reset_tokens;
+
+COMMIT;

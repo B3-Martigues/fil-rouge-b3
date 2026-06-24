@@ -11,6 +11,7 @@ import Button from "../../../shared/components/ui/Button";
 import { ROUTES } from "../../../shared/constants/routes";
 import useDataStore from "../../../shared/store/dataStore";
 import useAuthStore from "../../auth/store/authStore";
+import { userApi } from "../api/user.api";
 import PreferencesGrid from "../components/PreferencesGrid";
 import { useUserPreferences } from "../hooks/useUserPreferences";
 
@@ -36,10 +37,18 @@ export default function ProfilePreferences() {
     toggle(category);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (preferences.length === 0) {
       setError("Selectionnez au moins une preference.");
       return;
+    }
+
+    if (user.auth_source === "api") {
+      const result = await userApi.replacePreferences(preferences);
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
     }
 
     setUserEventPreferences(userId, preferences);
@@ -53,7 +62,7 @@ export default function ProfilePreferences() {
       <PreferencesGrid selected={preferences} toggle={handleToggle} />
       {error && <ErrorMessage message={error} />}
       <div className="profile-preferences__actions">
-        <Button type="button" onClick={handleSave}>
+        <Button type="button" onClick={() => void handleSave()}>
           Enregistrer mes préférences
         </Button>
       </div>

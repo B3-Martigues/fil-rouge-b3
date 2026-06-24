@@ -5,7 +5,8 @@ export const IMAGE_UPLOAD_HELPER_TEXT = `PNG, JPG ou WebP, ${IMAGE_UPLOAD_MAX_LA
 
 const acceptedImageTypes = new Set(IMAGE_UPLOAD_ACCEPT.split(","));
 const dataImagePattern = /^data:(image\/(?:jpeg|png|webp));base64,[a-zA-Z0-9+/]+={0,2}$/;
-const uploadedImagePathPattern = /^\/uploads\/events\/[a-zA-Z0-9._-]+\.(?:jpe?g|png|webp)$/;
+const uploadedImagePathPattern =
+  /^\/uploads\/(?:events|organizations)\/[a-zA-Z0-9._-]+\.(?:jpe?g|png|webp)$/;
 
 export const isAcceptedImageType = (type: string) => acceptedImageTypes.has(type);
 

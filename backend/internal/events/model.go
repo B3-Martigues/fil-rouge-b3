@@ -3,29 +3,31 @@ package events
 import "time"
 
 type Event struct {
-	ID             int64                `json:"id"`
-	OrganizationID int64                `json:"organization_id"`
-	Title          string               `json:"title"`
-	Description    string               `json:"description"`
-	StartDate      time.Time            `json:"start_date"`
-	EndDate        time.Time            `json:"end_date"`
-	Latitude       *float64             `json:"latitude,omitempty"`
-	Longitude      *float64             `json:"longitude,omitempty"`
-	Address        string               `json:"address"`
-	City           string               `json:"city"`
-	PostalCode     string               `json:"postal_code"`
-	Image          string               `json:"image"`
-	Price          float64              `json:"price"`
-	TicketingLink  string               `json:"ticketing_link"`
-	Source         *string              `json:"source,omitempty"`
-	IsActive       bool                 `json:"is_active"`
-	CreatedAt      time.Time            `json:"created_at"`
-	UpdatedAt      time.Time            `json:"updated_at"`
-	DeletedAt      *time.Time           `json:"deleted_at,omitempty"`
-	CategorySlugs  []string             `json:"category_slugs"`
-	Organization   *OrganizationSummary `json:"organization,omitempty"`
-	FavoriteCount  int64                `json:"favorite_count"`
-	HistoryCount   int64                `json:"history_count"`
+	ID               int64                `json:"id"`
+	OrganizationID   int64                `json:"organization_id"`
+	Title            string               `json:"title"`
+	Description      string               `json:"description"`
+	StartDate        time.Time            `json:"start_date"`
+	EndDate          time.Time            `json:"end_date"`
+	Latitude         *float64             `json:"latitude,omitempty"`
+	Longitude        *float64             `json:"longitude,omitempty"`
+	Address          string               `json:"address"`
+	City             string               `json:"city"`
+	PostalCode       string               `json:"postal_code"`
+	Image            string               `json:"image"`
+	Price            float64              `json:"price"`
+	TicketingLink    string               `json:"ticketing_link"`
+	Source           *string              `json:"source,omitempty"`
+	IsActive         bool                 `json:"is_active"`
+	SuspendedUntil   *time.Time           `json:"suspended_until,omitempty"`
+	SuspensionReason *string              `json:"suspension_reason,omitempty"`
+	CreatedAt        time.Time            `json:"created_at"`
+	UpdatedAt        time.Time            `json:"updated_at"`
+	DeletedAt        *time.Time           `json:"deleted_at,omitempty"`
+	CategorySlugs    []string             `json:"category_slugs"`
+	Organization     *OrganizationSummary `json:"organization,omitempty"`
+	FavoriteCount    int64                `json:"favorite_count"`
+	HistoryCount     int64                `json:"history_count"`
 }
 
 type OrganizationSummary struct {
@@ -76,6 +78,7 @@ type ListFilters struct {
 	UpcomingOnly    bool
 	PastOnly        bool
 	IncludeInactive bool
+	IncludeDeleted  bool
 	Bounds          *GeoBounds
 	Sort            string
 	Limit           int
@@ -107,8 +110,4 @@ type EventInput struct {
 	IsActive       *bool    `json:"is_active"`
 	CategorySlugs  []string `json:"category_slugs"`
 	CategoryIDs    []int64  `json:"category_ids"`
-}
-
-type ImageUploadResponse struct {
-	URL string `json:"url"`
 }

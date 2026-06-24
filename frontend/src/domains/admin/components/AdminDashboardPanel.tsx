@@ -28,6 +28,7 @@ import Textarea from "../../../shared/components/ui/Textarea";
 import { ROUTES } from "../../../shared/constants/routes";
 import { useStaffHeaderAction } from "../../../shared/layouts/StaffHeaderActionContext";
 import { accountRoleLabels } from "../../../shared/utils/account";
+import useStaffSync from "../../staff/hooks/useStaffSync";
 import useAuthStore from "../../auth/store/authStore";
 import {
   createAdministrativeAccountNotification,
@@ -363,6 +364,7 @@ const toggleEventDraftCategory = (
 
 export default function AdminDashboard({ view = "dashboard" }: AdminDashboardProps) {
   const currentUser = useAuthStore((s) => s.currentUser);
+  const { applyAction: applyStaffAction } = useStaffSync();
   const accountsData = useDataStore((s) => s.accounts);
   const usersData = useDataStore((s) => s.users);
   const organizationsData = useDataStore((s) => s.organizations);
@@ -571,13 +573,34 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     targetId: number,
     reason: string,
   ) => {
+    const trimmedReason = reason.trim();
+
+    if (currentUser?.auth_source === "api" && !action.endsWith("_admin_updated")) {
+      void applyStaffAction({
+        action,
+        target_type: targetType,
+        target_id: targetId,
+        reason: trimmedReason || "Decision administrative",
+      });
+      return;
+    }
+
     addModerationDecision({
       action,
       target_type: targetType,
       target_id: targetId,
       moderator_user_id: administratorUserId,
-      reason: reason.trim(),
+      reason: trimmedReason,
     });
+
+    if (!action.endsWith("_admin_updated")) {
+      void applyStaffAction({
+        action,
+        target_type: targetType,
+        target_id: targetId,
+        reason: trimmedReason || "Decision administrative",
+      });
+    }
   };
 
   const openDecisionModal = (request: AdminDecisionRequest) => {

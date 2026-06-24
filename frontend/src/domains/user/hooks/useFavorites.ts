@@ -8,6 +8,7 @@ export default function useFavorites() {
   const { currentUser, isAuthenticated } = useAuthStore();
   const favoriteRows = useDataStore((s) => s.favorites);
   const toggleFavoriteInStore = useDataStore((s) => s.toggleFavorite);
+  const upsertFavorite = useDataStore((s) => s.upsertFavorite);
 
   const userId =
     isAuthenticated && currentUser?.role === "user" ? currentUser.user_id : undefined;
@@ -25,16 +26,26 @@ export default function useFavorites() {
     [favoriteEntries],
   );
 
-  const toggleFavorite = (eventId: number) => {
+  const toggleFavorite = async (eventId: number) => {
     if (!userId) return;
 
+    const active = isFavorite(eventId);
     toggleFavoriteInStore(userId, eventId);
 
     if (currentUser?.auth_source === "api") {
-      const active = isFavorite(eventId);
-      void (active
-        ? eventsApi.removeFavorite(eventId)
-        : eventsApi.addFavorite(eventId));
+      if (active) {
+        const result = await eventsApi.removeFavorite(eventId);
+        if (!result.ok) {
+          toggleFavoriteInStore(userId, eventId);
+        }
+      } else {
+        const result = await eventsApi.addFavorite(eventId);
+        if (!result.ok) {
+          toggleFavoriteInStore(userId, eventId);
+          return;
+        }
+        upsertFavorite(result.data);
+      }
     }
   };
 

@@ -31,6 +31,7 @@ export default function OrganizationDashboard() {
   const [form, setForm] = useState<EventForm>(emptyEventForm);
   const [errors, setErrors] = useState<EventFormErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateField = <Key extends keyof EventForm>(
     field: Key,
@@ -64,6 +65,7 @@ export default function OrganizationDashboard() {
     if (Object.keys(validationErrors).length > 0) {
       return;
     }
+    setIsSubmitting(true);
 
     const now = new Date().toISOString();
     const newEvent: Event = {
@@ -93,6 +95,7 @@ export default function OrganizationDashboard() {
 
       if (!result.ok) {
         setServerError(result.error.message);
+        setIsSubmitting(false);
         return;
       }
 
@@ -106,6 +109,7 @@ export default function OrganizationDashboard() {
 
     setForm(emptyEventForm());
     toast.success("Evenement envoye en attente de publication");
+    setIsSubmitting(false);
     navigate(ROUTES.ORGANIZATION.EVENTS);
     requestAnimationFrame(() => {
       window.scrollTo({ top: 0, left: 0 });
@@ -356,7 +360,9 @@ export default function OrganizationDashboard() {
 
           {serverError && <ErrorMessage message={serverError} />}
 
-          <Button type="submit">Ajouter l'evenement</Button>
+          <Button type="submit" loading={isSubmitting} loadingLabel="Envoi...">
+            Ajouter l'evenement
+          </Button>
         </form>
       </section>
     </div>

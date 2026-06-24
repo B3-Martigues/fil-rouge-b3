@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
+import ImageField from "../../../shared/components/forms/ImageField";
 import ActionRow from "../../../shared/components/layout/ActionRow";
 import Button from "../../../shared/components/ui/Button";
 import Checkbox from "../../../shared/components/ui/Checkbox";
@@ -13,6 +14,7 @@ import Textarea from "../../../shared/components/ui/Textarea";
 import { ROUTES } from "../../../shared/constants/routes";
 import useDataStore from "../../../shared/store/dataStore";
 import useAuthStore from "../../auth/store/authStore";
+import { organizationsApi } from "../api/organizations.api";
 import type { Organization } from "../types/organization";
 import { CATEGORIES, type OrganizationCategoryName } from "../types/organization-categories";
 import type { Organizer } from "../types/organizer";
@@ -41,6 +43,8 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
   const organizers = useDataStore((s) => s.organizers);
   const addOrganization = useDataStore((s) => s.addOrganization);
   const addOrganizer = useDataStore((s) => s.addOrganizer);
+  const upsertOrganizations = useDataStore((s) => s.upsertOrganizations);
+  const upsertOrganizers = useDataStore((s) => s.upsertOrganizers);
   const [step, setStep] = useState(0);
   const [organizerForm, setOrganizerForm] = useState<OrganizerProfileForm>(
     emptyOrganizerProfileForm,
@@ -52,6 +56,7 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
   const [organizationErrors, setOrganizationErrors] =
     useState<OrganizationFormErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const userId = currentUser?.user_id;
   const hasOrganizations = hasCurrentUserOrganizationMembership(
@@ -108,7 +113,7 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
     }
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setServerError(null);
 
@@ -121,6 +126,7 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
     setOrganizationErrors(errors);
 
     if (Object.keys(errors).length > 0) return;
+    setIsSubmitting(true);
 
     const createdAt = new Date().toISOString();
     const organizationId = createNextId(organizations);
@@ -158,9 +164,47 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
       deleted_at: null,
     };
 
-    addOrganization(organization);
-    addOrganizer(organizer);
+    if (currentUser.auth_source === "api") {
+      const organizationResult = await organizationsApi.create({
+        name: organization.name,
+        contact_email: organization.contact_email,
+        description: organization.description,
+        website: organization.website,
+        latitude: organization.latitude,
+        longitude: organization.longitude,
+        address: organization.address,
+        city: organization.city,
+        postal_code: organization.postal_code,
+        logo: organization.logo,
+        contact_phone_number: organization.contact_phone_number,
+        siret: organization.siret,
+        is_active: false,
+        is_verified: false,
+        category_slugs: organization.category_slugs,
+      });
+
+      if (!organizationResult.ok) {
+        setServerError(organizationResult.error.message);
+        setIsSubmitting(false);
+        return;
+      }
+
+      upsertOrganizations([organizationResult.data]);
+
+      const memberResult = await organizationsApi.addMember(organizationResult.data.id, {
+        user_id: userId,
+        job_role: organizer.job_role ?? null,
+      });
+
+      if (memberResult.ok) {
+        upsertOrganizers([memberResult.data]);
+      }
+    } else {
+      addOrganization(organization);
+      addOrganizer(organizer);
+    }
     toast.success("Organisation créée et rattachee à votre compte");
+    setIsSubmitting(false);
     navigate(ROUTES.USER.ORGANIZATIONS, { replace: true });
   };
 
@@ -241,7 +285,9 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
             <Button type="button" variant="secondary" onClick={() => setStep(0)}>
               Précédent
             </Button>
-            <Button type="submit">Valider</Button>
+            <Button type="submit" loading={isSubmitting} loadingLabel="Enregistrement...">
+              Valider
+            </Button>
           </ActionRow>
         </form>
       )}
@@ -321,16 +367,14 @@ export function OrganizationFields({
           />
         </FormField>
 
-        <FormField label="Logo" htmlFor="organization-logo" error={errors.logo}>
-          <Input
-            id="organization-logo"
-            hasError={!!errors.logo}
-            placeholder="https://example.fr/logo.png"
-            type="url"
-            value={form.logo}
-            onChange={(event) => onFieldChange("logo", event.target.value)}
-          />
-        </FormField>
+        <ImageField
+          className="organization-form__wide"
+          id="organization-logo"
+          label="Logo"
+          value={form.logo}
+          error={errors.logo}
+          onChange={(value) => onFieldChange("logo", value)}
+        />
 
         <FormField
           className="organization-form__wide"

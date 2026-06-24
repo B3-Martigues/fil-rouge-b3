@@ -111,6 +111,7 @@ export default function OrganizationEvents() {
   const [pendingDeleteEventId, setPendingDeleteEventId] = useState<number | null>(
     null,
   );
+  const [isSavingEvent, setIsSavingEvent] = useState(false);
 
   const organizationEvents = events.filter(
     (event) =>
@@ -200,6 +201,7 @@ export default function OrganizationEvents() {
       toast.error(firstError);
       return;
     }
+    setIsSavingEvent(true);
 
     const nextEvent: Event = {
       ...originalEvent,
@@ -226,6 +228,7 @@ export default function OrganizationEvents() {
 
       if (!result.ok) {
         toast.error(result.error.message);
+        setIsSavingEvent(false);
         return;
       }
 
@@ -238,6 +241,7 @@ export default function OrganizationEvents() {
     }
 
     cancelEdit();
+    setIsSavingEvent(false);
     toast.success("Événement mis à jour, en attente de publication");
   };
 
@@ -304,6 +308,7 @@ export default function OrganizationEvents() {
         {eventDraft && (
           <OrganizationEventEditor
             draft={eventDraft}
+            isSaving={isSavingEvent}
             setDraft={setEventDraft}
             onCancel={cancelEdit}
             onSave={() => void saveEvent()}
@@ -486,11 +491,13 @@ export default function OrganizationEvents() {
 
 function OrganizationEventEditor({
   draft,
+  isSaving,
   setDraft,
   onCancel,
   onSave,
 }: {
   draft: EventDraft;
+  isSaving: boolean;
   setDraft: (draft: EventDraft | null) => void;
   onCancel: () => void;
   onSave: () => void;
@@ -644,7 +651,12 @@ function OrganizationEventEditor({
         </FormField>
 
         <ActionRow className="admin-actions admin-form-grid__wide">
-          <Button type="button" onClick={onSave}>
+          <Button
+            type="button"
+            loading={isSaving}
+            loadingLabel="Enregistrement..."
+            onClick={onSave}
+          >
             Valider
           </Button>
           <Button variant="secondary" type="button" onClick={onCancel}>

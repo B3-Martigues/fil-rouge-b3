@@ -7,6 +7,7 @@ import FormModal from "../../../shared/components/forms/FormModal";
 import Button from "../../../shared/components/ui/Button";
 import Textarea from "../../../shared/components/ui/Textarea";
 import useDataStore from "../../../shared/store/dataStore";
+import { staffApi } from "../../staff/api/staff.api";
 import type { Event } from "../types/event";
 
 type Props = {
@@ -63,7 +64,7 @@ export default function ReportEventButton({ event }: Props) {
     setIsOpen((value) => !value);
   };
 
-  const submitReport = () => {
+  const submitReport = async () => {
     if (!userId || isSubmitting) return;
 
     const trimmedDetails = details.trim();
@@ -74,6 +75,29 @@ export default function ReportEventButton({ event }: Props) {
     }
 
     setIsSubmitting(true);
+    if (currentUser.auth_source === "api") {
+      const result = await staffApi.createReport({
+        target_type: "event",
+        target_id: event.id,
+        reporter_user_id: userId,
+        reason: "Signalement utilisateur",
+        details: trimmedDetails,
+        priority: "medium",
+      });
+
+      setIsSubmitting(false);
+
+      if (!result.ok) {
+        toast.info(result.error.message);
+        return;
+      }
+
+      setDetails("");
+      setIsOpen(false);
+      toast.success("Signalement transmis a la moderation");
+      return;
+    }
+
     const report = addModerationReport({
       target_type: "event",
       target_id: event.id,

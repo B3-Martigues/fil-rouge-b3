@@ -2,10 +2,13 @@ package users
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 var (
@@ -15,6 +18,7 @@ var (
 	ErrOrganizationSIRETAlreadyUsed   = errors.New("organization siret already used")
 	ErrOrganizationAccountAlreadyUsed = errors.New("account already has an organization")
 	ErrOrganizationCategoryNotFound   = errors.New("organization category not found")
+	ErrEventCategoryNotFound          = errors.New("event category not found")
 )
 
 type Repository struct {
@@ -356,6 +360,268 @@ func (r *Repository) UpdatePassword(ctx context.Context, userID int64, passwordH
 	return nil
 }
 
+func (r *Repository) UpdateProfile(ctx context.Context, accountID int64, email string, username string) (*User, error) {
+	current, err := r.GetByID(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	current.Email = strings.TrimSpace(strings.ToLower(email))
+	current.FirstName = strings.TrimSpace(username)
+	current.LastName = ""
+	if current.Email == "" || current.FirstName == "" {
+		return nil, ErrUserNotFound
+	}
+
+	if err := r.Update(ctx, current, nil); err != nil {
+		return nil, err
+	}
+	return r.GetByID(ctx, accountID)
+}
+
+func (r *Repository) CreatePasswordResetToken(ctx context.Context, email string, token string, expiresAt time.Time) (bool, error) {
+	user, err := r.GetByEmail(ctx, strings.TrimSpace(strings.ToLower(email)))
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	if !user.IsActive || user.DeletedAt != nil {
+		return false, nil
+	}
+
+	tokenHash := hashToken(token)
+	if _, err := r.db.ExecContext(ctx, `
+		INSERT INTO password_reset_tokens (token_hash, account_id, expires_at)
+		VALUES ($1, $2, $3)
+	`, tokenHash, user.ID, expiresAt); err != nil {
+		return false, fmt.Errorf("create password reset token: %w", err)
+	}
+	return true, nil
+}
+
+func (r *Repository) ResetPasswordWithToken(ctx context.Context, token string, passwordHash string) error {
+	tokenHash := hashToken(token)
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin reset password tx: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	var accountID int64
+	err = tx.QueryRowContext(ctx, `
+		SELECT account_id
+		FROM password_reset_tokens
+		WHERE token_hash = $1
+		  AND used_at IS NULL
+		  AND expires_at > NOW()
+		FOR UPDATE
+	`, tokenHash).Scan(&accountID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrUserNotFound
+		}
+		return fmt.Errorf("find password reset token: %w", err)
+	}
+
+	res, err := tx.ExecContext(ctx, `
+		UPDATE accounts
+		SET password_hash = $1, password_changed_at = NOW(), updated_at = NOW()
+		WHERE id = $2
+		  AND deleted_at IS NULL
+	`, passwordHash, accountID)
+	if err != nil {
+		return fmt.Errorf("reset password: %w", err)
+	}
+	if err := requireRows(res, ErrUserNotFound); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE password_reset_tokens
+		SET used_at = NOW()
+		WHERE token_hash = $1
+	`, tokenHash); err != nil {
+		return fmt.Errorf("consume password reset token: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit reset password tx: %w", err)
+	}
+	return nil
+}
+
+func (r *Repository) UserProfileID(ctx context.Context, accountID int64) (int64, error) {
+	var userID int64
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id
+		FROM users
+		WHERE account_id = $1
+		  AND deleted_at IS NULL
+	`, accountID).Scan(&userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ErrUserNotFound
+		}
+		return 0, fmt.Errorf("get user profile id: %w", err)
+	}
+	return userID, nil
+}
+
+func (r *Repository) ListEventPreferences(ctx context.Context, accountID int64) ([]EventPreference, error) {
+	userID, err := r.UserProfileID(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT uep.id, uep.user_id, uep.event_category_id, ec.slug, uep.created_at, uep.updated_at
+		FROM user_event_preferences uep
+		JOIN event_categories ec ON ec.id = uep.event_category_id
+		WHERE uep.user_id = $1
+		ORDER BY ec.slug ASC
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list event preferences: %w", err)
+	}
+	defer rows.Close()
+
+	var preferences []EventPreference
+	for rows.Next() {
+		var preference EventPreference
+		if err := rows.Scan(&preference.ID, &preference.UserID, &preference.EventCategoryID, &preference.CategorySlug, &preference.CreatedAt, &preference.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan event preference: %w", err)
+		}
+		preferences = append(preferences, preference)
+	}
+	return preferences, rows.Err()
+}
+
+func (r *Repository) ReplaceEventPreferences(ctx context.Context, accountID int64, categorySlugs []string) ([]EventPreference, error) {
+	userID, err := r.UserProfileID(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin replace preferences tx: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM user_event_preferences WHERE user_id = $1`, userID); err != nil {
+		return nil, fmt.Errorf("clear event preferences: %w", err)
+	}
+
+	seen := map[string]struct{}{}
+	for _, slug := range categorySlugs {
+		slug = strings.TrimSpace(strings.ToLower(slug))
+		if slug == "" {
+			continue
+		}
+		if _, ok := seen[slug]; ok {
+			continue
+		}
+		seen[slug] = struct{}{}
+
+		res, err := tx.ExecContext(ctx, `
+			INSERT INTO user_event_preferences (user_id, event_category_id, updated_at)
+			SELECT $1, ec.id, NOW()
+			FROM event_categories ec
+			WHERE ec.slug = $2
+		`, userID, slug)
+		if err != nil {
+			return nil, fmt.Errorf("insert event preference: %w", err)
+		}
+		if err := requireRows(res, ErrEventCategoryNotFound); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit replace preferences tx: %w", err)
+	}
+	return r.ListEventPreferences(ctx, accountID)
+}
+
+func (r *Repository) ListNotifications(ctx context.Context, accountID int64) ([]Notification, error) {
+	userID, err := r.UserProfileID(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, user_id, event_id, organization_id, notification_type_id,
+			title, message, is_read, read_at, action_url, created_at
+		FROM notifications
+		WHERE user_id = $1
+		ORDER BY created_at DESC, id DESC
+		LIMIT 100
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list notifications: %w", err)
+	}
+	defer rows.Close()
+
+	var notifications []Notification
+	for rows.Next() {
+		notification, err := scanNotification(rows)
+		if err != nil {
+			return nil, err
+		}
+		notifications = append(notifications, *notification)
+	}
+	return notifications, rows.Err()
+}
+
+func (r *Repository) MarkNotificationRead(ctx context.Context, accountID int64, notificationID int64) (*Notification, error) {
+	userID, err := r.UserProfileID(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	notification, err := scanNotification(r.db.QueryRowContext(ctx, `
+		UPDATE notifications
+		SET is_read = TRUE,
+		    read_at = COALESCE(read_at, NOW())
+		WHERE id = $1
+		  AND user_id = $2
+		RETURNING id, user_id, event_id, organization_id, notification_type_id,
+			title, message, is_read, read_at, action_url, created_at
+	`, notificationID, userID))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, fmt.Errorf("mark notification read: %w", err)
+	}
+	return notification, nil
+}
+
+func (r *Repository) MarkAllNotificationsRead(ctx context.Context, accountID int64) error {
+	userID, err := r.UserProfileID(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, `
+		UPDATE notifications
+		SET is_read = TRUE,
+		    read_at = COALESCE(read_at, NOW())
+		WHERE user_id = $1
+		  AND is_read = FALSE
+	`, userID)
+	if err != nil {
+		return fmt.Errorf("mark notifications read: %w", err)
+	}
+	return nil
+}
+
 func (r *Repository) Delete(ctx context.Context, userID int64) error {
 	const query = `
 		UPDATE accounts
@@ -659,6 +925,73 @@ func mapOrganizationConstraintError(err error) error {
 	}
 
 	return fmt.Errorf("create organization: %w", err)
+}
+
+func hashToken(token string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(token)))
+	return hex.EncodeToString(sum[:])
+}
+
+func scanNotification(scanner interface {
+	Scan(dest ...any) error
+}) (*Notification, error) {
+	var notification Notification
+	var eventID sql.NullInt64
+	var organizationID sql.NullInt64
+	var readAt sql.NullTime
+	var actionURL sql.NullString
+	if err := scanner.Scan(
+		&notification.ID,
+		&notification.UserID,
+		&eventID,
+		&organizationID,
+		&notification.NotificationTypeID,
+		&notification.Title,
+		&notification.Message,
+		&notification.IsRead,
+		&readAt,
+		&actionURL,
+		&notification.CreatedAt,
+	); err != nil {
+		return nil, err
+	}
+	notification.EventID = nullableInt(eventID)
+	notification.OrganizationID = nullableInt(organizationID)
+	notification.ReadAt = nullableTime(readAt)
+	notification.ActionURL = nullableString(actionURL)
+	return &notification, nil
+}
+
+func nullableInt(value sql.NullInt64) *int64 {
+	if !value.Valid {
+		return nil
+	}
+	return &value.Int64
+}
+
+func nullableTime(value sql.NullTime) *time.Time {
+	if !value.Valid {
+		return nil
+	}
+	return &value.Time
+}
+
+func nullableString(value sql.NullString) *string {
+	if !value.Valid {
+		return nil
+	}
+	return &value.String
+}
+
+func requireRows(res sql.Result, notFound error) error {
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if n == 0 {
+		return notFound
+	}
+	return nil
 }
 
 func nullIfBlank(value string) sql.NullString {

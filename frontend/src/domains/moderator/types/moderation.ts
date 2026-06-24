@@ -23,6 +23,7 @@ export type ModerationAction =
   | "organization_rejected"
   | "account_admin_updated"
   | "account_suspended"
+  | "report_reviewing"
   | "report_resolved"
   | "report_dismissed";
 

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/mail"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -59,6 +60,26 @@ type authOrganizationCreator interface {
 
 type authUserPasswordUpdater interface {
 	UpdatePassword(ctx context.Context, userID int64, passwordHash string) error
+}
+
+type authUserProfileUpdater interface {
+	UpdateProfile(ctx context.Context, accountID int64, email string, username string) (*users.User, error)
+}
+
+type authPasswordResetter interface {
+	CreatePasswordResetToken(ctx context.Context, email string, token string, expiresAt time.Time) (bool, error)
+	ResetPasswordWithToken(ctx context.Context, token string, passwordHash string) error
+}
+
+type authUserPreferencesRepository interface {
+	ListEventPreferences(ctx context.Context, accountID int64) ([]users.EventPreference, error)
+	ReplaceEventPreferences(ctx context.Context, accountID int64, categorySlugs []string) ([]users.EventPreference, error)
+}
+
+type authUserNotificationsRepository interface {
+	ListNotifications(ctx context.Context, accountID int64) ([]users.Notification, error)
+	MarkNotificationRead(ctx context.Context, accountID int64, notificationID int64) (*users.Notification, error)
+	MarkAllNotificationsRead(ctx context.Context, accountID int64) error
 }
 
 type authUserDeleter interface {
@@ -601,6 +622,270 @@ func (h Handler) Me(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, toAuthUserDTO(user))
 }
 
+func (h Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	updater, ok := h.UserRepo.(authUserProfileUpdater)
+	if h.UserRepo == nil || !ok {
+		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
+		return
+	}
+
+	claimsUser := middleware.GetUser(r)
+	if claimsUser == nil {
+		httpx.WriteJSONError(w, http.StatusUnauthorized, "no user")
+		return
+	}
+
+	var req contracts.UpdateProfileRequestDTO
+	if err := httpx.DecodeStrictJSON(w, r, &req); err != nil {
+		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	email := normalizeEmail(firstNonBlank(req.LoginEmail, req.Email))
+	username := strings.TrimSpace(req.Username)
+	if err := validateEmail(email); err != nil {
+		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if username == "" {
+		httpx.WriteJSONError(w, http.StatusBadRequest, "username is required")
+		return
+	}
+	if utf8.RuneCountInString(username) > 100 {
+		httpx.WriteJSONError(w, http.StatusBadRequest, "username is too long")
+		return
+	}
+
+	user, err := updater.UpdateProfile(r.Context(), claimsUser.UserID, email, username)
+	if err != nil {
+		writeAuthMutationError(w, err)
+		return
+	}
+	if h.Store != nil && !strings.EqualFold(claimsUser.Email, user.Email) {
+		_ = h.Store.Delete(claimsUser.Email)
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, toAuthUserDTO(user))
+}
+
+func (h Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	resetter, ok := h.UserRepo.(authPasswordResetter)
+	if h.UserRepo == nil || !ok {
+		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
+		return
+	}
+	if !isJSONContentType(r.Header.Get("Content-Type")) {
+		httpx.WriteJSONError(w, http.StatusUnsupportedMediaType, "content type must be application/json")
+		return
+	}
+	if !isAllowedBrowserOrigin(r, h.FrontendURL) {
+		httpx.WriteJSONError(w, http.StatusForbidden, "invalid origin")
+		return
+	}
+
+	var req contracts.ForgotPasswordRequestDTO
+	if err := httpx.DecodeStrictJSON(w, r, &req); err != nil {
+		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	email := normalizeEmail(firstNonBlank(req.LoginEmail, req.Email))
+	if err := validateEmail(email); err != nil {
+		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	token, err := randomToken()
+	if err != nil {
+		log.Error().Err(err).Msg("forgot password: token generation failed")
+		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	exists, err := resetter.CreatePasswordResetToken(r.Context(), email, token, time.Now().Add(30*time.Minute))
+	if err != nil {
+		log.Error().Err(err).Msg("forgot password: create token failed")
+		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	message := "Si un compte actif existe avec cet email, un lien de reinitialisation a ete envoye."
+	response := contracts.ForgotPasswordResponseDTO{OK: true, Message: message}
+	if exists {
+		resetPath := "/reset-password/" + token
+		if h.FrontendURL != "" {
+			if base, err := url.Parse(h.FrontendURL); err == nil {
+				base.Path = resetPath
+				base.RawQuery = ""
+				base.Fragment = ""
+				response.ResetURL = base.String()
+				response.ResetLink = response.ResetURL
+			}
+		}
+		if response.ResetURL == "" {
+			response.ResetURL = resetPath
+			response.ResetLink = resetPath
+		}
+	}
+	httpx.WriteJSON(w, http.StatusOK, response)
+}
+
+func (h Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	resetter, ok := h.UserRepo.(authPasswordResetter)
+	if h.UserRepo == nil || !ok {
+		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
+		return
+	}
+	if !isJSONContentType(r.Header.Get("Content-Type")) {
+		httpx.WriteJSONError(w, http.StatusUnsupportedMediaType, "content type must be application/json")
+		return
+	}
+	if !isAllowedBrowserOrigin(r, h.FrontendURL) {
+		httpx.WriteJSONError(w, http.StatusForbidden, "invalid origin")
+		return
+	}
+
+	var req contracts.ResetPasswordRequestDTO
+	if err := httpx.DecodeStrictJSON(w, r, &req); err != nil {
+		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	token := strings.TrimSpace(req.Token)
+	password := firstNonBlank(req.NewPassword, req.Password)
+	if token == "" {
+		httpx.WriteJSONError(w, http.StatusBadRequest, "token is required")
+		return
+	}
+	if err := validatePassword(password); err != nil {
+		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Error().Err(err).Msg("reset password: hash password failed")
+		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	if err := resetter.ResetPasswordWithToken(r.Context(), token, string(hash)); err != nil {
+		if errors.Is(err, users.ErrUserNotFound) {
+			httpx.WriteJSONError(w, http.StatusBadRequest, "invalid or expired reset token")
+			return
+		}
+		writeAuthMutationError(w, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (h Handler) ListPreferences(w http.ResponseWriter, r *http.Request) {
+	repo, ok := h.UserRepo.(authUserPreferencesRepository)
+	if h.UserRepo == nil || !ok {
+		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
+		return
+	}
+	claimsUser := middleware.GetUser(r)
+	if claimsUser == nil {
+		httpx.WriteJSONError(w, http.StatusUnauthorized, "no user")
+		return
+	}
+	preferences, err := repo.ListEventPreferences(r.Context(), claimsUser.UserID)
+	if err != nil {
+		writeAuthMutationError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, preferences)
+}
+
+func (h Handler) ReplacePreferences(w http.ResponseWriter, r *http.Request) {
+	repo, ok := h.UserRepo.(authUserPreferencesRepository)
+	if h.UserRepo == nil || !ok {
+		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
+		return
+	}
+	claimsUser := middleware.GetUser(r)
+	if claimsUser == nil {
+		httpx.WriteJSONError(w, http.StatusUnauthorized, "no user")
+		return
+	}
+	var req contracts.ReplacePreferencesRequestDTO
+	if err := httpx.DecodeStrictJSON(w, r, &req); err != nil {
+		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if len(req.CategorySlugs) == 0 {
+		httpx.WriteJSONError(w, http.StatusBadRequest, "at least one preference is required")
+		return
+	}
+	preferences, err := repo.ReplaceEventPreferences(r.Context(), claimsUser.UserID, req.CategorySlugs)
+	if err != nil {
+		writeAuthMutationError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, preferences)
+}
+
+func (h Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
+	repo, ok := h.UserRepo.(authUserNotificationsRepository)
+	if h.UserRepo == nil || !ok {
+		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
+		return
+	}
+	claimsUser := middleware.GetUser(r)
+	if claimsUser == nil {
+		httpx.WriteJSONError(w, http.StatusUnauthorized, "no user")
+		return
+	}
+	notifications, err := repo.ListNotifications(r.Context(), claimsUser.UserID)
+	if err != nil {
+		writeAuthMutationError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, notifications)
+}
+
+func (h Handler) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
+	repo, ok := h.UserRepo.(authUserNotificationsRepository)
+	if h.UserRepo == nil || !ok {
+		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
+		return
+	}
+	claimsUser := middleware.GetUser(r)
+	if claimsUser == nil {
+		httpx.WriteJSONError(w, http.StatusUnauthorized, "no user")
+		return
+	}
+	notificationID, err := parseTrailingID(r.URL.Path, "/read")
+	if err != nil {
+		httpx.WriteJSONError(w, http.StatusBadRequest, "invalid notification id")
+		return
+	}
+	notification, err := repo.MarkNotificationRead(r.Context(), claimsUser.UserID, notificationID)
+	if err != nil {
+		writeAuthMutationError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, notification)
+}
+
+func (h Handler) MarkAllNotificationsRead(w http.ResponseWriter, r *http.Request) {
+	repo, ok := h.UserRepo.(authUserNotificationsRepository)
+	if h.UserRepo == nil || !ok {
+		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
+		return
+	}
+	claimsUser := middleware.GetUser(r)
+	if claimsUser == nil {
+		httpx.WriteJSONError(w, http.StatusUnauthorized, "no user")
+		return
+	}
+	if err := repo.MarkAllNotificationsRead(r.Context(), claimsUser.UserID); err != nil {
+		writeAuthMutationError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
 func (h Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	updater, ok := h.UserRepo.(authUserPasswordUpdater)
 	if h.UserRepo == nil || !ok {
@@ -904,6 +1189,27 @@ func writeCSRFHeader(w http.ResponseWriter, csrf string) {
 	w.Header().Set("X-CSRF-Token", csrf)
 }
 
+func randomToken() (string, error) {
+	var b [32]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b[:]), nil
+}
+
+func parseTrailingID(path string, suffix string) (int64, error) {
+	value := strings.TrimSuffix(strings.TrimSpace(path), suffix)
+	lastSlash := strings.LastIndex(value, "/")
+	if lastSlash < 0 || lastSlash == len(value)-1 {
+		return 0, strconv.ErrSyntax
+	}
+	id, err := strconv.ParseInt(value[lastSlash+1:], 10, 64)
+	if err != nil || id <= 0 {
+		return 0, strconv.ErrSyntax
+	}
+	return id, nil
+}
+
 func isLoopbackRequest(r *http.Request) bool {
 	host, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
 	if err != nil {
@@ -1074,6 +1380,10 @@ func writeAuthMutationError(w http.ResponseWriter, err error) {
 	}
 	if errors.Is(err, users.ErrOrganizationCategoryNotFound) {
 		httpx.WriteJSONError(w, http.StatusBadRequest, "organization category not found")
+		return
+	}
+	if errors.Is(err, users.ErrEventCategoryNotFound) {
+		httpx.WriteJSONError(w, http.StatusBadRequest, "event category not found")
 		return
 	}
 	if errors.Is(err, users.ErrUserNotFound) {

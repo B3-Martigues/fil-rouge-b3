@@ -29,6 +29,7 @@ export default function FavoriteButton({ event }: Props) {
   return (
     <Button
       aria-label={active ? "Retirer des favoris" : "Ajouter aux favoris"}
+      title={active ? "Retirer des favoris" : "Ajouter aux favoris"}
       className={`event-favorite-button${active ? " is-active" : ""}`}
       icon={<Heart color="currentColor" fill={active ? "currentColor" : "none"} />}
       iconOnly

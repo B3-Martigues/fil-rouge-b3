@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { isValidUploadedImageValue } from "../../../shared/utils/imageUpload";
 import { CATEGORIES } from "../types/organization-categories";
 
 const optionalUrlSchema = (message: string) =>
@@ -35,7 +36,13 @@ export const organizationFormSchema = z.object({
     .string()
     .trim()
     .regex(/^\d{5}$/, "Le code postal doit contenir 5 chiffres"),
-  logo: optionalUrlSchema("URL du logo invalide"),
+  logo: z
+    .string()
+    .trim()
+    .refine(
+      (value) => value === "" || isValidUploadedImageValue(value),
+      "Ajoutez un logo PNG, JPG ou WebP de 1 Mo maximum",
+    ),
   contact_phone_number: z
     .string()
     .trim()

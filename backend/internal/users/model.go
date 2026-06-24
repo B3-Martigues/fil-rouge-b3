@@ -17,3 +17,26 @@ type User struct {
 	UpdatedAt    time.Time  `json:"updated_at"`
 	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
 }
+
+type EventPreference struct {
+	ID              int64     `json:"id"`
+	UserID          int64     `json:"user_id"`
+	EventCategoryID int64     `json:"event_category_id"`
+	CategorySlug    string    `json:"category_slug"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+type Notification struct {
+	ID                 int64      `json:"id"`
+	UserID             int64      `json:"user_id"`
+	EventID            *int64     `json:"event_id,omitempty"`
+	OrganizationID     *int64     `json:"organization_id,omitempty"`
+	NotificationTypeID int64      `json:"notification_type_id"`
+	Title              string     `json:"title"`
+	Message            string     `json:"message"`
+	IsRead             bool       `json:"is_read"`
+	ReadAt             *time.Time `json:"read_at,omitempty"`
+	ActionURL          *string    `json:"action_url,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
+}

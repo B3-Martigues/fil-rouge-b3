@@ -8,6 +8,7 @@ import Button from "../../../shared/components/ui/Button";
 import { ROUTES } from "../../../shared/constants/routes";
 import useDataStore from "../../../shared/store/dataStore";
 import useAuthStore from "../../auth/store/authStore";
+import { userApi } from "../api/user.api";
 import PreferencesGrid from "../components/PreferencesGrid";
 import { useUserPreferences } from "../hooks/useUserPreferences";
 
@@ -25,12 +26,20 @@ export default function Onboarding() {
     toggle(category);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!user?.user_id) return;
 
     if (preferences.length === 0) {
       setError("Selectionnez au moins une preference pour continuer.");
       return;
+    }
+
+    if (user.auth_source === "api") {
+      const result = await userApi.replacePreferences(preferences);
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
     }
 
     setUserEventPreferences(user.user_id, preferences);
@@ -55,7 +64,7 @@ export default function Onboarding() {
           {error && <ErrorMessage message={error} />}
 
           <ActionRow className="form-step-actions" align="center">
-            <Button type="button" onClick={handleSave}>
+            <Button type="button" onClick={() => void handleSave()}>
               Continuer
             </Button>
           </ActionRow>

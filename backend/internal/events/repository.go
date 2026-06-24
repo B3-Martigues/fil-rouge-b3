@@ -46,6 +46,8 @@ const eventSelect = `
 		e.ticketing_link,
 		e.source,
 		e.is_active,
+		e.suspended_until,
+		e.suspension_reason,
 		e.created_at,
 		e.updated_at,
 		e.deleted_at,
@@ -77,6 +79,8 @@ func scanEvent(scanner interface {
 	var latitude sql.NullFloat64
 	var longitude sql.NullFloat64
 	var source sql.NullString
+	var suspendedUntil sql.NullTime
+	var suspensionReason sql.NullString
 	var deletedAt sql.NullTime
 	var organizationName string
 	var organizationActive bool
@@ -101,6 +105,8 @@ func scanEvent(scanner interface {
 		&event.TicketingLink,
 		&source,
 		&event.IsActive,
+		&suspendedUntil,
+		&suspensionReason,
 		&event.CreatedAt,
 		&event.UpdatedAt,
 		&deletedAt,
@@ -119,6 +125,10 @@ func scanEvent(scanner interface {
 	event.Latitude = nullableFloatPtr(latitude)
 	event.Longitude = nullableFloatPtr(longitude)
 	event.Source = nullableStringPtr(source)
+	if suspendedUntil.Valid {
+		event.SuspendedUntil = &suspendedUntil.Time
+	}
+	event.SuspensionReason = nullableStringPtr(suspensionReason)
 	if deletedAt.Valid {
 		event.DeletedAt = &deletedAt.Time
 	}
@@ -869,6 +879,12 @@ func (r *Repository) resolveCategoryIDs(ctx context.Context, tx *sql.Tx, ids []i
 func buildEventWhere(filters ListFilters) (string, []any) {
 	clauses := []string{"e.deleted_at IS NULL", "o.deleted_at IS NULL"}
 	args := []any{}
+
+	if filters.IncludeDeleted {
+		clauses = []string{"1 = 1"}
+	} else {
+		clauses = []string{"e.deleted_at IS NULL", "o.deleted_at IS NULL"}
+	}
 
 	if !filters.IncludeInactive {
 		clauses = append(clauses, "e.is_active = TRUE", "o.is_active = TRUE")

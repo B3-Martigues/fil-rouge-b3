@@ -13,7 +13,6 @@ export default function AppSplash({
   onFinished,
 }: AppSplashProps) {
   const [hasMetMinimumDuration, setHasMetMinimumDuration] = useState(false);
-  const [shouldForceExit, setShouldForceExit] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const hasStartedExit = useRef(false);
 
@@ -21,13 +20,9 @@ export default function AppSplash({
     const minimumTimer = window.setTimeout(() => {
       setHasMetMinimumDuration(true);
     }, 1800);
-    const fallbackTimer = window.setTimeout(() => {
-      setShouldForceExit(true);
-    }, 4200);
 
     return () => {
       window.clearTimeout(minimumTimer);
-      window.clearTimeout(fallbackTimer);
     };
   }, []);
 
@@ -35,7 +30,7 @@ export default function AppSplash({
     if (
       hasStartedExit.current ||
       !hasMetMinimumDuration ||
-      (!isReady && !shouldForceExit)
+      !isReady
     ) {
       return;
     }
@@ -51,7 +46,6 @@ export default function AppSplash({
     hasMetMinimumDuration,
     isReady,
     onFinished,
-    shouldForceExit,
   ]);
 
   return (

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm, type FieldPath } from "react-hook-form";
+import { useForm, useWatch, type FieldPath } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -17,6 +17,7 @@ import {
 import type { Organization } from "../../organization/types/organization";
 import type { Organizer } from "../../organization/types/organizer";
 import { CATEGORIES } from "../../organization/types/organization-categories";
+import { organizationsApi } from "../../organization/api/organizations.api";
 import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
@@ -25,6 +26,7 @@ import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
 import Checkbox from "../../../shared/components/ui/Checkbox";
 import CheckboxGroup from "../../../shared/components/ui/CheckboxGroup";
+import ImageField from "../../../shared/components/forms/ImageField";
 import FormField from "../../../shared/components/ui/FormField";
 import Textarea from "../../../shared/components/ui/Textarea";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
@@ -101,7 +103,9 @@ export default function OrganizationRegisterForm({
 
   const {
     register,
+    control,
     handleSubmit,
+    setValue,
     trigger,
     formState: { errors },
   } = useForm<OrganizationRegisterFormData>({
@@ -109,12 +113,14 @@ export default function OrganizationRegisterForm({
     mode: "onTouched",
     defaultValues: {
       categories: [],
+      logo: "",
     },
   });
 
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === organizationRegisterSteps.length - 1;
   const step = organizationRegisterSteps[currentStep];
+  const logoValue = useWatch({ control, name: "logo" }) ?? "";
 
   const goToPreviousStep = () => {
     setServerError(null);
@@ -145,6 +151,7 @@ export default function OrganizationRegisterForm({
       const organizationName = data.name.trim();
       const contactEmail = data.contact_email.trim();
       const siret = data.siret.trim();
+      const logo = data.logo.trim();
       if (!isAdminMode) {
         const result = await authHttpApi.registerOrganization({
           login_email: loginEmail,
@@ -158,7 +165,7 @@ export default function OrganizationRegisterForm({
           address: data.address.trim(),
           city: data.city.trim(),
           postal_code: data.postal_code.trim(),
-          logo: data.logo.trim(),
+          logo: "",
           contact_phone_number: data.contact_phone_number.trim(),
           siret,
           category_slugs: data.categories,
@@ -171,6 +178,26 @@ export default function OrganizationRegisterForm({
         }
 
         login(result.data);
+        if (result.data.organization_id && logo) {
+          const logoResult = await organizationsApi.update(result.data.organization_id, {
+            name: organizationName,
+            contact_email: contactEmail,
+            description: data.description.trim(),
+            website: data.website.trim(),
+            address: data.address.trim(),
+            city: data.city.trim(),
+            postal_code: data.postal_code.trim(),
+            logo,
+            contact_phone_number: data.contact_phone_number.trim(),
+            siret,
+            is_active: false,
+            is_verified: false,
+            category_slugs: data.categories,
+          });
+          if (!logoResult.ok) {
+            toast.error(logoResult.error.message);
+          }
+        }
         toast.success("Compte organization cree. En attente de validation");
         navigate(ROUTES.ORGANIZATION.DASHBOARD);
         return;
@@ -469,15 +496,19 @@ export default function OrganizationRegisterForm({
               />
             </FormField>
 
-            <FormField label="Logo" htmlFor="logo" error={errors.logo?.message}>
-              <Input
-                id="logo"
-                type="url"
-                placeholder="https://example.fr/logo.png"
-                hasError={!!errors.logo}
-                {...register("logo")}
-              />
-            </FormField>
+            <ImageField
+              id="logo"
+              label="Logo"
+              value={logoValue}
+              error={errors.logo?.message}
+              onChange={(value) =>
+                setValue("logo", value, {
+                  shouldDirty: true,
+                  shouldTouch: true,
+                  shouldValidate: true,
+                })
+              }
+            />
 
             <FormField
               label="Telephone"

@@ -2,9 +2,11 @@ import { useState, type FormEvent } from "react";
 import { toast } from "react-toastify";
 
 import useAuthStore from "../../auth/store/authStore";
+import { organizationsApi } from "../api/organizations.api";
 import { CATEGORIES, type CategoryName } from "../types/organization-categories";
 import type { Organization } from "../types/organization";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
+import ImageField from "../../../shared/components/forms/ImageField";
 import Button from "../../../shared/components/ui/Button";
 import Checkbox from "../../../shared/components/ui/Checkbox";
 import CheckboxGroup from "../../../shared/components/ui/CheckboxGroup";
@@ -12,6 +14,7 @@ import FormField from "../../../shared/components/ui/FormField";
 import Input from "../../../shared/components/ui/Input";
 import Textarea from "../../../shared/components/ui/Textarea";
 import useDataStore from "../../../shared/store/dataStore";
+import { isValidUploadedImageValue } from "../../../shared/utils/imageUpload";
 
 type OrganizationProfileForm = {
   name: string;
@@ -77,8 +80,8 @@ const validateForm = (form: OrganizationProfileForm): OrganizationProfileErrors 
     errors.website = "URL du site invalide";
   }
 
-  if (form.logo && !URL.canParse(form.logo)) {
-    errors.logo = "URL du logo invalide";
+  if (form.logo && !isValidUploadedImageValue(form.logo)) {
+    errors.logo = "Ajoutez un logo PNG, JPG ou WebP de 1 Mo maximum";
   }
 
   if (!isValidOptionalCoordinate(form.latitude, -90, 90)) {
@@ -127,6 +130,7 @@ export default function OrganizationProfile() {
   );
   const [errors, setErrors] = useState<OrganizationProfileErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateField = <Key extends keyof OrganizationProfileForm>(
     field: Key,
@@ -149,7 +153,7 @@ export default function OrganizationProfile() {
     );
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setServerError(null);
 
@@ -164,6 +168,7 @@ export default function OrganizationProfile() {
     if (Object.keys(validationErrors).length > 0) {
       return;
     }
+    setIsSubmitting(true);
 
     const contactEmail = form.contact_email.trim();
     const siret = form.siret.trim();
@@ -175,6 +180,7 @@ export default function OrganizationProfile() {
 
     if (existingContactEmail) {
       setServerError("Cet email de contact est deja utilise");
+      setIsSubmitting(false);
       return;
     }
 
@@ -186,10 +192,11 @@ export default function OrganizationProfile() {
 
     if (existingSiret) {
       setServerError("Ce SIRET est deja utilise");
+      setIsSubmitting(false);
       return;
     }
 
-    updateOrganization(organization.id, {
+    const payload = {
       name: form.name.trim(),
       contact_email: contactEmail,
       description: form.description.trim(),
@@ -203,7 +210,21 @@ export default function OrganizationProfile() {
       contact_phone_number: form.contact_phone_number.trim(),
       siret,
       category_slugs: form.categories,
-    });
+    };
+
+    if (user.auth_source === "api") {
+      const result = await organizationsApi.update(organization.id, payload);
+
+      if (!result.ok) {
+        setServerError(result.error.message);
+        setIsSubmitting(false);
+        return;
+      }
+
+      updateOrganization(organization.id, result.data);
+    } else {
+      updateOrganization(organization.id, payload);
+    }
 
     login({
       ...user,
@@ -211,6 +232,7 @@ export default function OrganizationProfile() {
     });
 
     toast.success("Profil organization mis a jour");
+    setIsSubmitting(false);
   };
 
   if (!organization || !form) {
@@ -299,15 +321,14 @@ export default function OrganizationProfile() {
               />
             </FormField>
 
-            <FormField label="Logo" htmlFor="organization-logo" error={errors.logo}>
-              <Input
-                id="organization-logo"
-                type="url"
-                value={form.logo}
-                hasError={!!errors.logo}
-                onChange={(event) => updateField("logo", event.target.value)}
-              />
-            </FormField>
+            <ImageField
+              className="organization-event-form__wide"
+              id="organization-logo"
+              label="Logo"
+              value={form.logo}
+              error={errors.logo}
+              onChange={(value) => updateField("logo", value)}
+            />
 
             <FormField
               label="Latitude"
@@ -434,7 +455,9 @@ export default function OrganizationProfile() {
 
           {serverError && <ErrorMessage message={serverError} />}
 
-          <Button type="submit">Enregistrer le profil</Button>
+          <Button type="submit" loading={isSubmitting} loadingLabel="Enregistrement...">
+            Enregistrer le profil
+          </Button>
         </form>
       </section>
     </div>

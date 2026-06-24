@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { CATEGORIES } from "../../organization/types/organization-categories";
+import { isValidUploadedImageValue } from "../../../shared/utils/imageUpload";
 
 const passwordSchema = z
   .string()
@@ -47,7 +48,13 @@ export const organizationRegisterSchema = z
     address: z.string().min(5, "Adresse requise"),
     city: z.string().min(2, "Ville requise"),
     postal_code: z.string().regex(/^\d{5}$/, "Le code postal doit contenir 5 chiffres"),
-    logo: z.string().url("URL du logo invalide"),
+    logo: z
+      .string()
+      .trim()
+      .refine(
+        (value) => value === "" || isValidUploadedImageValue(value),
+        "Ajoutez un logo PNG, JPG ou WebP de 1 Mo maximum",
+      ),
     contact_phone_number: z
       .string()
       .regex(/^\d{10}$/, "Le telephone doit contenir 10 chiffres"),

@@ -80,6 +80,10 @@ type FormModalLocationState = {
   formModal?: boolean;
 };
 
+type RouterProps = {
+  isHomeDataReady?: boolean;
+};
+
 const formModalRoutes = [
   { path: ROUTES.PUBLIC.FORGOT_PASSWORD, label: "Mot de passe oublié" },
   { path: ROUTES.PUBLIC.RESET_PASSWORD, label: "Réinitialisation du mot de passe" },
@@ -287,7 +291,7 @@ const routeFallback = (
   </div>
 );
 
-const Router = () => {
+const Router = ({ isHomeDataReady = true }: RouterProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const locationState = location.state as FormModalLocationState | null;
@@ -316,7 +320,7 @@ const Router = () => {
             path={ROUTES.PUBLIC.HOME}
             element={
               <RequireUserPreferences>
-                <Home />
+                <Home isInitialDataReady={isHomeDataReady} />
               </RequireUserPreferences>
             }
           />

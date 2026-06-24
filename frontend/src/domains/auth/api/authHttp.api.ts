@@ -1,4 +1,5 @@
 import { apiRequest } from "../../../shared/api/httpClient";
+import { toLocalApiId } from "../../../shared/api/idMapping";
 import type { ApiResult } from "../../../shared/api/api.types";
 import {
   ROLE_IDS,
@@ -79,9 +80,6 @@ const backendRoleToFrontendRole = (role: string): Role => {
   if (role === "user") return "user";
   return "user";
 };
-
-const toLocalApiId = (value: number | null | undefined) =>
-  value ? -Math.abs(value) : undefined;
 
 const toAuthenticatedUser = (user: BackendAuthUser): AuthenticatedUser => {
   const role = backendRoleToFrontendRole(user.role);

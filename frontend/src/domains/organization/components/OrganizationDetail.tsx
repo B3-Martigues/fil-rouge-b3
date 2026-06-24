@@ -16,9 +16,11 @@ import Textarea from "../../../shared/components/ui/Textarea";
 import { ROUTES } from "../../../shared/constants/routes";
 import useDataStore from "../../../shared/store/dataStore";
 import useAuthStore from "../../auth/store/authStore";
+import { eventsApi } from "../../event/api/events.api";
 import CategorySelect from "../../event/components/CategorySelect";
 import type { Event } from "../../event/types/event";
 import type { EventCategory } from "../../event/types/event-categories";
+import { organizationsApi } from "../api/organizations.api";
 import {
   formatDateTime,
   formatEventDateRange,
@@ -160,7 +162,7 @@ export default function OrganizationDetailPage() {
     setModalError(null);
   };
 
-  const saveOrganization = (event: FormEvent<HTMLFormElement>) => {
+  const saveOrganization = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!organization || !organizationForm) return;
@@ -175,7 +177,7 @@ export default function OrganizationDetailPage() {
 
     if (Object.keys(errors).length > 0) return;
 
-    updateOrganization(organization.id, {
+    const payload = {
       name: organizationForm.name.trim(),
       contact_email: organizationForm.contact_email.trim(),
       description: organizationForm.description.trim(),
@@ -189,14 +191,36 @@ export default function OrganizationDetailPage() {
       contact_phone_number: organizationForm.contact_phone_number.trim() || null,
       siret: organizationForm.siret.trim() || null,
       category_slugs: organizationForm.categories,
-    });
+    };
+
+    if (currentUser?.auth_source === "api") {
+      const result = await organizationsApi.update(organization.id, payload);
+
+      if (!result.ok) {
+        setModalError(result.error.message);
+        return;
+      }
+
+      updateOrganization(organization.id, result.data);
+    } else {
+      updateOrganization(organization.id, payload);
+    }
 
     closeOrganizationEditor();
     toast.success("Organisation mise a jour");
   };
 
-  const confirmDeleteOrganization = () => {
+  const confirmDeleteOrganization = async () => {
     if (!organization) return;
+
+    if (currentUser?.auth_source === "api") {
+      const result = await organizationsApi.remove(organization.id);
+
+      if (!result.ok) {
+        toast.error(result.error.message);
+        return;
+      }
+    }
 
     deleteOrganization(organization.id);
     setPendingDeleteOrganization(false);
@@ -218,7 +242,7 @@ export default function OrganizationDetailPage() {
     setModalError(null);
   };
 
-  const saveEvent = (event: FormEvent<HTMLFormElement>) => {
+  const saveEvent = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!organization || !eventForm) return;
@@ -253,23 +277,54 @@ export default function OrganizationDetailPage() {
     };
 
     if (editingEventId === null) {
-      addEvent({
-        id: createNextId(events),
-        ...eventPayload,
-        created_at: now,
-        updated_at: now,
-      });
+      if (currentUser?.auth_source === "api") {
+        const result = await eventsApi.create(eventPayload);
+
+        if (!result.ok) {
+          setModalError(result.error.message);
+          return;
+        }
+
+        addEvent(result.data);
+      } else {
+        addEvent({
+          id: createNextId(events),
+          ...eventPayload,
+          created_at: now,
+          updated_at: now,
+        });
+      }
       toast.success("Evenement cree en attente de validation");
     } else {
-      updateEvent(editingEventId, eventPayload);
+      if (currentUser?.auth_source === "api") {
+        const result = await eventsApi.update(editingEventId, eventPayload);
+
+        if (!result.ok) {
+          setModalError(result.error.message);
+          return;
+        }
+
+        updateEvent(editingEventId, result.data);
+      } else {
+        updateEvent(editingEventId, eventPayload);
+      }
       toast.success("Evenement mis a jour en attente de validation");
     }
 
     closeEventEditor();
   };
 
-  const confirmDeleteEvent = () => {
+  const confirmDeleteEvent = async () => {
     if (pendingDeleteEventId === null) return;
+
+    if (currentUser?.auth_source === "api") {
+      const result = await eventsApi.remove(pendingDeleteEventId);
+
+      if (!result.ok) {
+        toast.error(result.error.message);
+        return;
+      }
+    }
 
     deleteEvent(pendingDeleteEventId);
     setPendingDeleteEventId(null);
@@ -298,7 +353,9 @@ export default function OrganizationDetailPage() {
         open={pendingDeleteOrganization}
         title="Supprimer l'organisation"
         onCancel={() => setPendingDeleteOrganization(false)}
-        onConfirm={confirmDeleteOrganization}
+        onConfirm={() => {
+          void confirmDeleteOrganization();
+        }}
       />
 
       <ConfirmDialog
@@ -311,7 +368,9 @@ export default function OrganizationDetailPage() {
         open={pendingDeleteEventId !== null}
         title="Supprimer l'evenement"
         onCancel={() => setPendingDeleteEventId(null)}
-        onConfirm={confirmDeleteEvent}
+        onConfirm={() => {
+          void confirmDeleteEvent();
+        }}
       />
 
       <FormModal

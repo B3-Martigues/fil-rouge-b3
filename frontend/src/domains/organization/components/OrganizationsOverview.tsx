@@ -12,6 +12,7 @@ import StatusBadge from "../../../shared/components/ui/StatusBadge";
 import { ROUTES } from "../../../shared/constants/routes";
 import useDataStore from "../../../shared/store/dataStore";
 import useAuthStore from "../../auth/store/authStore";
+import { organizationsApi } from "../api/organizations.api";
 import type { Organization } from "../types/organization";
 import { getCurrentUserOrganizationMemberships } from "../utils/organizerAccess";
 import { OrganizationFields } from "./OrganizationSetupFlow";
@@ -88,7 +89,7 @@ export default function OrganizationsPage() {
     );
   };
 
-  const saveOrganization = (submitEvent: FormEvent<HTMLFormElement>) => {
+  const saveOrganization = async (submitEvent: FormEvent<HTMLFormElement>) => {
     submitEvent.preventDefault();
 
     if (!organizationForm || editingOrganizationId === null) return;
@@ -103,7 +104,7 @@ export default function OrganizationsPage() {
 
     if (Object.keys(errors).length > 0) return;
 
-    updateOrganization(editingOrganizationId, {
+    const payload = {
       name: organizationForm.name.trim(),
       contact_email: organizationForm.contact_email.trim(),
       description: organizationForm.description.trim(),
@@ -117,10 +118,40 @@ export default function OrganizationsPage() {
       contact_phone_number: organizationForm.contact_phone_number.trim() || null,
       siret: organizationForm.siret.trim() || null,
       category_slugs: organizationForm.categories,
-    });
+    };
+
+    if (currentUser?.auth_source === "api") {
+      const result = await organizationsApi.update(editingOrganizationId, payload);
+
+      if (!result.ok) {
+        setModalError(result.error.message);
+        return;
+      }
+
+      updateOrganization(editingOrganizationId, result.data);
+    } else {
+      updateOrganization(editingOrganizationId, payload);
+    }
 
     toast.success("Organisation mise à jour");
     closeOrganizationModal();
+  };
+
+  const confirmDeleteOrganization = async () => {
+    if (!pendingDeleteOrganization) return;
+
+    if (currentUser?.auth_source === "api") {
+      const result = await organizationsApi.remove(pendingDeleteOrganization.id);
+
+      if (!result.ok) {
+        toast.error(result.error.message);
+        return;
+      }
+    }
+
+    deleteOrganization(pendingDeleteOrganization.id);
+    toast.success("Organisation supprimée");
+    setPendingDeleteOrganization(null);
   };
 
   return (
@@ -170,11 +201,7 @@ export default function OrganizationsPage() {
         title="Supprimer l'organisation"
         onCancel={() => setPendingDeleteOrganization(null)}
         onConfirm={() => {
-          if (!pendingDeleteOrganization) return;
-
-          deleteOrganization(pendingDeleteOrganization.id);
-          toast.success("Organisation supprimée");
-          setPendingDeleteOrganization(null);
+          void confirmDeleteOrganization();
         }}
       />
 

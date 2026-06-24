@@ -1,14 +1,9 @@
 package events
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -21,8 +16,7 @@ import (
 )
 
 type Handler struct {
-	Repo      *Repository
-	UploadDir string
+	Repo *Repository
 }
 
 func (h Handler) List(w http.ResponseWriter, r *http.Request) {
@@ -192,77 +186,6 @@ func (h Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func (h Handler) UploadImage(w http.ResponseWriter, r *http.Request) {
-	if _, _, ok := authContext(r); !ok {
-		httpx.WriteJSONError(w, http.StatusUnauthorized, "missing authenticated user")
-		return
-	}
-
-	const maxImageBytes = 1 << 20
-	r.Body = http.MaxBytesReader(w, r.Body, maxImageBytes+16<<10)
-
-	if err := r.ParseMultipartForm(maxImageBytes + 16<<10); err != nil {
-		httpx.WriteJSONError(w, http.StatusBadRequest, "invalid image upload")
-		return
-	}
-
-	file, header, err := r.FormFile("image")
-	if err != nil {
-		httpx.WriteJSONError(w, http.StatusBadRequest, "image is required")
-		return
-	}
-	defer file.Close()
-
-	if header.Size <= 0 || header.Size > maxImageBytes {
-		httpx.WriteJSONError(w, http.StatusBadRequest, "image must be 1MB or smaller")
-		return
-	}
-
-	data, err := io.ReadAll(io.LimitReader(file, maxImageBytes+1))
-	if err != nil {
-		httpx.WriteJSONError(w, http.StatusBadRequest, "invalid image upload")
-		return
-	}
-	if len(data) == 0 || len(data) > maxImageBytes {
-		httpx.WriteJSONError(w, http.StatusBadRequest, "image must be 1MB or smaller")
-		return
-	}
-
-	contentType := detectImageContentType(data)
-	extension, ok := imageExtension(contentType)
-	if !ok {
-		httpx.WriteJSONError(w, http.StatusBadRequest, "image must be PNG, JPG or WebP")
-		return
-	}
-
-	uploadDir := h.UploadDir
-	if uploadDir == "" {
-		uploadDir = filepath.Join("uploads", "events")
-	}
-	if err := os.MkdirAll(uploadDir, 0o750); err != nil {
-		log.Error().Err(err).Msg("create event upload dir failed")
-		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-
-	fileName, err := randomUploadFileName(extension)
-	if err != nil {
-		log.Error().Err(err).Msg("generate event image name failed")
-		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-
-	if err := os.WriteFile(filepath.Join(uploadDir, fileName), data, 0o640); err != nil {
-		log.Error().Err(err).Msg("write event image failed")
-		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-
-	httpx.WriteJSON(w, http.StatusCreated, ImageUploadResponse{
-		URL: "/uploads/events/" + fileName,
-	})
 }
 
 func (h Handler) SetActive(w http.ResponseWriter, r *http.Request) {
@@ -553,38 +476,6 @@ func (h Handler) RemoveHistory(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) repo() *Repository {
 	return h.Repo
-}
-
-func imageExtension(contentType string) (string, bool) {
-	switch contentType {
-	case "image/jpeg":
-		return ".jpg", true
-	case "image/png":
-		return ".png", true
-	case "image/webp":
-		return ".webp", true
-	default:
-		return "", false
-	}
-}
-
-func detectImageContentType(data []byte) string {
-	if len(data) >= 12 &&
-		string(data[0:4]) == "RIFF" &&
-		string(data[8:12]) == "WEBP" {
-		return "image/webp"
-	}
-
-	return http.DetectContentType(data)
-}
-
-func randomUploadFileName(extension string) (string, error) {
-	var bytes [16]byte
-	if _, err := rand.Read(bytes[:]); err != nil {
-		return "", err
-	}
-
-	return hex.EncodeToString(bytes[:]) + extension, nil
 }
 
 func decodeAndValidateInput(w http.ResponseWriter, r *http.Request) (EventInput, error) {
@@ -904,7 +795,6 @@ func RegisterRoutes(r chi.Router, handler Handler, authMiddleware func(http.Hand
 		pr.Use(authMiddleware)
 
 		pr.Post("/api/events", handler.Create)
-		pr.Post("/api/events/images", handler.UploadImage)
 		pr.Put("/api/events/{eventID}", handler.Update)
 		pr.Patch("/api/events/{eventID}", handler.Update)
 		pr.Delete("/api/events/{eventID}", handler.Delete)

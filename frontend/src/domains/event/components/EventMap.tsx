@@ -11,6 +11,8 @@ import type { Event } from "../types/event";
 
 type EventMapProps = {
   events: Event[];
+  isInitialDataReady?: boolean;
+  isUserLocationReady?: boolean;
   selectedEventId?: number | null;
   selectedEventRequestId?: number;
   userPosition?: UserPosition | null;
@@ -155,6 +157,8 @@ function SelectedEventFocus({
 
 export default function EventMap({
   events,
+  isInitialDataReady = true,
+  isUserLocationReady = true,
   selectedEventId = null,
   selectedEventRequestId = 0,
   userPosition = null,
@@ -166,6 +170,8 @@ export default function EventMap({
   const [isMapReady, setIsMapReady] = useState(false);
   const [areTilesLoaded, setAreTilesLoaded] = useState(false);
   const [shouldFitInitialLocation, setShouldFitInitialLocation] = useState(false);
+  const [hasCompletedUserLocationFit, setHasCompletedUserLocationFit] =
+    useState(false);
   const hasAnnouncedReady = useRef(false);
   const hasFittedInitialLocation = useRef(false);
   const activeOrganizationsById = useMemo(
@@ -229,22 +235,48 @@ export default function EventMap({
   const handleMapReady = useCallback(() => {
     setIsMapReady(true);
   }, []);
+  const handleTilesLoading = useCallback(() => {
+    if (!hasAnnouncedReady.current) {
+      setAreTilesLoaded(false);
+    }
+  }, []);
   const handleTilesLoaded = useCallback(() => {
     setAreTilesLoaded(true);
   }, []);
   const handleInitialFitDone = useCallback(() => {
     setShouldFitInitialLocation(false);
+    setHasCompletedUserLocationFit(true);
   }, []);
 
   useEffect(() => {
-    if (!userPosition || hasFittedInitialLocation.current) return;
+    if (!isUserLocationReady || !userPosition || hasFittedInitialLocation.current) {
+      return;
+    }
 
     hasFittedInitialLocation.current = true;
-    setShouldFitInitialLocation(true);
-  }, [userPosition]);
+    const fitTimer = window.setTimeout(() => {
+      setShouldFitInitialLocation(true);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(fitTimer);
+    };
+  }, [isUserLocationReady, userPosition]);
+
+  const hasCompletedInitialLocationFit =
+    isUserLocationReady && (!userPosition || hasCompletedUserLocationFit);
 
   useEffect(() => {
-    if (!isMapReady || !areTilesLoaded || hasAnnouncedReady.current) return;
+    if (
+      !isInitialDataReady ||
+      !isUserLocationReady ||
+      !hasCompletedInitialLocationFit ||
+      !isMapReady ||
+      !areTilesLoaded ||
+      hasAnnouncedReady.current
+    ) {
+      return;
+    }
 
     const readyTimer = window.setTimeout(() => {
       hasAnnouncedReady.current = true;
@@ -254,7 +286,13 @@ export default function EventMap({
     return () => {
       window.clearTimeout(readyTimer);
     };
-  }, [areTilesLoaded, isMapReady]);
+  }, [
+    areTilesLoaded,
+    hasCompletedInitialLocationFit,
+    isInitialDataReady,
+    isMapReady,
+    isUserLocationReady,
+  ]);
 
   const activeOpenPopupEventId = selectedEvent ? openPopupEventId : null;
 
@@ -270,7 +308,7 @@ export default function EventMap({
       <ZoomControl position="bottomright" />
       <TileLayer
         attribution="&copy; OpenStreetMap contributors"
-        eventHandlers={{ load: handleTilesLoaded }}
+        eventHandlers={{ load: handleTilesLoaded, loading: handleTilesLoading }}
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <MapFitBounds

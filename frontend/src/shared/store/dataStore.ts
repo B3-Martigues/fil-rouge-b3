@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import { accountsMock } from "../../domains/auth/mocks/accounts.mock";
-import type { PasswordResetToken } from "../../domains/auth/types/passwordReset";
 import { organizersMock } from "../../domains/organization/mocks/organizers.mock";
 import { organizationsMock } from "../../domains/organization/mocks/organizations.mock";
 import type { Organization } from "../../domains/organization/types/organization";
@@ -24,11 +23,7 @@ import {
   sendNotificationEmail,
   type EmailDeliveryResult,
 } from "../../domains/notification/services/emailProviders";
-import {
-  createFavoriteEventTodayNotification,
-  createPasswordChangedNotification,
-  createPasswordResetNotification as buildPasswordResetNotification,
-} from "../../domains/notification/services/notificationFactory";
+import { createFavoriteEventTodayNotification } from "../../domains/notification/services/notificationFactory";
 import type {
   Notification,
   NotificationDraft,
@@ -54,12 +49,6 @@ import {
   type EventCategoryName,
 } from "../../domains/event/types/event-categories";
 
-type PasswordResetResult = {
-  ok: boolean;
-  message: string;
-  resetLink?: string;
-};
-
 type NotificationEmailDelivery = EmailDeliveryResult & {
   notification_id: number;
 };
@@ -71,6 +60,18 @@ type AddModerationReportPayload = {
   reason: string;
   details: string;
   priority?: ModerationReportPriority;
+};
+
+type StaffDataSnapshot = {
+  accounts: Account[];
+  users: User[];
+  organizations: Organization[];
+  organizers: Organizer[];
+  events: Event[];
+  notificationTypes: NotificationType[];
+  notifications: Notification[];
+  moderationReports: ModerationReport[];
+  moderationDecisions: ModerationDecision[];
 };
 
 type DataState = {
@@ -87,21 +88,18 @@ type DataState = {
   notificationEmailDeliveries: NotificationEmailDelivery[];
   moderationReports: ModerationReport[];
   moderationDecisions: ModerationDecision[];
-  passwordResetTokens: PasswordResetToken[];
 
+  hydrateStaffSnapshot: (snapshot: StaffDataSnapshot) => void;
   getAccountSummaries: () => AccountSummary[];
 
   dispatchNotification: (
     notification: NotificationDraft,
   ) => Promise<Notification | null>;
+  setUserNotifications: (userId: number, notifications: Notification[]) => void;
+  upsertNotification: (notification: Notification) => void;
   markNotificationAsRead: (notificationId: number) => void;
   markUserNotificationsAsRead: (userId: number) => void;
   syncTodaysFavoriteEventNotifications: (userId: number) => void;
-  createPasswordResetNotification: (email: string) => PasswordResetResult;
-  resetPasswordWithToken: (
-    token: string,
-    newPassword: string,
-  ) => { ok: boolean; message: string };
 
   addAccount: (account: Account) => void;
   updateAccount: (accountId: number, data: Partial<Account>) => void;
@@ -112,11 +110,13 @@ type DataState = {
   deleteUser: (userId: number) => void;
 
   addOrganization: (organization: Organization) => void;
+  upsertOrganizations: (organizations: Organization[]) => void;
   updateOrganization: (organizationId: number, data: Partial<Organization>) => void;
   activateOrganization: (organizationId: number) => void;
   deleteOrganization: (organizationId: number) => void;
 
   addOrganizer: (organizer: Organizer) => void;
+  upsertOrganizers: (organizers: Organizer[]) => void;
 
   setEvents: (events: Event[]) => void;
   addEvent: (event: Event) => void;
@@ -153,8 +153,13 @@ type DataState = {
   ) => void;
 
   toggleFavorite: (userId: number, eventId: number) => void;
+  setUserFavorites: (userId: number, favorites: Favorite[]) => void;
+  upsertFavorite: (favorite: Favorite) => void;
   recordHistory: (userId: number, eventId: number) => void;
+  setUserHistories: (userId: number, histories: History[]) => void;
+  upsertHistory: (history: History) => void;
   removeHistory: (userId: number, eventId: number) => void;
+  removeHistoryById: (historyId: number) => void;
   setUserEventPreferences: (
     userId: number,
     categories: EventCategoryName[],
@@ -193,12 +198,6 @@ const normalizeEvent = (event: Event): Event => {
   };
 };
 
-const createToken = () =>
-  `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
-
-const addMinutes = (date: Date, minutes: number) =>
-  new Date(date.getTime() + minutes * 60 * 1000);
-
 const getLocalDayKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
     2,
@@ -221,29 +220,6 @@ const isEventHappeningOnDay = (event: Event, date: Date) => {
   const eventEnd = new Date(event.end_date);
 
   return eventStart <= end && eventEnd >= start;
-};
-
-const buildResetLink = (token: string) => {
-  const path = `/reset-password/${token}`;
-
-  if (typeof window === "undefined") return path;
-
-  return new URL(path, window.location.origin).toString();
-};
-
-const buildProfileUrl = (
-  accountId: number,
-  organizations: Organization[],
-): string | undefined => {
-  const path = organizations.some(
-    (organization) => organization.account_id === accountId && !organization.deleted_at,
-  )
-    ? "/organization/profile"
-    : "/profile";
-
-  if (typeof window === "undefined") return path;
-
-  return new URL(path, window.location.origin).toString();
 };
 
 const isDuplicateNotification = (
@@ -378,7 +354,19 @@ const useDataStore = create<DataState>()(
       notificationEmailDeliveries: [],
       moderationReports: moderationReportsMock,
       moderationDecisions: moderationDecisionsMock,
-      passwordResetTokens: [],
+
+      hydrateStaffSnapshot: (snapshot) =>
+        set(() => ({
+          accounts: snapshot.accounts,
+          users: snapshot.users,
+          organizations: snapshot.organizations,
+          organizers: snapshot.organizers,
+          events: snapshot.events.map(normalizeEvent),
+          notificationTypes: snapshot.notificationTypes,
+          notifications: snapshot.notifications,
+          moderationReports: snapshot.moderationReports,
+          moderationDecisions: snapshot.moderationDecisions,
+        })),
 
       getAccountSummaries: () =>
         buildAccountSummaries(get().accounts, get().users, get().organizations),
@@ -464,6 +452,27 @@ const useDataStore = create<DataState>()(
         return notification;
       },
 
+      setUserNotifications: (userId, notifications) =>
+        set((state) => ({
+          notifications: [
+            ...state.notifications.filter(
+              (notification) => notification.user_id !== userId,
+            ),
+            ...notifications,
+          ],
+        })),
+
+      upsertNotification: (notification) =>
+        set((state) => ({
+          notifications: state.notifications.some(
+            (item) => item.id === notification.id,
+          )
+            ? state.notifications.map((item) =>
+                item.id === notification.id ? notification : item,
+              )
+            : [notification, ...state.notifications],
+        })),
+
       markNotificationAsRead: (notificationId) =>
         set((state) => ({
           notifications: state.notifications.map((notification) =>
@@ -526,124 +535,6 @@ const useDataStore = create<DataState>()(
               }),
             );
           });
-      },
-
-      createPasswordResetNotification: (email) => {
-        const normalizedEmail = email.trim().toLowerCase();
-        const state = get();
-        const account = state.accounts.find(
-          (item) =>
-            item.login_email.trim().toLowerCase() === normalizedEmail &&
-            item.is_active &&
-            !item.deleted_at,
-        );
-        const successMessage =
-          "Si un compte actif existe avec cet email, un lien de reinitialisation a ete envoye.";
-
-        if (!account) {
-          return {
-            ok: true,
-            message: successMessage,
-          };
-        }
-
-        const user = state.users.find(
-          (item) => item.account_id === account.id && !item.deleted_at,
-        );
-
-        if (!user) {
-          return {
-            ok: true,
-            message: successMessage,
-          };
-        }
-
-        const token = createToken();
-        const createdAt = now();
-        const expiresAt = addMinutes(new Date(), 30).toISOString();
-        const resetLink = buildResetLink(token);
-
-        set((currentState) => ({
-          passwordResetTokens: [
-            ...currentState.passwordResetTokens,
-            {
-              token,
-              account_id: account.id,
-              expires_at: expiresAt,
-              used_at: null,
-              created_at: createdAt,
-            },
-          ],
-        }));
-
-        void get().dispatchNotification(
-          buildPasswordResetNotification({
-            account,
-            user,
-            resetUrl: resetLink,
-          }),
-        );
-
-        return {
-          ok: true,
-          message: successMessage,
-          resetLink,
-        };
-      },
-
-      resetPasswordWithToken: (token, newPassword) => {
-        const state = get();
-        const resetToken = state.passwordResetTokens.find(
-          (item) => item.token === token,
-        );
-
-        if (!resetToken || resetToken.used_at) {
-          return { ok: false, message: "Lien de reinitialisation invalide" };
-        }
-
-        if (new Date(resetToken.expires_at).getTime() < Date.now()) {
-          return { ok: false, message: "Lien de reinitialisation expire" };
-        }
-
-        const account = state.accounts.find(
-          (item) => item.id === resetToken.account_id && !item.deleted_at,
-        );
-        const user = state.users.find(
-          (item) =>
-            item.account_id === resetToken.account_id && !item.deleted_at,
-        );
-
-        if (!account || !user) {
-          return { ok: false, message: "Compte introuvable" };
-        }
-
-        const passwordChangedAt = now();
-        const updatedAccount = {
-          ...account,
-          password_hash: newPassword,
-          password_changed_at: passwordChangedAt,
-          updated_at: passwordChangedAt,
-        };
-
-        set((currentState) => ({
-          accounts: currentState.accounts.map((item) =>
-            item.id === resetToken.account_id ? updatedAccount : item,
-          ),
-          passwordResetTokens: currentState.passwordResetTokens.map((item) =>
-            item.token === token
-              ? { ...item, used_at: passwordChangedAt }
-              : item,
-          ),
-        }));
-
-        void get().dispatchNotification(
-          createPasswordChangedNotification({
-            user,
-            profileUrl: buildProfileUrl(account.id, state.organizations),
-          }),
-        );
-
-        return { ok: true, message: "Mot de passe mis a jour" };
       },
 
       addAccount: (account) =>
@@ -750,6 +641,18 @@ const useDataStore = create<DataState>()(
           organizations: [...state.organizations, organization],
         })),
 
+      upsertOrganizations: (organizations) =>
+        set((state) => {
+          const incomingIds = new Set(organizations.map((organization) => organization.id));
+          const keptOrganizations = state.organizations.filter(
+            (organization) => !incomingIds.has(organization.id),
+          );
+
+          return {
+            organizations: [...keptOrganizations, ...organizations],
+          };
+        }),
+
       updateOrganization: (organizationId, data) =>
         set((state) => ({
           organizations: state.organizations.map((organization) =>
@@ -849,6 +752,18 @@ const useDataStore = create<DataState>()(
         set((state) => ({
           organizers: [...state.organizers, organizer],
         })),
+
+      upsertOrganizers: (organizers) =>
+        set((state) => {
+          const incomingIds = new Set(organizers.map((organizer) => organizer.id));
+          const keptOrganizers = state.organizers.filter(
+            (organizer) => !incomingIds.has(organizer.id),
+          );
+
+          return {
+            organizers: [...keptOrganizers, ...organizers],
+          };
+        }),
 
       setEvents: (events) =>
         set(() => ({
@@ -1095,6 +1010,32 @@ const useDataStore = create<DataState>()(
           };
         }),
 
+      setUserFavorites: (userId, favorites) =>
+        set((state) => ({
+          favorites: [
+            ...state.favorites.filter((favorite) => favorite.user_id !== userId),
+            ...favorites,
+          ],
+        })),
+
+      upsertFavorite: (favorite) =>
+        set((state) => ({
+          favorites: state.favorites.some(
+            (item) =>
+              item.id === favorite.id ||
+              (item.user_id === favorite.user_id &&
+                item.event_id === favorite.event_id),
+          )
+            ? state.favorites.map((item) =>
+                item.id === favorite.id ||
+                (item.user_id === favorite.user_id &&
+                  item.event_id === favorite.event_id)
+                  ? favorite
+                  : item,
+              )
+            : [...state.favorites, favorite],
+        })),
+
       recordHistory: (userId, eventId) =>
         set((state) => {
           const visitedAt = now();
@@ -1132,6 +1073,35 @@ const useDataStore = create<DataState>()(
             ],
           };
         }),
+
+      setUserHistories: (userId, histories) =>
+        set((state) => ({
+          histories: [
+            ...state.histories.filter((history) => history.user_id !== userId),
+            ...histories,
+          ],
+        })),
+
+      upsertHistory: (history) =>
+        set((state) => ({
+          histories: state.histories.some(
+            (item) =>
+              item.id === history.id ||
+              (item.user_id === history.user_id &&
+                item.event_id === history.event_id &&
+                !item.deleted_at),
+          )
+            ? state.histories.map((item) =>
+                item.id === history.id ||
+                (item.user_id === history.user_id &&
+                  item.event_id === history.event_id &&
+                  !item.deleted_at)
+                  ? history
+                  : item,
+              )
+            : [...state.histories, history],
+        })),
+
       removeHistory: (userId, eventId) =>
         set((state) => ({
           histories: state.histories.map((history) =>
@@ -1142,6 +1112,14 @@ const useDataStore = create<DataState>()(
               : history,
           ),
         })),
+
+      removeHistoryById: (historyId) =>
+        set((state) => ({
+          histories: state.histories.map((history) =>
+            history.id === historyId ? { ...history, deleted_at: now() } : history,
+          ),
+        })),
+
       setUserEventPreferences: (userId, categories) =>
         set((state) => {
           const filtered = state.userEventPreferences.filter(

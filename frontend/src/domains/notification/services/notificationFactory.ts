@@ -2,7 +2,7 @@ import { ROUTES } from "../../../shared/constants/routes";
 import type { Organization } from "../../organization/types/organization";
 import type { Event } from "../../event/types/event";
 import { formatDateTime } from "../../event/utils/event";
-import type { Account, User } from "../../user/types/user";
+import type { User } from "../../user/types/user";
 import { getNotificationTypeBySlug } from "../mocks/notification-types.mock";
 import type { NotificationDraft } from "../types/notification";
 
@@ -62,25 +62,6 @@ export function createFavoriteEventTodayNotification(params: {
       params.event.start_date,
     )}.`,
     action_url: getAppUrl(ROUTES.PUBLIC.HOME),
-  };
-}
-
-export function createPasswordResetNotification(params: {
-  account: Account;
-  user: User;
-  resetUrl: string;
-}): NotificationDraft {
-  return {
-    user_id: params.user.id,
-    event_id: null,
-    organization_id: null,
-    notification_type_id: getNotificationTypeBySlug("password_reset_requested")
-      .id,
-    title: "Reinitialisation de votre mot de passe",
-    message:
-      "Une demande de reinitialisation de mot de passe a ete effectuee. Utilisez le lien ci-dessous pour choisir un nouveau mot de passe.",
-    action_url: params.resetUrl,
-    is_read: true,
   };
 }
 

@@ -9,16 +9,13 @@ import FormField from "../../../shared/components/ui/FormField";
 import Input from "../../../shared/components/ui/Input";
 import SuccessMessage from "../../../shared/components/feedback/SuccessMessage";
 import { ROUTES } from "../../../shared/constants/routes";
-import useDataStore from "../../../shared/store/dataStore";
+import { userApi } from "../../user/api/user.api";
 import {
   forgotPasswordSchema,
   type ForgotPasswordFormData,
 } from "../validations/passwordReset.schema";
 
 export default function ForgotPassword() {
-  const createPasswordResetNotification = useDataStore(
-    (s) => s.createPasswordResetNotification,
-  );
   const [loading, setLoading] = useState(false);
   const [serverMessage, setServerMessage] = useState<string | null>(null);
   const [devResetLink, setDevResetLink] = useState<string | null>(null);
@@ -38,11 +35,15 @@ export default function ForgotPassword() {
     setDevResetLink(null);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      const result = createPasswordResetNotification(data.login_email);
+      const result = await userApi.requestPasswordReset(data.login_email);
 
-      setServerMessage(result.message);
-      setDevResetLink(result.resetLink ?? null);
+      if (!result.ok) {
+        setServerMessage(result.error.message);
+        return;
+      }
+
+      setServerMessage(result.data.message);
+      setDevResetLink(result.data.reset_url ?? result.data.resetLink ?? null);
       toast.success("Demande de reinitialisation traitee");
     } catch {
       setServerMessage("Erreur lors de la demande de reinitialisation");

@@ -1,5 +1,9 @@
 import EventHome from "../components/EventHome";
 
-export default function Home() {
-  return <EventHome />;
+type HomeProps = {
+  isInitialDataReady?: boolean;
+};
+
+export default function Home({ isInitialDataReady = true }: HomeProps) {
+  return <EventHome isInitialDataReady={isInitialDataReady} />;
 }

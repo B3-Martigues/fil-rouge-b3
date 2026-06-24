@@ -3,6 +3,7 @@ import { Trash2 } from "lucide-react";
 import Button from "../../../shared/components/ui/Button";
 import useAuthStore from "../../auth/store/authStore";
 import useEventDistance from "../../event/hooks/useEventDistance";
+import { eventsApi } from "../../event/api/events.api";
 import { formatDateTimeWithAt } from "../../event/utils/event";
 import useDataStore from "../../../shared/store/dataStore";
 import type { History as HistoryEntry } from "../types/history";
@@ -14,6 +15,7 @@ export default function History() {
   const events = useDataStore((s) => s.events);
   const organizations = useDataStore((s) => s.organizations);
   const removeHistory = useDataStore((s) => s.removeHistory);
+  const removeHistoryById = useDataStore((s) => s.removeHistoryById);
   const { getEventDistance } = useEventDistance();
   const activeOrganizationIds = new Set(
     organizations
@@ -82,7 +84,15 @@ export default function History() {
                     variant="danger"
                     onClick={() => {
                       if (user?.user_id) {
-                        removeHistory(user.user_id, event.id);
+                        if (user.auth_source === "api") {
+                          void eventsApi.removeHistory(history.id).then((result) => {
+                            if (result.ok) {
+                              removeHistoryById(history.id);
+                            }
+                          });
+                        } else {
+                          removeHistory(user.user_id, event.id);
+                        }
                       }
                     }}
                   >

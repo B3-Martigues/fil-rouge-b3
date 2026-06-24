@@ -45,6 +45,7 @@ import useDataStore, {
 } from "../../../shared/store/dataStore";
 import { ROUTES } from "../../../shared/constants/routes";
 import { accountRoleLabels } from "../../../shared/utils/account";
+import useStaffSync from "../../staff/hooks/useStaffSync";
 
 type ModeratorView = "dashboard" | "events" | "organizations" | "accounts" | "reports";
 
@@ -141,6 +142,7 @@ const moderationActionLabels: Record<ModerationAction, string> = {
   organization_deleted: "Organization supprimee",
   organization_rejected: "Organization refusee",
   account_suspended: "Compte suspendu",
+  report_reviewing: "Signalement pris en charge",
   report_resolved: "Signalement confirme",
   report_dismissed: "Signalement restaure",
 };
@@ -206,6 +208,7 @@ export default function ModeratorDashboard({
   view = "dashboard",
 }: ModeratorDashboardProps) {
   const currentUser = useAuthStore((s) => s.currentUser);
+  const { applyAction: applyStaffAction } = useStaffSync();
   const { can } = useModeratorPermissions();
   const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
@@ -379,14 +382,46 @@ export default function ModeratorDashboard({
     targetType: ModerationTargetType,
     targetId: number,
     reason: string,
+    options?: {
+      reportId?: number;
+      reportStatus?: ModerationReport["status"];
+      suspendedUntil?: string;
+    },
   ) => {
+    const trimmedReason = reason.trim();
+
+    if (currentUser?.auth_source === "api" && !action.endsWith("_admin_updated")) {
+      void applyStaffAction({
+        action,
+        target_type: targetType,
+        target_id: targetId,
+        reason: trimmedReason || "Decision staff",
+        report_id: options?.reportId,
+        report_status: options?.reportStatus,
+        suspended_until: options?.suspendedUntil,
+      });
+      return;
+    }
+
     addModerationDecision({
       action,
       target_type: targetType,
       target_id: targetId,
       moderator_user_id: moderatorUserId,
-      reason,
+      reason: trimmedReason,
     });
+
+    if (!action.endsWith("_admin_updated")) {
+      void applyStaffAction({
+        action,
+        target_type: targetType,
+        target_id: targetId,
+        reason: trimmedReason || "Decision staff",
+        report_id: options?.reportId,
+        report_status: options?.reportStatus,
+        suspended_until: options?.suspendedUntil,
+      });
+    }
   };
 
   const openDecisionModal = (request: ModeratorDecisionRequest) => {
@@ -568,7 +603,9 @@ export default function ModeratorDashboard({
     const suspendedUntil = createSuspendedUntil(30);
 
     suspendEvent(event.id, moderatorMessage, suspendedUntil);
-    recordDecision("event_hidden", "event", event.id, moderatorMessage);
+    recordDecision("event_hidden", "event", event.id, moderatorMessage, {
+      suspendedUntil,
+    });
 
     getOrganizerUsers(organization.id).forEach((user) => {
       void dispatchNotification(
@@ -657,7 +694,9 @@ export default function ModeratorDashboard({
     notifyOrganization(organization, (user) =>
       createEventHiddenNotification({ organization, event, user, reason }),
     );
-    recordDecision("event_hidden", "event", event.id, reason);
+    recordDecision("event_hidden", "event", event.id, reason, {
+      suspendedUntil,
+    });
     toast.success(`${event.title} est suspendu temporairement`);
   };
 
@@ -726,6 +765,9 @@ export default function ModeratorDashboard({
       "account",
       account.account_id,
       reason,
+      {
+        suspendedUntil,
+      },
     );
 
     return true;
@@ -856,6 +898,16 @@ export default function ModeratorDashboard({
 
     if (status === "reviewing") {
       setOpenedReportId(report.id);
+      recordDecision(
+        "report_reviewing",
+        report.target_type,
+        report.target_id,
+        "Prise en charge du signalement",
+        {
+          reportId: report.id,
+          reportStatus: "reviewing",
+        },
+      );
     }
 
     if (handledOutcome) {
@@ -864,6 +916,10 @@ export default function ModeratorDashboard({
         report.target_type,
         report.target_id,
         decisionMessage,
+        {
+          reportId: report.id,
+          reportStatus: status,
+        },
       );
       clearReportDecisionMessage(report.id);
       setOpenedReportId((currentId) =>

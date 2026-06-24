@@ -15,7 +15,9 @@ import (
 	"mappening/internal/config"
 	"mappening/internal/events"
 	"mappening/internal/http/middleware"
+	"mappening/internal/media"
 	"mappening/internal/organizations"
+	"mappening/internal/staff"
 	"mappening/internal/users"
 )
 
@@ -98,6 +100,8 @@ func newRouter(
 			"/api/auth/login/dev",
 			"/api/auth/register/user",
 			"/api/auth/register/organization",
+			"/api/auth/password/forgot",
+			"/api/auth/password/reset",
 		},
 		FrontendURL: cfg.FrontendURL,
 	}))
@@ -133,8 +137,26 @@ func newRouter(
 		events.RegisterRoutes(
 			r,
 			events.Handler{
-				Repo:      events.NewRepository(db),
-				UploadDir: "uploads/events",
+				Repo: events.NewRepository(db),
+			},
+			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo),
+		)
+
+		media.RegisterRoutes(
+			r,
+			media.Handler{
+				Service: media.Service{
+					Repo:    media.NewRepository(db),
+					Storage: media.NewLocalStorage("uploads"),
+				},
+			},
+			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo),
+		)
+
+		staff.RegisterRoutes(
+			r,
+			staff.Handler{
+				Repo: staff.NewRepository(db),
 			},
 			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo),
 		)
@@ -154,6 +176,8 @@ func newRouter(
 	r.With(middleware.NoStore(), loginRateLimiter.Handler()).Post("/api/auth/login/dev", authHandler.DevLogin)
 	r.With(middleware.NoStore(), loginRateLimiter.Handler()).Post("/api/auth/register/user", authHandler.RegisterUser)
 	r.With(middleware.NoStore(), loginRateLimiter.Handler()).Post("/api/auth/register/organization", authHandler.RegisterOrganization)
+	r.With(middleware.NoStore(), loginRateLimiter.Handler()).Post("/api/auth/password/forgot", authHandler.ForgotPassword)
+	r.With(middleware.NoStore(), loginRateLimiter.Handler()).Post("/api/auth/password/reset", authHandler.ResetPassword)
 	r.With(middleware.NoStore(), refreshRateLimiter.Handler()).Post("/api/auth/refresh", authHandler.Refresh)
 
 	r.Group(func(pr chi.Router) {
@@ -162,11 +186,17 @@ func newRouter(
 
 		pr.Post("/api/auth/logout", authHandler.Logout)
 		pr.Get("/api/auth/me", authHandler.Me)
+		pr.Patch("/api/auth/profile", authHandler.UpdateProfile)
 		pr.Patch("/api/auth/password", authHandler.ChangePassword)
 		pr.Get("/api/auth/check-role/{role}", authHandler.CheckRole)
 		pr.Get("/api/auth/check-account-type/{accountType}", authHandler.CheckAccountType)
 		pr.Patch("/api/auth/deactivate", authHandler.DeactivateAccount)
 		pr.Delete("/api/auth/account", authHandler.DeleteAccount)
+		pr.Get("/api/me/preferences", authHandler.ListPreferences)
+		pr.Put("/api/me/preferences", authHandler.ReplacePreferences)
+		pr.Get("/api/me/notifications", authHandler.ListNotifications)
+		pr.Patch("/api/me/notifications/read", authHandler.MarkAllNotificationsRead)
+		pr.Patch("/api/me/notifications/{notificationID}/read", authHandler.MarkNotificationRead)
 
 		pr.Group(func(ar chi.Router) {
 			ar.Use(middleware.RequireRole("admin"))

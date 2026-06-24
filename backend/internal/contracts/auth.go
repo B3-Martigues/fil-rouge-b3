@@ -58,6 +58,34 @@ type ChangePasswordRequestDTO struct {
 	NewPassword     string `json:"new_password"`
 }
 
+type UpdateProfileRequestDTO struct {
+	LoginEmail string `json:"login_email"`
+	Email      string `json:"email"`
+	Username   string `json:"username"`
+}
+
+type ForgotPasswordRequestDTO struct {
+	LoginEmail string `json:"login_email"`
+	Email      string `json:"email"`
+}
+
+type ForgotPasswordResponseDTO struct {
+	OK        bool   `json:"ok"`
+	Message   string `json:"message"`
+	ResetURL  string `json:"reset_url,omitempty"`
+	ResetLink string `json:"resetLink,omitempty"`
+}
+
+type ResetPasswordRequestDTO struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+	Password    string `json:"password"`
+}
+
+type ReplacePreferencesRequestDTO struct {
+	CategorySlugs []string `json:"category_slugs"`
+}
+
 type AuthCheckResponseDTO struct {
 	OK      bool   `json:"ok"`
 	Allowed bool   `json:"allowed"`

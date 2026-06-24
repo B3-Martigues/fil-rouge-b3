@@ -8,6 +8,7 @@ import Button from "../../../shared/components/ui/Button";
 import useDataStore from "../../../shared/store/dataStore";
 import { getNotificationTypeConfig } from "../mocks/notification-types.mock";
 import type { Notification } from "../types/notification";
+import { userApi } from "../../user/api/user.api";
 
 type Props = {
   onNotificationOpen?: () => void;
@@ -20,6 +21,7 @@ export default function NotificationInbox({ onNotificationOpen }: Props) {
     (s) => s.notificationEmailDeliveries,
   );
   const markNotificationAsRead = useDataStore((s) => s.markNotificationAsRead);
+  const upsertNotification = useDataStore((s) => s.upsertNotification);
   const syncTodaysFavoriteEventNotifications = useDataStore(
     (s) => s.syncTodaysFavoriteEventNotifications,
   );
@@ -27,10 +29,10 @@ export default function NotificationInbox({ onNotificationOpen }: Props) {
   const userId = currentUser?.user_id;
 
   useEffect(() => {
-    if (userId) {
+    if (userId && currentUser?.auth_source !== "api") {
       syncTodaysFavoriteEventNotifications(userId);
     }
-  }, [syncTodaysFavoriteEventNotifications, userId]);
+  }, [currentUser?.auth_source, syncTodaysFavoriteEventNotifications, userId]);
 
   const inAppNotifications = useMemo(
     () =>
@@ -88,6 +90,13 @@ export default function NotificationInbox({ onNotificationOpen }: Props) {
   };
 
   const openNotification = (notification: Notification) => {
+    if (currentUser?.auth_source === "api") {
+      void userApi.markNotificationRead(notification.id).then((result) => {
+        if (result.ok) {
+          upsertNotification(result.data);
+        }
+      });
+    }
     markNotificationAsRead(notification.id);
 
     const actionPath = getInternalActionPath(notification.action_url);

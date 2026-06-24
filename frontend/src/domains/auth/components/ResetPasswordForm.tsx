@@ -9,7 +9,7 @@ import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import FormField from "../../../shared/components/ui/FormField";
 import Input from "../../../shared/components/ui/Input";
 import { ROUTES } from "../../../shared/constants/routes";
-import useDataStore from "../../../shared/store/dataStore";
+import { userApi } from "../../user/api/user.api";
 import {
   resetPasswordSchema,
   type ResetPasswordFormData,
@@ -18,7 +18,6 @@ import {
 export default function ResetPassword() {
   const { token } = useParams();
   const navigate = useNavigate();
-  const resetPasswordWithToken = useDataStore((s) => s.resetPasswordWithToken);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -36,15 +35,14 @@ export default function ResetPassword() {
     setServerError(null);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      const result = resetPasswordWithToken(token ?? "", data.newPassword);
+      const result = await userApi.resetPassword(token ?? "", data.newPassword);
 
       if (!result.ok) {
-        setServerError(result.message);
+        setServerError(result.error.message);
         return;
       }
 
-      toast.success(result.message);
+      toast.success("Mot de passe mis a jour");
       navigate(ROUTES.PUBLIC.LOGIN, { replace: true });
     } catch {
       setServerError("Erreur lors de la reinitialisation");

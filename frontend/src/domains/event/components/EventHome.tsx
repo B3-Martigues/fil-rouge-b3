@@ -82,6 +82,9 @@ type MobileSheetState = "preview" | "expanded";
 type DesktopSidebarView = "list" | "filters";
 type EventStatus = ReturnType<typeof getEventStatus>;
 type EventSectionKey = EventStatus | "recommended" | "mobileRecommended";
+type EventHomeProps = {
+  isInitialDataReady?: boolean;
+};
 
 const DEFAULT_PERIOD_MODE: EventPeriodMode = "month";
 const DEFAULT_SORT: SortValue = "date-asc";
@@ -139,7 +142,7 @@ const statusSections: {
   },
 ];
 
-export default function Home() {
+export default function Home({ isInitialDataReady = true }: EventHomeProps) {
   const location = useLocation();
   const currentUser = useAuthStore((s) => s.currentUser);
   const isUserAccount = currentUser?.role === "user";
@@ -151,10 +154,12 @@ export default function Home() {
   const histories = useDataStore((s) => s.histories);
   const notifications = useDataStore((s) => s.notifications);
   const recordHistory = useDataStore((s) => s.recordHistory);
+  const upsertHistory = useDataStore((s) => s.upsertHistory);
   const syncTodaysFavoriteEventNotifications = useDataStore(
     (s) => s.syncTodaysFavoriteEventNotifications,
   );
-  const { position: userPosition } = useUserLocation();
+  const { position: userPosition, loading: isUserLocationLoading } =
+    useUserLocation();
   const [search, setSearch] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(false);
@@ -682,10 +687,14 @@ export default function Home() {
       recordHistory(currentUser.user_id, eventId);
 
       if (currentUser.auth_source === "api") {
-        void eventsApi.recordHistory(eventId);
+        void eventsApi.recordHistory(eventId).then((result) => {
+          if (result.ok) {
+            upsertHistory(result.data);
+          }
+        });
       }
     },
-    [currentUser, recordHistory],
+    [currentUser, recordHistory, upsertHistory],
   );
 
   const selectMobileEvent = (eventId: number, shouldRecordHistory = true) => {
@@ -1184,6 +1193,8 @@ export default function Home() {
 
         <EventMap
           events={mapEvents}
+          isInitialDataReady={isInitialDataReady}
+          isUserLocationReady={!isUserLocationLoading}
           selectedEventId={activeMapEventSelection?.eventId ?? null}
           selectedEventRequestId={activeMapEventSelection?.requestId ?? 0}
           userPosition={userPosition}
@@ -1440,6 +1451,7 @@ export default function Home() {
                 <FavoriteButton event={selectedEvent} />
                 <Button
                   aria-label="Partager l'evenement"
+                  title="Partager l'evenement"
                   className="event-mobile-detail__share"
                   icon={<Share2 size={18} aria-hidden="true" />}
                   iconOnly

@@ -23,17 +23,30 @@ export default function MapFitBounds({
     if (!enabled) return;
     if (points.length === 0) return;
 
+    let hasFinished = false;
+    const finish = () => {
+      if (hasFinished) return;
+
+      hasFinished = true;
+      onFitDone?.();
+    };
+    const fallbackId = window.setTimeout(finish, 700);
+
+    map.once("moveend", finish);
+
     if (points.length === 1) {
       map.setView([points[0].latitude, points[0].longitude], 13);
-      onFitDone?.();
-      return;
+    } else {
+      map.fitBounds(
+        points.map((point) => [point.latitude, point.longitude]),
+        { padding: [32, 32], maxZoom: 13 },
+      );
     }
 
-    map.fitBounds(
-      points.map((point) => [point.latitude, point.longitude]),
-      { padding: [32, 32], maxZoom: 13 },
-    );
-    onFitDone?.();
+    return () => {
+      map.off("moveend", finish);
+      window.clearTimeout(fallbackId);
+    };
   }, [enabled, map, onFitDone, points]);
 
   return null;

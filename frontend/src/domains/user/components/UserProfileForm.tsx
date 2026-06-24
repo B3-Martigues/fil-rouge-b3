@@ -9,6 +9,7 @@ import { ROUTES } from "../../../shared/constants/routes";
 import { authHttpApi } from "../../auth/api/authHttp.api";
 import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
+import { userApi } from "../api/user.api";
 import {
   profileSchema,
   type ProfileFormData,
@@ -59,8 +60,6 @@ export default function UserProfileForm() {
     setServerError(null);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
       if (!user) {
         setServerError("Utilisateur non trouve");
         return;
@@ -68,6 +67,40 @@ export default function UserProfileForm() {
 
       const loginEmail = data.login_email.trim();
       const username = data.username.trim();
+      if (user.auth_source === "api") {
+        if (data.newPassword?.trim()) {
+          setServerError(
+            "Utilisez la page de changement de mot de passe pour modifier votre mot de passe.",
+          );
+          return;
+        }
+
+        const result = await userApi.updateProfile({
+          login_email: loginEmail,
+          username,
+        });
+
+        if (!result.ok) {
+          setServerError(result.error.message);
+          return;
+        }
+
+        updateAuthUser({
+          username: result.data.username,
+          login_email: result.data.login_email,
+        });
+        reset({
+          username: result.data.username,
+          login_email: result.data.login_email,
+          newPassword: "",
+          confirmPassword: "",
+        });
+        toast.success("Profil mis a jour");
+        return;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
       const existingAccount = accounts.find(
         (account) =>
           account.id !== user.account_id &&

@@ -25,6 +25,7 @@ import {
   type OrganizerProfileForm,
 } from "../../organization/utils/organizationWorkflow";
 import PreferencesGrid from "../../user/components/PreferencesGrid";
+import { userApi } from "../../user/api/user.api";
 import { useUserPreferences } from "../../user/hooks/useUserPreferences";
 import { authHttpApi } from "../api/authHttp.api";
 import useAuthStore from "../store/authStore";
@@ -151,6 +152,11 @@ export default function RegistrationWorkflow() {
       }
 
       if (result.data.user_id) {
+        const preferencesResult = await userApi.replacePreferences(preferences);
+        if (!preferencesResult.ok) {
+          setServerError(preferencesResult.error.message);
+          return;
+        }
         setUserEventPreferences(result.data.user_id, preferences);
       }
       login(result.data);
