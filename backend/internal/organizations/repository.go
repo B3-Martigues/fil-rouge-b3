@@ -132,7 +132,7 @@ func (r *Repository) List(ctx context.Context, filters ListFilters) ([]Organizat
 	}
 	defer rows.Close()
 
-	var organizations []Organization
+	organizations := []Organization{}
 	for rows.Next() {
 		organization, err := scanOrganization(rows)
 		if err != nil {
@@ -207,7 +207,7 @@ func (r *Repository) ListByUser(ctx context.Context, userID int64, includeInacti
 	}
 	defer rows.Close()
 
-	var organizations []Organization
+	organizations := []Organization{}
 	for rows.Next() {
 		organization, err := scanOrganization(rows)
 		if err != nil {
@@ -495,7 +495,7 @@ func (r *Repository) ListCategories(ctx context.Context) ([]Category, error) {
 	}
 	defer rows.Close()
 
-	var categories []Category
+	categories := []Category{}
 	for rows.Next() {
 		var category Category
 		if err := rows.Scan(&category.ID, &category.Name, &category.Slug); err != nil {

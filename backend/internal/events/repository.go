@@ -155,7 +155,7 @@ func (r *Repository) List(ctx context.Context, filters ListFilters) ([]Event, er
 	}
 	defer rows.Close()
 
-	var events []Event
+	events := []Event{}
 	for rows.Next() {
 		event, err := scanEvent(rows)
 		if err != nil {
@@ -393,7 +393,7 @@ func (r *Repository) ListCategories(ctx context.Context) ([]Category, error) {
 	}
 	defer rows.Close()
 
-	var categories []Category
+	categories := []Category{}
 	for rows.Next() {
 		var category Category
 		if err := rows.Scan(&category.ID, &category.Name, &category.Slug); err != nil {
@@ -591,7 +591,7 @@ func (r *Repository) ListFavorites(ctx context.Context, accountID int64) ([]Favo
 	}
 	defer rows.Close()
 
-	var favorites []Favorite
+	favorites := []Favorite{}
 	for rows.Next() {
 		var favorite Favorite
 		if err := rows.Scan(&favorite.ID, &favorite.UserID, &favorite.EventID, &favorite.CreatedAt, &favorite.DeletedAt); err != nil {
@@ -672,7 +672,7 @@ func (r *Repository) ListHistory(ctx context.Context, accountID int64) ([]Histor
 	}
 	defer rows.Close()
 
-	var histories []History
+	histories := []History{}
 	for rows.Next() {
 		var history History
 		if err := rows.Scan(&history.ID, &history.UserID, &history.EventID, &history.VisitedAt, &history.DeletedAt); err != nil {

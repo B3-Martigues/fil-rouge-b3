@@ -569,7 +569,7 @@ func (r *Repository) ListNotifications(ctx context.Context, accountID int64) ([]
 	}
 	defer rows.Close()
 
-	var notifications []Notification
+	notifications := []Notification{}
 	for rows.Next() {
 		notification, err := scanNotification(rows)
 		if err != nil {
