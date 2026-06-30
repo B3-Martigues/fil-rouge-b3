@@ -56,7 +56,6 @@ export type RegisterOrganizationPayload = {
   address: string;
   city: string;
   postal_code: string;
-  logo: string;
   contact_phone_number: string;
   siret: string;
   category_slugs: string[];
@@ -97,7 +96,8 @@ const toAuthenticatedUser = (user: BackendAuthUser): AuthenticatedUser => {
     login_email: loginEmail,
     role,
     role_id: ROLE_IDS[role],
-    username: user.username || displayName || loginEmail.split("@")[0] || loginEmail,
+    username:
+      user.username || displayName || loginEmail.split("@")[0] || loginEmail,
     is_active: user.is_active,
     user_id: userId,
     organization_id: toLocalApiId(user.organization_id),
@@ -117,7 +117,9 @@ export const authHttpApi = {
       method: "POST",
     });
 
-    return result.ok ? { ok: true, data: toAuthenticatedUser(result.data.user) } : result;
+    return result.ok
+      ? { ok: true, data: toAuthenticatedUser(result.data.user) }
+      : result;
   },
 
   async registerUser(
@@ -128,7 +130,9 @@ export const authHttpApi = {
       method: "POST",
     });
 
-    return result.ok ? { ok: true, data: toAuthenticatedUser(result.data.user) } : result;
+    return result.ok
+      ? { ok: true, data: toAuthenticatedUser(result.data.user) }
+      : result;
   },
 
   async registerOrganization(
@@ -142,7 +146,9 @@ export const authHttpApi = {
       },
     );
 
-    return result.ok ? { ok: true, data: toAuthenticatedUser(result.data.user) } : result;
+    return result.ok
+      ? { ok: true, data: toAuthenticatedUser(result.data.user) }
+      : result;
   },
 
   async refresh(): Promise<ApiResult<null>> {
@@ -188,7 +194,9 @@ export const authHttpApi = {
     });
   },
 
-  async changePassword(payload: ChangePasswordPayload): Promise<ApiResult<null>> {
+  async changePassword(
+    payload: ChangePasswordPayload,
+  ): Promise<ApiResult<null>> {
     const result = await apiRequest<{ ok: true }>("/api/auth/password", {
       body: payload,
       method: "PATCH",

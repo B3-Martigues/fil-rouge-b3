@@ -262,6 +262,10 @@ func (h Handler) RegisterOrganization(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	if len(req.Logo) > 1_500_000 {
+    httpx.WriteJSONError(w, http.StatusBadRequest, "logo too large")
+    return
+}
 
 	email := normalizeEmail(firstNonBlank(req.LoginEmail, req.Email))
 	memberName := strings.TrimSpace(req.MemberName)

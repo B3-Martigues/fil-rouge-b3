@@ -17,7 +17,6 @@ import {
 import type { Organization } from "../../organization/types/organization";
 import type { Organizer } from "../../organization/types/organizer";
 import { CATEGORIES } from "../../organization/types/organization-categories";
-import { organizationsApi } from "../../organization/api/organizations.api";
 import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
@@ -31,6 +30,7 @@ import FormField from "../../../shared/components/ui/FormField";
 import Textarea from "../../../shared/components/ui/Textarea";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import { createWelcomeNotification } from "../../notification/services/notificationFactory";
+import { mediaApi } from "../../../shared/api/media.api";
 
 type OrganizationRegisterFormProps = {
   mode?: "public" | "admin";
@@ -63,7 +63,6 @@ const organizationRegisterSteps: {
       "contact_email",
       "description",
       "website",
-      "logo",
       "contact_phone_number",
       "siret",
     ],
@@ -165,7 +164,6 @@ export default function OrganizationRegisterForm({
           address: data.address.trim(),
           city: data.city.trim(),
           postal_code: data.postal_code.trim(),
-          logo: "",
           contact_phone_number: data.contact_phone_number.trim(),
           siret,
           category_slugs: data.categories,
@@ -178,26 +176,18 @@ export default function OrganizationRegisterForm({
         }
 
         login(result.data);
+
         if (result.data.organization_id && logo) {
-          const logoResult = await organizationsApi.update(result.data.organization_id, {
-            name: organizationName,
-            contact_email: contactEmail,
-            description: data.description.trim(),
-            website: data.website.trim(),
-            address: data.address.trim(),
-            city: data.city.trim(),
-            postal_code: data.postal_code.trim(),
+          const logoResult = await mediaApi.replaceOrganizationLogo(
+            result.data.organization_id,
             logo,
-            contact_phone_number: data.contact_phone_number.trim(),
-            siret,
-            is_active: false,
-            is_verified: false,
-            category_slugs: data.categories,
-          });
+          );
+
           if (!logoResult.ok) {
             toast.error(logoResult.error.message);
           }
         }
+
         toast.success("Compte organization cree. En attente de validation");
         navigate(ROUTES.ORGANIZATION.DASHBOARD);
         return;
@@ -217,8 +207,8 @@ export default function OrganizationRegisterForm({
 
       const existingMemberName = users.find(
         (user) =>
-          normalizeComparable(user.username) === normalizeComparable(memberName) &&
-          !user.deleted_at,
+          normalizeComparable(user.username) ===
+            normalizeComparable(memberName) && !user.deleted_at,
       );
 
       if (existingMemberName) {
@@ -241,7 +231,8 @@ export default function OrganizationRegisterForm({
 
       const existingSiret = organizations.find(
         (organization) =>
-          normalizeComparable(organization.siret ?? "") === normalizeComparable(siret),
+          normalizeComparable(organization.siret ?? "") ===
+          normalizeComparable(siret),
       );
 
       if (existingSiret) {
@@ -285,7 +276,6 @@ export default function OrganizationRegisterForm({
         address: data.address.trim(),
         city: data.city.trim(),
         postal_code: data.postal_code.trim(),
-        logo: data.logo.trim(),
         contact_phone_number: data.contact_phone_number.trim(),
         siret,
         is_verified: isAdminMode,
@@ -317,7 +307,13 @@ export default function OrganizationRegisterForm({
         return;
       }
 
-      login(toAuthenticatedOrganization({ account, user: memberUser, organization }));
+      login(
+        toAuthenticatedOrganization({
+          account,
+          user: memberUser,
+          organization,
+        }),
+      );
       toast.success("Compte organization cree. En attente de validation");
       navigate(ROUTES.ORGANIZATION.DASHBOARD);
     } catch {
@@ -525,7 +521,11 @@ export default function OrganizationRegisterForm({
               />
             </FormField>
 
-            <FormField label="SIRET" htmlFor="siret" error={errors.siret?.message}>
+            <FormField
+              label="SIRET"
+              htmlFor="siret"
+              error={errors.siret?.message}
+            >
               <Input
                 id="siret"
                 type="text"
@@ -557,7 +557,11 @@ export default function OrganizationRegisterForm({
               />
             </FormField>
 
-            <FormField label="Ville" htmlFor="city" error={errors.city?.message}>
+            <FormField
+              label="Ville"
+              htmlFor="city"
+              error={errors.city?.message}
+            >
               <Input
                 id="city"
                 type="text"
@@ -589,14 +593,14 @@ export default function OrganizationRegisterForm({
               label="Categories"
               labelId="categories"
             >
-                {CATEGORIES.map((category) => (
-                  <Checkbox
-                    key={category}
-                    label={category}
-                    value={category}
-                    {...register("categories")}
-                  />
-                ))}
+              {CATEGORIES.map((category) => (
+                <Checkbox
+                  key={category}
+                  label={category}
+                  value={category}
+                  {...register("categories")}
+                />
+              ))}
             </CheckboxGroup>
           </fieldset>
         )}

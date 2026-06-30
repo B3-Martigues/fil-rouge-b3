@@ -29,7 +29,11 @@ import { userApi } from "../../user/api/user.api";
 import { useUserPreferences } from "../../user/hooks/useUserPreferences";
 import { authHttpApi } from "../api/authHttp.api";
 import useAuthStore from "../store/authStore";
-import { registerSchema, type RegisterFormData } from "../validations/register.schema";
+import {
+  registerSchema,
+  type RegisterFormData,
+} from "../validations/register.schema";
+import { mediaApi } from "../../../shared/api/media.api";
 
 type WorkflowStep =
   | "user-info"
@@ -46,7 +50,10 @@ const workflowSteps = [
 ] as const;
 const userWorkflowSteps = workflowSteps.slice(0, 2);
 
-const isActiveStep = (step: WorkflowStep, key: (typeof workflowSteps)[number]["key"]) => {
+const isActiveStep = (
+  step: WorkflowStep,
+  key: (typeof workflowSteps)[number]["key"],
+) => {
   if (step === "organizer-choice") return key === "user-preferences";
 
   return step === key;
@@ -58,7 +65,9 @@ export default function RegistrationWorkflow() {
   const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
   const organizations = useDataStore((s) => s.organizations);
-  const setUserEventPreferences = useDataStore((s) => s.setUserEventPreferences);
+  const setUserEventPreferences = useDataStore(
+    (s) => s.setUserEventPreferences,
+  );
   const { preferences, toggle } = useUserPreferences([]);
   const [step, setStep] = useState<WorkflowStep>("user-info");
   const [userDraft, setUserDraft] = useState<RegisterFormData | null>(null);
@@ -68,7 +77,8 @@ export default function RegistrationWorkflow() {
   const [organizationForm, setOrganizationForm] = useState<OrganizationForm>(
     emptyOrganizationForm,
   );
-  const [organizerErrors, setOrganizerErrors] = useState<OrganizerProfileErrors>({});
+  const [organizerErrors, setOrganizerErrors] =
+    useState<OrganizerProfileErrors>({});
   const [organizationErrors, setOrganizationErrors] =
     useState<OrganizationFormErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -104,7 +114,8 @@ export default function RegistrationWorkflow() {
     const existingAccount = accounts.find(
       (account) =>
         !account.deleted_at &&
-        normalizeComparable(account.login_email) === normalizeComparable(loginEmail),
+        normalizeComparable(account.login_email) ===
+          normalizeComparable(loginEmail),
     );
 
     if (existingAccount) {
@@ -199,7 +210,10 @@ export default function RegistrationWorkflow() {
     value: OrganizerProfileForm[Key],
   ) => {
     setOrganizerForm((currentForm) => ({ ...currentForm, [field]: value }));
-    setOrganizerErrors((currentErrors) => ({ ...currentErrors, [field]: undefined }));
+    setOrganizerErrors((currentErrors) => ({
+      ...currentErrors,
+      [field]: undefined,
+    }));
     setServerError(null);
   };
 
@@ -215,7 +229,9 @@ export default function RegistrationWorkflow() {
     setServerError(null);
   };
 
-  const toggleOrganizationCategory = (category: OrganizationForm["categories"][number]) => {
+  const toggleOrganizationCategory = (
+    category: OrganizationForm["categories"][number],
+  ) => {
     updateOrganizationField(
       "categories",
       organizationForm.categories.includes(category)
@@ -269,7 +285,6 @@ export default function RegistrationWorkflow() {
         address: organizationForm.address.trim(),
         city: organizationForm.city.trim(),
         postal_code: organizationForm.postal_code.trim(),
-        logo: organizationForm.logo.trim(),
         contact_phone_number: organizationForm.contact_phone_number.trim(),
         siret: organizationForm.siret.trim(),
         category_slugs: organizationForm.categories,
@@ -281,6 +296,18 @@ export default function RegistrationWorkflow() {
       }
 
       login(result.data);
+      const logo = organizationForm.logo.trim();
+
+      if (result.data.organization_id && logo) {
+        const logoResult = await mediaApi.replaceOrganizationLogo(
+          result.data.organization_id,
+          logo,
+        );
+
+        if (!logoResult.ok) {
+          toast.error(logoResult.error.message);
+        }
+      }
       toast.success("Compte organisation cree. En attente de validation");
       navigate(ROUTES.ORGANIZATION.DASHBOARD, { replace: true });
     } finally {
@@ -433,111 +460,118 @@ export default function RegistrationWorkflow() {
           </section>
         )}
 
-      {step === "organizer-choice" && (
-        <section className="auth-choice" aria-labelledby="organizer-choice-title">
-          <h2 id="organizer-choice-title">
-            Souhaitez-vous egalement organiser des evenements ?
-          </h2>
+        {step === "organizer-choice" && (
+          <section
+            className="auth-choice"
+            aria-labelledby="organizer-choice-title"
+          >
+            <h2 id="organizer-choice-title">
+              Souhaitez-vous egalement organiser des evenements ?
+            </h2>
 
-          {serverError && <ErrorMessage message={serverError} />}
+            {serverError && <ErrorMessage message={serverError} />}
 
-          <ActionRow className="form-step-actions" align="center">
-            <Button
-              disabled={loading}
-              type="button"
-              variant="secondary"
-              onClick={() => setStep("user-preferences")}
-            >
-              Precedent
-            </Button>
-            <Button
-              loading={loading}
-              type="button"
-              variant="secondary"
-              onClick={completeUserOnlyRegistration}
-            >
-              Non
-            </Button>
-            <Button
-              disabled={loading}
-              type="button"
-              onClick={() => {
-                setHasChosenOrganizerRegistration(true);
-                setStep("organizer");
-              }}
-            >
-              Oui
-            </Button>
-          </ActionRow>
-        </section>
-      )}
+            <ActionRow className="form-step-actions" align="center">
+              <Button
+                disabled={loading}
+                type="button"
+                variant="secondary"
+                onClick={() => setStep("user-preferences")}
+              >
+                Precedent
+              </Button>
+              <Button
+                loading={loading}
+                type="button"
+                variant="secondary"
+                onClick={completeUserOnlyRegistration}
+              >
+                Non
+              </Button>
+              <Button
+                disabled={loading}
+                type="button"
+                onClick={() => {
+                  setHasChosenOrganizerRegistration(true);
+                  setStep("organizer");
+                }}
+              >
+                Oui
+              </Button>
+            </ActionRow>
+          </section>
+        )}
 
-      {step === "organizer" && (
-        <form onSubmit={(event) => event.preventDefault()}>
-          <fieldset className="auth-form-section">
-            <legend>Informations de l'organisateur</legend>
-            <FormField
-              label="Fonction"
-              htmlFor="registration-organizer-job-role"
-              error={organizerErrors.job_role}
-            >
-              <Input
-                id="registration-organizer-job-role"
-                autoComplete="organization-title"
-                hasError={!!organizerErrors.job_role}
-                placeholder="Responsable evenementiel"
-                value={organizerForm.job_role}
-                onChange={(event) =>
-                  updateOrganizerField("job_role", event.target.value)
-                }
-              />
-            </FormField>
-          </fieldset>
+        {step === "organizer" && (
+          <form onSubmit={(event) => event.preventDefault()}>
+            <fieldset className="auth-form-section">
+              <legend>Informations de l'organisateur</legend>
+              <FormField
+                label="Fonction"
+                htmlFor="registration-organizer-job-role"
+                error={organizerErrors.job_role}
+              >
+                <Input
+                  id="registration-organizer-job-role"
+                  autoComplete="organization-title"
+                  hasError={!!organizerErrors.job_role}
+                  placeholder="Responsable evenementiel"
+                  value={organizerForm.job_role}
+                  onChange={(event) =>
+                    updateOrganizerField("job_role", event.target.value)
+                  }
+                />
+              </FormField>
+            </fieldset>
 
-          {serverError && <ErrorMessage message={serverError} />}
+            {serverError && <ErrorMessage message={serverError} />}
 
-          <ActionRow className="form-step-actions" align="center">
-            <Button type="button" variant="secondary" onClick={() => setStep("organizer-choice")}>
-              Precedent
-            </Button>
-            <Button type="button" onClick={goToOrganizationStep}>
-              Suivant
-            </Button>
-          </ActionRow>
-        </form>
-      )}
+            <ActionRow className="form-step-actions" align="center">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setStep("organizer-choice")}
+              >
+                Precedent
+              </Button>
+              <Button type="button" onClick={goToOrganizationStep}>
+                Suivant
+              </Button>
+            </ActionRow>
+          </form>
+        )}
 
         {step === "organization" && (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            completeOrganizerRegistration();
-          }}
-          noValidate
-        >
-          <OrganizationFields
-            errors={organizationErrors}
-            form={organizationForm}
-            onCategoryToggle={toggleOrganizationCategory}
-            onFieldChange={updateOrganizationField}
-          />
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              completeOrganizerRegistration();
+            }}
+            noValidate
+          >
+            <OrganizationFields
+              errors={organizationErrors}
+              form={organizationForm}
+              onCategoryToggle={toggleOrganizationCategory}
+              onFieldChange={updateOrganizationField}
+            />
 
-          {serverError && <ErrorMessage message={serverError} />}
+            {serverError && <ErrorMessage message={serverError} />}
 
-          <ActionRow className="form-step-actions" align="center">
-            <Button
-              disabled={loading}
-              type="button"
-              variant="secondary"
-              onClick={() => setStep("organizer")}
-            >
-              Precedent
-            </Button>
-            <Button loading={loading} type="submit">
-              Creer le compte
-            </Button>
-          </ActionRow>
-        </form>
+            <ActionRow className="form-step-actions" align="center">
+              <Button
+                disabled={loading}
+                type="button"
+                variant="secondary"
+                onClick={() => setStep("organizer")}
+              >
+                Precedent
+              </Button>
+              <Button loading={loading} type="submit">
+                Creer le compte
+              </Button>
+            </ActionRow>
+          </form>
         )}
       </div>
     </div>
