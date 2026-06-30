@@ -18,11 +18,14 @@ function App() {
   const location = useLocation();
   const login = useAuthStore((s) => s.login);
   const logout = useAuthStore((s) => s.logout);
+  const updateUser = useAuthStore((s) => s.updateUser);
   const currentUser = useAuthStore((s) => s.currentUser);
   const setEvents = useDataStore((s) => s.setEvents);
   const setUserFavorites = useDataStore((s) => s.setUserFavorites);
   const setUserHistories = useDataStore((s) => s.setUserHistories);
-  const setUserEventPreferences = useDataStore((s) => s.setUserEventPreferences);
+  const setUserEventPreferences = useDataStore(
+    (s) => s.setUserEventPreferences,
+  );
   const setUserNotifications = useDataStore((s) => s.setUserNotifications);
   const upsertOrganizations = useDataStore((s) => s.upsertOrganizations);
   const upsertOrganizers = useDataStore((s) => s.upsertOrganizers);
@@ -148,7 +151,9 @@ function App() {
         setUserEventPreferences(
           currentUser.user_id!,
           preferencesResult.data
-            .map((preference) => getEventCategorySlug(preference.event_category_id))
+            .map((preference) =>
+              getEventCategorySlug(preference.event_category_id),
+            )
             .filter((slug): slug is NonNullable<typeof slug> => !!slug),
         );
       }
@@ -170,6 +175,11 @@ function App() {
         : [organizationsResult.data];
 
       upsertOrganizations(organizations);
+      if (currentUser.role === "organization" && organizations.length > 0) {
+        updateUser({
+          organization_id: organizations[0].id,
+        });
+      }
 
       const membersResults = await Promise.all(
         organizations.map((organization) =>
@@ -199,6 +209,7 @@ function App() {
     setUserNotifications,
     upsertOrganizations,
     upsertOrganizers,
+    updateUser,
   ]);
 
   useEffect(() => {

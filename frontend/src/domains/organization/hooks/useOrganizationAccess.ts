@@ -19,7 +19,6 @@ export function useOrganizationAccess() {
   const isPendingApproval = isOrganization && !isActive;
 
   const canManageEvents = isOrganization && isActive;
-
   return {
     isOrganization,
     isActive,
