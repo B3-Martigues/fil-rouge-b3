@@ -11,7 +11,7 @@ import { isDataImageValue } from "../../../shared/utils/imageUpload";
 import type { Organization } from "../../organization/types/organization";
 import type { Favorite } from "../../user/types/favorite";
 import type { History } from "../../user/types/history";
-import type { Event } from "../types/event";
+import type { Event, EventCreatePayload } from "../types/event";
 import type {
   EventCategoryName,
   EventCategoryOption,
@@ -47,7 +47,8 @@ export const EVENTS_API_ENDPOINTS = {
   favorites: "/api/me/favorites",
   history: (eventId: number) => `/api/events/${toBackendId(eventId)}/history`,
   histories: "/api/me/history",
-  historyEntry: (historyId: number) => `/api/me/history/${toBackendId(historyId)}`,
+  historyEntry: (historyId: number) =>
+    `/api/me/history/${toBackendId(historyId)}`,
 } as const;
 
 export type EventSort =
@@ -87,11 +88,6 @@ export type EventListFilters = {
   offset?: number;
 };
 
-export type EventCreatePayload = Omit<
-  Event,
-  "id" | "created_at" | "updated_at" | "deleted_at" | "organization"
->;
-
 export type EventUpdatePayload = EventCreatePayload;
 
 export type FavoriteState = {
@@ -120,14 +116,17 @@ const normalizeEventFromApi = (event: Event): Event => ({
     : event.organization,
 });
 
-const normalizeEventsFromApi = (events: Event[]) => events.map(normalizeEventFromApi);
+const normalizeEventsFromApi = (events: Event[]) =>
+  events.map(normalizeEventFromApi);
 
 const normalizeFavoriteFromApi = (favorite: Favorite): Favorite => ({
   ...favorite,
   id: toLocalApiId(favorite.id) ?? favorite.id,
   user_id: toLocalApiId(favorite.user_id) ?? favorite.user_id,
   event_id: toLocalApiId(favorite.event_id) ?? favorite.event_id,
-  event: favorite.event ? normalizeEventFromApi(favorite.event) : favorite.event,
+  event: favorite.event
+    ? normalizeEventFromApi(favorite.event)
+    : favorite.event,
 });
 
 const normalizeHistoryFromApi = (history: History): History => ({
@@ -178,7 +177,7 @@ const buildEventQuery = (filters: EventListFilters = {}) => {
 const normalizePayload = async (
   payload: EventCreatePayload,
 ): Promise<ApiResult<EventCreatePayload>> => {
-  const normalizedPayload: EventCreatePayload = {
+  const normalized: EventCreatePayload = {
     ...payload,
     organization_id: toBackendId(payload.organization_id),
     category_slugs: Array.from(new Set(payload.category_slugs)),
@@ -193,20 +192,21 @@ const normalizePayload = async (
     price: Number(payload.price),
   };
 
-  if (!isDataImageValue(normalizedPayload.image)) {
-    return createApiSuccess(normalizedPayload);
+  if (!isDataImageValue(normalized.image)) {
+    return createApiSuccess(normalized);
   }
 
-  const uploadResult = await mediaApi.uploadImageValue(normalizedPayload.image, {
+  const uploadResult = await mediaApi.uploadImageValue(normalized.image, {
     entityType: "event",
-    organizationId: normalizedPayload.organization_id,
+    organizationId: normalized.organization_id,
   });
+
   if (!uploadResult.ok) {
     return createApiError(uploadResult.error.code, uploadResult.error.message);
   }
 
   return createApiSuccess({
-    ...normalizedPayload,
+    ...normalized,
     image: uploadResult.data.url,
   });
 };
@@ -216,35 +216,45 @@ export const eventsApi = {
     const result = await apiRequest<Event[]>(
       `${EVENTS_API_ENDPOINTS.list}${buildEventQuery(filters)}`,
     );
-    return result.ok ? { ok: true, data: normalizeEventsFromApi(result.data) } : result;
+    return result.ok
+      ? { ok: true, data: normalizeEventsFromApi(result.data) }
+      : result;
   },
 
   async listMap(filters?: EventListFilters): Promise<ApiResult<Event[]>> {
     const result = await apiRequest<Event[]>(
       `${EVENTS_API_ENDPOINTS.map}${buildEventQuery(filters)}`,
     );
-    return result.ok ? { ok: true, data: normalizeEventsFromApi(result.data) } : result;
+    return result.ok
+      ? { ok: true, data: normalizeEventsFromApi(result.data) }
+      : result;
   },
 
   async listUpcoming(filters?: EventListFilters): Promise<ApiResult<Event[]>> {
     const result = await apiRequest<Event[]>(
       `${EVENTS_API_ENDPOINTS.upcoming}${buildEventQuery(filters)}`,
     );
-    return result.ok ? { ok: true, data: normalizeEventsFromApi(result.data) } : result;
+    return result.ok
+      ? { ok: true, data: normalizeEventsFromApi(result.data) }
+      : result;
   },
 
   async listPast(filters?: EventListFilters): Promise<ApiResult<Event[]>> {
     const result = await apiRequest<Event[]>(
       `${EVENTS_API_ENDPOINTS.past}${buildEventQuery(filters)}`,
     );
-    return result.ok ? { ok: true, data: normalizeEventsFromApi(result.data) } : result;
+    return result.ok
+      ? { ok: true, data: normalizeEventsFromApi(result.data) }
+      : result;
   },
 
   async listPopular(filters?: EventListFilters): Promise<ApiResult<Event[]>> {
     const result = await apiRequest<Event[]>(
       `${EVENTS_API_ENDPOINTS.popular}${buildEventQuery(filters)}`,
     );
-    return result.ok ? { ok: true, data: normalizeEventsFromApi(result.data) } : result;
+    return result.ok
+      ? { ok: true, data: normalizeEventsFromApi(result.data) }
+      : result;
   },
 
   async listByOrganization(
@@ -256,12 +266,18 @@ export const eventsApi = {
         filters,
       )}`,
     );
-    return result.ok ? { ok: true, data: normalizeEventsFromApi(result.data) } : result;
+    return result.ok
+      ? { ok: true, data: normalizeEventsFromApi(result.data) }
+      : result;
   },
 
   async get(eventId: number): Promise<ApiResult<Event>> {
-    const result = await apiRequest<Event>(EVENTS_API_ENDPOINTS.detail(eventId));
-    return result.ok ? { ok: true, data: normalizeEventFromApi(result.data) } : result;
+    const result = await apiRequest<Event>(
+      EVENTS_API_ENDPOINTS.detail(eventId),
+    );
+    return result.ok
+      ? { ok: true, data: normalizeEventFromApi(result.data) }
+      : result;
   },
 
   async create(payload: EventCreatePayload): Promise<ApiResult<Event>> {
@@ -269,12 +285,17 @@ export const eventsApi = {
     if (!normalizedPayload.ok) return normalizedPayload;
 
     const result = await apiRequest<Event>(EVENTS_API_ENDPOINTS.create, {
-      body: normalizedPayload.data,
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(normalizedPayload.data),
     });
-    return result.ok ? { ok: true, data: normalizeEventFromApi(result.data) } : result;
-  },
 
+    return result.ok
+      ? { ok: true, data: normalizeEventFromApi(result.data) }
+      : result;
+  },
   async update(
     eventId: number,
     payload: EventUpdatePayload,
@@ -282,11 +303,16 @@ export const eventsApi = {
     const normalizedPayload = await normalizePayload(payload);
     if (!normalizedPayload.ok) return normalizedPayload;
 
-    const result = await apiRequest<Event>(EVENTS_API_ENDPOINTS.update(eventId), {
-      body: normalizedPayload.data,
-      method: "PUT",
-    });
-    return result.ok ? { ok: true, data: normalizeEventFromApi(result.data) } : result;
+    const result = await apiRequest<Event>(
+      EVENTS_API_ENDPOINTS.update(eventId),
+      {
+        body: normalizedPayload.data,
+        method: "PUT",
+      },
+    );
+    return result.ok
+      ? { ok: true, data: normalizeEventFromApi(result.data) }
+      : result;
   },
 
   remove(eventId: number): Promise<ApiResult<null>> {
@@ -295,12 +321,20 @@ export const eventsApi = {
     });
   },
 
-  async setActive(eventId: number, isActive: boolean): Promise<ApiResult<Event>> {
-    const result = await apiRequest<Event>(EVENTS_API_ENDPOINTS.active(eventId), {
-      body: { is_active: isActive },
-      method: "PATCH",
-    });
-    return result.ok ? { ok: true, data: normalizeEventFromApi(result.data) } : result;
+  async setActive(
+    eventId: number,
+    isActive: boolean,
+  ): Promise<ApiResult<Event>> {
+    const result = await apiRequest<Event>(
+      EVENTS_API_ENDPOINTS.active(eventId),
+      {
+        body: { is_active: isActive },
+        method: "PATCH",
+      },
+    );
+    return result.ok
+      ? { ok: true, data: normalizeEventFromApi(result.data) }
+      : result;
   },
 
   listCategories(): Promise<ApiResult<EventCategoryOption[]>> {
@@ -308,7 +342,9 @@ export const eventsApi = {
   },
 
   getCategory(categoryId: number): Promise<ApiResult<EventCategoryOption>> {
-    return apiRequest<EventCategoryOption>(EVENTS_API_ENDPOINTS.category(categoryId));
+    return apiRequest<EventCategoryOption>(
+      EVENTS_API_ENDPOINTS.category(categoryId),
+    );
   },
 
   async listByCategory(
@@ -318,45 +354,67 @@ export const eventsApi = {
     const result = await apiRequest<Event[]>(
       `${EVENTS_API_ENDPOINTS.categoryEvents(categoryId)}${buildEventQuery(filters)}`,
     );
-    return result.ok ? { ok: true, data: normalizeEventsFromApi(result.data) } : result;
+    return result.ok
+      ? { ok: true, data: normalizeEventsFromApi(result.data) }
+      : result;
   },
 
   async replaceCategories(
     eventId: number,
     categorySlugs: EventCategoryName[],
   ): Promise<ApiResult<Event>> {
-    const result = await apiRequest<Event>(EVENTS_API_ENDPOINTS.eventCategories(eventId), {
-      body: { category_slugs: categorySlugs },
-      method: "PUT",
-    });
-    return result.ok ? { ok: true, data: normalizeEventFromApi(result.data) } : result;
+    const result = await apiRequest<Event>(
+      EVENTS_API_ENDPOINTS.eventCategories(eventId),
+      {
+        body: { category_slugs: categorySlugs },
+        method: "PUT",
+      },
+    );
+    return result.ok
+      ? { ok: true, data: normalizeEventFromApi(result.data) }
+      : result;
   },
 
-  async addCategory(eventId: number, categoryId: number): Promise<ApiResult<Event>> {
+  async addCategory(
+    eventId: number,
+    categoryId: number,
+  ): Promise<ApiResult<Event>> {
     const result = await apiRequest<Event>(
       EVENTS_API_ENDPOINTS.eventCategory(eventId, categoryId),
       {
         method: "POST",
       },
     );
-    return result.ok ? { ok: true, data: normalizeEventFromApi(result.data) } : result;
+    return result.ok
+      ? { ok: true, data: normalizeEventFromApi(result.data) }
+      : result;
   },
 
-  async removeCategory(eventId: number, categoryId: number): Promise<ApiResult<Event>> {
+  async removeCategory(
+    eventId: number,
+    categoryId: number,
+  ): Promise<ApiResult<Event>> {
     const result = await apiRequest<Event>(
       EVENTS_API_ENDPOINTS.eventCategory(eventId, categoryId),
       {
         method: "DELETE",
       },
     );
-    return result.ok ? { ok: true, data: normalizeEventFromApi(result.data) } : result;
+    return result.ok
+      ? { ok: true, data: normalizeEventFromApi(result.data) }
+      : result;
   },
 
   async addFavorite(eventId: number): Promise<ApiResult<Favorite>> {
-    const result = await apiRequest<Favorite>(EVENTS_API_ENDPOINTS.favorite(eventId), {
-      method: "POST",
-    });
-    return result.ok ? { ok: true, data: normalizeFavoriteFromApi(result.data) } : result;
+    const result = await apiRequest<Favorite>(
+      EVENTS_API_ENDPOINTS.favorite(eventId),
+      {
+        method: "POST",
+      },
+    );
+    return result.ok
+      ? { ok: true, data: normalizeFavoriteFromApi(result.data) }
+      : result;
   },
 
   removeFavorite(eventId: number): Promise<ApiResult<null>> {
@@ -377,10 +435,15 @@ export const eventsApi = {
   },
 
   async recordHistory(eventId: number): Promise<ApiResult<History>> {
-    const result = await apiRequest<History>(EVENTS_API_ENDPOINTS.history(eventId), {
-      method: "POST",
-    });
-    return result.ok ? { ok: true, data: normalizeHistoryFromApi(result.data) } : result;
+    const result = await apiRequest<History>(
+      EVENTS_API_ENDPOINTS.history(eventId),
+      {
+        method: "POST",
+      },
+    );
+    return result.ok
+      ? { ok: true, data: normalizeHistoryFromApi(result.data) }
+      : result;
   },
 
   async listHistory(): Promise<ApiResult<History[]>> {

@@ -6,7 +6,6 @@ import CategorySelect from "../../event/components/CategorySelect";
 import { eventsApi } from "../../event/api/events.api";
 import useAuthStore from "../../auth/store/authStore";
 import type { EventCategory } from "../../event/types/event-categories";
-import type { Event } from "../../event/types/event";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
 import ImageField from "../../../shared/components/forms/ImageField";
@@ -68,30 +67,27 @@ export default function OrganizationDashboard() {
     setIsSubmitting(true);
 
     const now = new Date().toISOString();
-    const newEvent: Event = {
-      id: Date.now(),
+    const payload = {
       organization_id: currentUser.organization_id,
       title: form.title.trim(),
       description: form.description.trim(),
       start_date: new Date(form.start_date).toISOString(),
       end_date: new Date(form.end_date).toISOString(),
-      latitude: form.latitude.trim() ? Number(form.latitude) : null,
-      longitude: form.longitude.trim() ? Number(form.longitude) : null,
+      latitude: form.latitude.trim() ? Number(form.latitude) : undefined,
+      longitude: form.longitude.trim() ? Number(form.longitude) : undefined,
       address: form.address.trim(),
       city: form.city.trim(),
       postal_code: form.postal_code.trim(),
-      category_slugs: form.categories,
       image: form.image.trim(),
       price: Number(form.price.trim()),
       ticketing_link: form.ticketing_link.trim(),
       source: "Evenement cree par une organisation",
-      is_active: false,
-      created_at: now,
-      updated_at: now,
+      category_slugs: form.categories,
+      category_ids: [],
     };
 
     if (currentUser.auth_source === "api") {
-      const result = await eventsApi.create(newEvent);
+      const result = await eventsApi.create(payload);
 
       if (!result.ok) {
         setServerError(result.error.message);
@@ -99,12 +95,15 @@ export default function OrganizationDashboard() {
         return;
       }
 
-      addEvent({
-        ...result.data,
-        organization_id: currentUser.organization_id,
-      });
+      addEvent(result.data); // ✔ bez override
     } else {
-      addEvent(newEvent);
+      addEvent({
+        ...payload,
+        id: Date.now(),
+        created_at: now,
+        updated_at: now,
+        is_active: false,
+      } as Event);
     }
 
     setForm(emptyEventForm());
@@ -154,7 +153,10 @@ export default function OrganizationDashboard() {
               />
             </FormField>
 
-            <div id="event-categories" className="organization-event-form__wide">
+            <div
+              id="event-categories"
+              className="organization-event-form__wide"
+            >
               <CategorySelect
                 error={errors.categories}
                 labelId="event-categories-label"
@@ -333,7 +335,9 @@ export default function OrganizationDashboard() {
                 step="0.01"
                 value={form.price}
                 hasError={!!errors.price}
-                aria-describedby={errors.price ? "event-price-error" : undefined}
+                aria-describedby={
+                  errors.price ? "event-price-error" : undefined
+                }
                 onChange={(event) => updateField("price", event.target.value)}
               />
             </FormField>
@@ -349,7 +353,9 @@ export default function OrganizationDashboard() {
                 value={form.ticketing_link}
                 hasError={!!errors.ticketing_link}
                 aria-describedby={
-                  errors.ticketing_link ? "event-ticketing-link-error" : undefined
+                  errors.ticketing_link
+                    ? "event-ticketing-link-error"
+                    : undefined
                 }
                 onChange={(event) =>
                   updateField("ticketing_link", event.target.value)

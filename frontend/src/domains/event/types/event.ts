@@ -33,3 +33,22 @@ export type Event = {
   favorite_count?: number;
   history_count?: number;
 };
+
+export type EventCreatePayload = {
+  organization_id: number;
+  title: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  address: string;
+  city: string;
+  postal_code: string;
+  image: string;
+  price: number;
+  ticketing_link: string;
+  source?: string | null;
+  category_slugs: string[];
+  category_ids: number[];
+};

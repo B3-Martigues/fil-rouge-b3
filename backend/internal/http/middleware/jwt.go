@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/rs/zerolog/log"
 
 	"mappening/internal/httpx"
 	"mappening/internal/users"
@@ -209,6 +210,7 @@ func GetUser(r *http.Request) *UserClaims {
 
 // Tente de lire le token depuis le cookie puis depuis Authorization en environnement local.
 func tokenFromRequest(r *http.Request) (string, error) {
+	log.Info().Msg(r.Header.Get("Cookie"))
 	if c, err := r.Cookie("access_token"); err == nil && c.Value != "" {
 		return c.Value, nil
 	}
