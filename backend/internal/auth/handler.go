@@ -22,6 +22,7 @@ import (
 
 	"mappening/internal/config"
 	"mappening/internal/contracts"
+	"mappening/internal/geocoding"
 	"mappening/internal/http/middleware"
 	"mappening/internal/httpx"
 	"mappening/internal/users"
@@ -42,6 +43,7 @@ type Handler struct {
 
 	Store    RefreshTokenStore
 	UserRepo authUserReader
+	Geocoder geocoding.Normalizer
 }
 
 const dummyPasswordHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
@@ -280,6 +282,12 @@ func (h Handler) RegisterOrganization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	normalizedAddress, err := h.normalizeOrganizationAddress(r, req)
+	if err != nil {
+		writeGeocodingError(w, err)
+		return
+	}
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Error().Err(err).Msg("register organization: hash password failed")
@@ -296,9 +304,11 @@ func (h Handler) RegisterOrganization(w http.ResponseWriter, r *http.Request) {
 		ContactEmail:       normalizeEmail(req.ContactEmail),
 		Description:        strings.TrimSpace(req.Description),
 		Website:            strings.TrimSpace(req.Website),
-		Address:            strings.TrimSpace(req.Address),
-		City:               strings.TrimSpace(req.City),
-		PostalCode:         strings.TrimSpace(req.PostalCode),
+		Latitude:           normalizedAddress.latitude,
+		Longitude:          normalizedAddress.longitude,
+		Address:            normalizedAddress.address,
+		City:               normalizedAddress.city,
+		PostalCode:         normalizedAddress.postalCode,
 		Logo:               strings.TrimSpace(req.Logo),
 		ContactPhoneNumber: strings.TrimSpace(req.ContactPhoneNumber),
 		SIRET:              strings.TrimSpace(req.SIRET),
@@ -323,6 +333,45 @@ func (h Handler) RegisterOrganization(w http.ResponseWriter, r *http.Request) {
 		User:      dto,
 		CSRFToken: csrf,
 	})
+}
+
+type normalizedOrganizationAddress struct {
+	address    string
+	city       string
+	postalCode string
+	latitude   *float64
+	longitude  *float64
+}
+
+func (h Handler) normalizeOrganizationAddress(
+	r *http.Request,
+	req contracts.RegisterOrganizationRequestDTO,
+) (normalizedOrganizationAddress, error) {
+	fallback := normalizedOrganizationAddress{
+		address:    strings.TrimSpace(req.Address),
+		city:       strings.TrimSpace(req.City),
+		postalCode: strings.TrimSpace(req.PostalCode),
+	}
+	if h.Geocoder == nil {
+		return fallback, nil
+	}
+
+	normalized, err := h.Geocoder.Normalize(r.Context(), geocoding.Address{
+		Street:     req.Address,
+		City:       req.City,
+		PostalCode: req.PostalCode,
+	})
+	if err != nil {
+		return fallback, err
+	}
+
+	return normalizedOrganizationAddress{
+		address:    normalized.Address,
+		city:       normalized.City,
+		postalCode: normalized.PostalCode,
+		latitude:   &normalized.Latitude,
+		longitude:  &normalized.Longitude,
+	}, nil
 }
 
 func (h Handler) DevLogin(w http.ResponseWriter, r *http.Request) {
@@ -1393,6 +1442,16 @@ func writeAuthMutationError(w http.ResponseWriter, err error) {
 
 	log.Error().Err(err).Msg("auth mutation failed")
 	httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
+}
+
+func writeGeocodingError(w http.ResponseWriter, err error) {
+	if errors.Is(err, geocoding.ErrNoMatch) {
+		httpx.WriteJSONError(w, http.StatusBadRequest, "address could not be geocoded")
+		return
+	}
+
+	log.Error().Err(err).Msg("auth organization geocoding failed")
+	httpx.WriteJSONError(w, http.StatusBadGateway, "address geocoding service unavailable")
 }
 
 func normalizeSlugs(values []string) []string {

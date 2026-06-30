@@ -6,6 +6,7 @@ import { organizationsApi } from "../api/organizations.api";
 import { CATEGORIES, type CategoryName } from "../types/organization-categories";
 import type { Organization } from "../types/organization";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
+import AddressAutocomplete from "../../../shared/components/forms/AddressAutocomplete";
 import ImageField from "../../../shared/components/forms/ImageField";
 import Button from "../../../shared/components/ui/Button";
 import Checkbox from "../../../shared/components/ui/Checkbox";
@@ -21,8 +22,6 @@ type OrganizationProfileForm = {
   contact_email: string;
   description: string;
   website: string;
-  latitude: string;
-  longitude: string;
   address: string;
   city: string;
   postal_code: string;
@@ -39,8 +38,6 @@ const toForm = (organization: Organization): OrganizationProfileForm => ({
   contact_email: organization.contact_email,
   description: organization.description ?? "",
   website: organization.website ?? "",
-  latitude: organization.latitude?.toString() ?? "",
-  longitude: organization.longitude?.toString() ?? "",
   address: organization.address,
   city: organization.city,
   postal_code: organization.postal_code,
@@ -51,13 +48,6 @@ const toForm = (organization: Organization): OrganizationProfileForm => ({
     CATEGORIES.includes(category as CategoryName),
   ),
 });
-
-const isValidOptionalCoordinate = (value: string, min: number, max: number) => {
-  if (value.trim() === "") return true;
-
-  const numberValue = Number(value);
-  return !Number.isNaN(numberValue) && numberValue >= min && numberValue <= max;
-};
 
 const normalizeComparable = (value: string) => value.trim().toLowerCase();
 
@@ -82,14 +72,6 @@ const validateForm = (form: OrganizationProfileForm): OrganizationProfileErrors 
 
   if (form.logo && !isValidUploadedImageValue(form.logo)) {
     errors.logo = "Ajoutez un logo PNG, JPG ou WebP de 1 Mo maximum";
-  }
-
-  if (!isValidOptionalCoordinate(form.latitude, -90, 90)) {
-    errors.latitude = "La latitude doit etre comprise entre -90 et 90";
-  }
-
-  if (!isValidOptionalCoordinate(form.longitude, -180, 180)) {
-    errors.longitude = "La longitude doit etre comprise entre -180 et 180";
   }
 
   if (form.address.trim().length < 5) {
@@ -201,8 +183,6 @@ export default function OrganizationProfile() {
       contact_email: contactEmail,
       description: form.description.trim(),
       website: form.website.trim(),
-      latitude: form.latitude.trim() ? Number(form.latitude) : null,
-      longitude: form.longitude.trim() ? Number(form.longitude) : null,
       address: form.address.trim(),
       city: form.city.trim(),
       postal_code: form.postal_code.trim(),
@@ -330,80 +310,25 @@ export default function OrganizationProfile() {
               onChange={(value) => updateField("logo", value)}
             />
 
-            <FormField
-              label="Latitude"
-              htmlFor="organization-latitude"
-              error={errors.latitude}
-            >
-              <Input
-                id="organization-latitude"
-                type="number"
-                step="any"
-                value={form.latitude}
-                hasError={!!errors.latitude}
-                onChange={(event) => updateField("latitude", event.target.value)}
-              />
-            </FormField>
-
-            <FormField
-              label="Longitude"
-              htmlFor="organization-longitude"
-              error={errors.longitude}
-            >
-              <Input
-                id="organization-longitude"
-                type="number"
-                step="any"
-                value={form.longitude}
-                hasError={!!errors.longitude}
-                onChange={(event) => updateField("longitude", event.target.value)}
-              />
-            </FormField>
-
-            <div className="organization-event-form__wide">
-              <FormField
-                label="Adresse"
-                htmlFor="organization-address"
-                error={errors.address}
-              >
-                <Input
-                  id="organization-address"
-                  type="text"
-                  value={form.address}
-                  hasError={!!errors.address}
-                  onChange={(event) =>
-                    updateField("address", event.target.value)
-                  }
-                />
-              </FormField>
-            </div>
-
-            <FormField label="Ville" htmlFor="organization-city" error={errors.city}>
-              <Input
-                id="organization-city"
-                type="text"
-                value={form.city}
-                hasError={!!errors.city}
-                onChange={(event) => updateField("city", event.target.value)}
-              />
-            </FormField>
-
-            <FormField
-              label="Code postal"
-              htmlFor="organization-postal-code"
-              error={errors.postal_code}
-            >
-              <Input
-                id="organization-postal-code"
-                type="text"
-                inputMode="numeric"
-                value={form.postal_code}
-                hasError={!!errors.postal_code}
-                onChange={(event) =>
-                  updateField("postal_code", event.target.value)
-                }
-              />
-            </FormField>
+            <AddressAutocomplete
+              addressClassName="organization-event-form__wide"
+              errors={{
+                address: errors.address,
+                city: errors.city,
+                postal_code: errors.postal_code,
+              }}
+              ids={{
+                address: "organization-address",
+                city: "organization-city",
+                postalCode: "organization-postal-code",
+              }}
+              value={{
+                address: form.address,
+                city: form.city,
+                postal_code: form.postal_code,
+              }}
+              onChange={updateField}
+            />
 
             <FormField
               label="Telephone"

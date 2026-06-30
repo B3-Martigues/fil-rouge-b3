@@ -24,8 +24,6 @@ export type OrganizationForm = {
   contact_email: string;
   description: string;
   website: string;
-  latitude: string;
-  longitude: string;
   address: string;
   city: string;
   postal_code: string;
@@ -45,8 +43,6 @@ export type EventForm = {
   address: string;
   city: string;
   postal_code: string;
-  latitude: string;
-  longitude: string;
   categories: EventCategory[];
   image: string;
   price: string;
@@ -61,12 +57,6 @@ export const normalizeComparable = (value: string) => value.trim().toLowerCase()
 export const createNextId = (items: { id: number }[]) =>
   Math.max(0, ...items.map((item) => item.id)) + 1;
 
-export const parseOptionalCoordinate = (value: string) => {
-  const trimmedValue = value.trim();
-
-  return trimmedValue ? Number(trimmedValue) : null;
-};
-
 export const emptyOrganizerProfileForm = (): OrganizerProfileForm => ({
   job_role: "",
 });
@@ -76,8 +66,6 @@ export const emptyOrganizationForm = (): OrganizationForm => ({
   contact_email: "",
   description: "",
   website: "",
-  latitude: "",
-  longitude: "",
   address: "",
   city: "",
   postal_code: "",
@@ -95,8 +83,6 @@ export const emptyEventForm = (): EventForm => ({
   address: "",
   city: "",
   postal_code: "",
-  latitude: "",
-  longitude: "",
   categories: [],
   image: "",
   price: "0",
@@ -109,8 +95,6 @@ export const toOrganizationForm = (organization: Organization): OrganizationForm
   contact_email: organization.contact_email,
   description: organization.description ?? "",
   website: organization.website ?? "",
-  latitude: organization.latitude?.toString() ?? "",
-  longitude: organization.longitude?.toString() ?? "",
   address: organization.address,
   city: organization.city,
   postal_code: organization.postal_code,
@@ -131,8 +115,6 @@ export const toEventForm = (event: Event): EventForm => ({
   address: event.address,
   city: event.city,
   postal_code: event.postal_code,
-  latitude: event.latitude?.toString() ?? "",
-  longitude: event.longitude?.toString() ?? "",
   categories: event.category_slugs,
   image: event.image,
   price: event.price.toString(),

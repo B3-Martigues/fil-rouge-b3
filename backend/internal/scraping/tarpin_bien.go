@@ -23,7 +23,7 @@ import (
 const (
 	TarpinBienSource    = "Le Tarpin Bien"
 	tarpinBienSearchURL = "https://tarpin-bien.com/recherche/?evenementCheck=1"
-	addressAPIURL       = "https://api-adresse.data.gouv.fr/search/"
+	addressAPIURL       = "https://data.geopf.fr/geocodage/search"
 )
 
 type TarpinBienService struct {
@@ -500,6 +500,7 @@ func (s *TarpinBienService) normalizeAddress(ctx context.Context, rawAddress str
 	query := endpoint.Query()
 	query.Set("q", rawAddress)
 	query.Set("limit", "1")
+	query.Set("index", "address")
 	endpoint.RawQuery = query.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
@@ -515,7 +516,7 @@ func (s *TarpinBienService) normalizeAddress(ctx context.Context, rawAddress str
 	}
 	defer res.Body.Close()
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return addressCandidate{}, fmt.Errorf("api adresse status %d", res.StatusCode)
+		return addressCandidate{}, fmt.Errorf("geocoding service status %d", res.StatusCode)
 	}
 
 	var payload struct {

@@ -14,6 +14,7 @@ import (
 	"mappening/internal/auth"
 	"mappening/internal/config"
 	"mappening/internal/events"
+	"mappening/internal/geocoding"
 	"mappening/internal/http/middleware"
 	"mappening/internal/media"
 	"mappening/internal/organizations"
@@ -47,7 +48,7 @@ func NewRouter(cfg config.Config, db *sql.DB) nethttp.Handler {
 		SessionStore: store,
 	}
 
-	return newRouter(cfg, db, store, authUserRepo, adminUsersHandler)
+	return newRouter(cfg, db, store, authUserRepo, adminUsersHandler, geocoding.NewClient())
 }
 
 type authUserReader interface {
@@ -60,6 +61,7 @@ func newRouter(
 	store auth.RefreshTokenStore,
 	authUserRepo authUserReader,
 	adminUsers users.AdminHandler,
+	geocoder geocoding.Normalizer,
 ) nethttp.Handler {
 	r := chi.NewRouter()
 
@@ -121,7 +123,13 @@ func newRouter(
 		DevLoginEmail:    cfg.DevLoginEmail,
 		Store:            store,
 		UserRepo:         authUserRepo,
+		Geocoder:         geocoder,
 	}
+
+	geocodingSuggester, _ := geocoder.(geocoding.Suggester)
+	geocoding.RegisterRoutes(r, geocoding.Handler{
+		Suggester: geocodingSuggester,
+	})
 
 	if db != nil {
 		organizations.RegisterRoutes(
@@ -130,6 +138,7 @@ func newRouter(
 				Service: organizations.Service{
 					Repo: organizations.NewRepository(db),
 				},
+				Geocoder: geocoder,
 			},
 			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo),
 		)
@@ -137,7 +146,8 @@ func newRouter(
 		events.RegisterRoutes(
 			r,
 			events.Handler{
-				Repo: events.NewRepository(db),
+				Repo:     events.NewRepository(db),
+				Geocoder: geocoder,
 			},
 			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo),
 		)

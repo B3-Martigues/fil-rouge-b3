@@ -11,6 +11,7 @@ import OrganizationRegisterForm from "../../auth/components/OrganizationRegister
 import RegisterForm from "../../auth/components/RegisterForm";
 import CategorySelect from "../../event/components/CategorySelect";
 import EmptyState from "../../../shared/components/feedback/EmptyState";
+import AddressAutocomplete from "../../../shared/components/forms/AddressAutocomplete";
 import DecisionReasonModal from "../../../shared/components/forms/DecisionReasonModal";
 import FormModal from "../../../shared/components/forms/FormModal";
 import ImageField from "../../../shared/components/forms/ImageField";
@@ -86,8 +87,6 @@ type OrganizationDraft = {
   contact_email: string;
   description: string;
   website: string;
-  latitude: string;
-  longitude: string;
   address: string;
   city: string;
   postal_code: string;
@@ -111,8 +110,6 @@ type EventDraft = Omit<
   | "updated_at"
   | "category_slugs"
 > & {
-  latitude: string;
-  longitude: string;
   organization_id: string;
   postal_code: string;
   price: string;
@@ -184,18 +181,6 @@ const isValidEmail = (value: string) => emailPattern.test(value.trim());
 
 const isStrongPassword = (value: string) => passwordPattern.test(value);
 
-const isValidOptionalCoordinate = (value: string, min: number, max: number) => {
-  if (value.trim() === "") return true;
-
-  const numberValue = Number(value);
-  return !Number.isNaN(numberValue) && numberValue >= min && numberValue <= max;
-};
-
-const parseOptionalCoordinate = (value: string) => {
-  const trimmedValue = value.trim();
-  return trimmedValue === "" ? null : Number(trimmedValue);
-};
-
 const createNextId = (items: { id: number }[]) =>
   Math.max(0, ...items.map((item) => item.id)) + 1;
 
@@ -220,8 +205,6 @@ const toOrganizationDraft = (organization: Organization): OrganizationDraft => (
   contact_email: organization.contact_email,
   description: organization.description ?? "",
   website: organization.website ?? "",
-  latitude: organization.latitude?.toString() ?? "",
-  longitude: organization.longitude?.toString() ?? "",
   address: organization.address,
   city: organization.city,
   postal_code: organization.postal_code,
@@ -240,8 +223,6 @@ const toEventDraft = (event: Event): EventDraft => ({
   description: event.description,
   start_date: toDateTimeLocalValue(event.start_date),
   end_date: toDateTimeLocalValue(event.end_date),
-  latitude: event.latitude?.toString() ?? "",
-  longitude: event.longitude?.toString() ?? "",
   address: event.address,
   category_slugs: event.category_slugs,
   city: event.city,
@@ -259,8 +240,6 @@ const emptyEventDraft = (organizationId?: number): EventDraft => ({
   description: "",
   start_date: "",
   end_date: "",
-  latitude: "",
-  longitude: "",
   address: "",
   category_slugs: [],
   city: "",
@@ -920,16 +899,6 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         return false;
       }
 
-      if (!isValidOptionalCoordinate(organizationDraft.latitude, -90, 90)) {
-        toast.error("La latitude doit etre comprise entre -90 et 90");
-        return false;
-      }
-
-      if (!isValidOptionalCoordinate(organizationDraft.longitude, -180, 180)) {
-        toast.error("La longitude doit etre comprise entre -180 et 180");
-        return false;
-      }
-
       if (organizationDraft.address.trim().length < 5) {
         toast.error("L'adresse est obligatoire");
         return false;
@@ -1004,12 +973,6 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         contact_email: organizationDraft?.contact_email.trim() ?? "",
         description: organizationDraft?.description.trim() ?? "",
         website: organizationDraft?.website.trim() || null,
-        latitude: organizationDraft
-          ? parseOptionalCoordinate(organizationDraft.latitude)
-          : null,
-        longitude: organizationDraft
-          ? parseOptionalCoordinate(organizationDraft.longitude)
-          : null,
         address: organizationDraft?.address.trim() ?? "",
         city: organizationDraft?.city.trim() ?? "",
         postal_code: organizationDraft?.postal_code.trim() ?? "",
@@ -1182,16 +1145,6 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       return false;
     }
 
-    if (!isValidOptionalCoordinate(eventDraft.latitude, -90, 90)) {
-      toast.error("La latitude doit etre comprise entre -90 et 90");
-      return false;
-    }
-
-    if (!isValidOptionalCoordinate(eventDraft.longitude, -180, 180)) {
-      toast.error("La longitude doit etre comprise entre -180 et 180");
-      return false;
-    }
-
     if (!isValidUploadedImageValue(eventDraft.image)) {
       toast.error("Ajoutez une image PNG, JPG ou WebP de 1 Mo maximum");
       return false;
@@ -1220,8 +1173,6 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       description: eventDraft.description.trim(),
       start_date: new Date(eventDraft.start_date).toISOString(),
       end_date: new Date(eventDraft.end_date).toISOString(),
-      latitude: parseOptionalCoordinate(eventDraft.latitude),
-      longitude: parseOptionalCoordinate(eventDraft.longitude),
       address: eventDraft.address.trim(),
       category_slugs: eventDraft.category_slugs,
       city: eventDraft.city.trim(),
@@ -1247,8 +1198,6 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         description: payload.description,
         start_date: payload.start_date,
         end_date: payload.end_date,
-        latitude: payload.latitude,
-        longitude: payload.longitude,
         address: payload.address,
         category_slugs: payload.category_slugs,
         city: payload.city,
@@ -2001,50 +1950,20 @@ function OrganizationEditor({
           onChange={(event) => updateField("logo", event.target.value)}
         />
       </FormField>
-      <FormField
-        label="Adresse"
-        htmlFor="admin-organization-address"
-        className="admin-form-grid__wide"
-      >
-        <Input
-          id="admin-organization-address"
-          value={draft.address}
-          onChange={(event) => updateField("address", event.target.value)}
-        />
-      </FormField>
-      <FormField label="Ville" htmlFor="admin-organization-city">
-        <Input
-          id="admin-organization-city"
-          value={draft.city}
-          onChange={(event) => updateField("city", event.target.value)}
-        />
-      </FormField>
-      <FormField label="Code postal" htmlFor="admin-organization-postal-code">
-        <Input
-          id="admin-organization-postal-code"
-          inputMode="numeric"
-          value={draft.postal_code}
-          onChange={(event) => updateField("postal_code", event.target.value)}
-        />
-      </FormField>
-      <FormField label="Latitude" htmlFor="admin-organization-latitude">
-        <Input
-          id="admin-organization-latitude"
-          step="any"
-          type="number"
-          value={draft.latitude}
-          onChange={(event) => updateField("latitude", event.target.value)}
-        />
-      </FormField>
-      <FormField label="Longitude" htmlFor="admin-organization-longitude">
-        <Input
-          id="admin-organization-longitude"
-          step="any"
-          type="number"
-          value={draft.longitude}
-          onChange={(event) => updateField("longitude", event.target.value)}
-        />
-      </FormField>
+      <AddressAutocomplete
+        addressClassName="admin-form-grid__wide"
+        ids={{
+          address: "admin-organization-address",
+          city: "admin-organization-city",
+          postalCode: "admin-organization-postal-code",
+        }}
+        value={{
+          address: draft.address,
+          city: draft.city,
+          postal_code: draft.postal_code,
+        }}
+        onChange={updateField}
+      />
       <FormField label="Telephone" htmlFor="admin-organization-phone">
         <Input
           id="admin-organization-phone"
@@ -2166,52 +2085,22 @@ function EventEditor({
           }
         />
       </FormField>
-      <FormField
-        label="Adresse"
-        htmlFor="admin-event-address"
-        className="admin-form-grid__wide"
-      >
-        <Input
-          id="admin-event-address"
-          value={draft.address}
-          onChange={(event) => setDraft({ ...draft, address: event.target.value })}
-        />
-      </FormField>
-      <FormField label="Ville" htmlFor="admin-event-city">
-        <Input
-          id="admin-event-city"
-          value={draft.city}
-          onChange={(event) => setDraft({ ...draft, city: event.target.value })}
-        />
-      </FormField>
-      <FormField label="Code postal" htmlFor="admin-event-postal-code">
-        <Input
-          id="admin-event-postal-code"
-          inputMode="numeric"
-          value={draft.postal_code}
-          onChange={(event) =>
-            setDraft({ ...draft, postal_code: event.target.value })
-          }
-        />
-      </FormField>
-      <FormField label="Latitude" htmlFor="admin-event-latitude">
-        <Input
-          id="admin-event-latitude"
-          value={draft.latitude}
-          onChange={(event) =>
-            setDraft({ ...draft, latitude: event.target.value })
-          }
-        />
-      </FormField>
-      <FormField label="Longitude" htmlFor="admin-event-longitude">
-        <Input
-          id="admin-event-longitude"
-          value={draft.longitude}
-          onChange={(event) =>
-            setDraft({ ...draft, longitude: event.target.value })
-          }
-        />
-      </FormField>
+      <AddressAutocomplete
+        addressClassName="admin-form-grid__wide"
+        ids={{
+          address: "admin-event-address",
+          city: "admin-event-city",
+          postalCode: "admin-event-postal-code",
+        }}
+        value={{
+          address: draft.address,
+          city: draft.city,
+          postal_code: draft.postal_code,
+        }}
+        onChange={(field, fieldValue) =>
+          setDraft({ ...draft, [field]: fieldValue })
+        }
+      />
       <ImageField
         className="admin-form-grid__wide"
         id="admin-event-image"

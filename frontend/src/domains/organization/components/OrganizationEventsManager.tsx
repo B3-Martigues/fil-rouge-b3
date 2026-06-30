@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import CategorySelect from "../../event/components/CategorySelect";
 import { eventsApi } from "../../event/api/events.api";
 import EmptyState from "../../../shared/components/feedback/EmptyState";
+import AddressAutocomplete from "../../../shared/components/forms/AddressAutocomplete";
 import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
 import FormModal from "../../../shared/components/forms/FormModal";
 import { FormModalLink } from "../../../shared/components/forms/FormModalLink";
@@ -51,8 +52,6 @@ type EventDraft = Omit<
   | "updated_at"
   | "category_slugs"
 > & {
-  latitude: string;
-  longitude: string;
   postal_code: string;
   price: string;
   ticketing_link: string;
@@ -64,8 +63,6 @@ const toEventDraft = (event: Event): EventDraft => ({
   description: event.description,
   start_date: toDateTimeLocalValue(event.start_date),
   end_date: toDateTimeLocalValue(event.end_date),
-  latitude: event.latitude?.toString() ?? "",
-  longitude: event.longitude?.toString() ?? "",
   address: event.address,
   city: event.city,
   postal_code: event.postal_code,
@@ -209,8 +206,6 @@ export default function OrganizationEvents() {
       description: eventDraft.description.trim(),
       start_date: new Date(eventDraft.start_date).toISOString(),
       end_date: new Date(eventDraft.end_date).toISOString(),
-      latitude: eventDraft.latitude.trim() ? Number(eventDraft.latitude) : null,
-      longitude: eventDraft.longitude.trim() ? Number(eventDraft.longitude) : null,
       address: eventDraft.address.trim(),
       city: eventDraft.city.trim(),
       postal_code: eventDraft.postal_code.trim(),
@@ -561,60 +556,21 @@ function OrganizationEventEditor({
           />
         </FormField>
 
-        <FormField label="Adresse" htmlFor="organization-event-address">
-          <Input
-            id="organization-event-address"
-            value={draft.address}
-            onChange={(event) =>
-              setDraft({ ...draft, address: event.target.value })
-            }
-          />
-        </FormField>
-
-        <FormField label="Ville" htmlFor="organization-event-city">
-          <Input
-            id="organization-event-city"
-            value={draft.city}
-            onChange={(event) =>
-              setDraft({ ...draft, city: event.target.value })
-            }
-          />
-        </FormField>
-
-        <FormField label="Code postal" htmlFor="organization-event-postal-code">
-          <Input
-            id="organization-event-postal-code"
-            inputMode="numeric"
-            value={draft.postal_code}
-            onChange={(event) =>
-              setDraft({ ...draft, postal_code: event.target.value })
-            }
-          />
-        </FormField>
-
-        <FormField label="Latitude" htmlFor="organization-event-latitude">
-          <Input
-            id="organization-event-latitude"
-            type="number"
-            step="any"
-            value={draft.latitude}
-            onChange={(event) =>
-              setDraft({ ...draft, latitude: event.target.value })
-            }
-          />
-        </FormField>
-
-        <FormField label="Longitude" htmlFor="organization-event-longitude">
-          <Input
-            id="organization-event-longitude"
-            type="number"
-            step="any"
-            value={draft.longitude}
-            onChange={(event) =>
-              setDraft({ ...draft, longitude: event.target.value })
-            }
-          />
-        </FormField>
+        <AddressAutocomplete
+          ids={{
+            address: "organization-event-address",
+            city: "organization-event-city",
+            postalCode: "organization-event-postal-code",
+          }}
+          value={{
+            address: draft.address,
+            city: draft.city,
+            postal_code: draft.postal_code,
+          }}
+          onChange={(field, fieldValue) =>
+            setDraft({ ...draft, [field]: fieldValue })
+          }
+        />
 
         <ImageField
           className="admin-form-grid__wide"

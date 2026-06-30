@@ -286,8 +286,6 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
           name: string;
           is_active: boolean;
           deleted_at?: string | null;
-          latitude?: number | null;
-          longitude?: number | null;
         }
       >(
         organizations
@@ -301,8 +299,6 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
             id: event.organization.id,
             name: event.organization.name,
             is_active: event.organization.is_active,
-            latitude: event.organization.latitude,
-            longitude: event.organization.longitude,
           });
         }
       });
@@ -320,18 +316,9 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
         };
       }
 
-      const organization = activeOrganizationsById.get(event.organization_id);
-
-      if (organization?.latitude == null || organization.longitude == null) {
-        return null;
-      }
-
-      return {
-        latitude: organization.latitude,
-        longitude: organization.longitude,
-      };
+      return null;
     },
-    [activeOrganizationsById],
+    [],
   );
   const getEventDistance = useCallback(
     (event: Event) => {
@@ -460,10 +447,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
 
               if (!organization) return hasEventCoordinates(event);
 
-              return (
-                hasEventCoordinates(event) ||
-                (organization.latitude != null && organization.longitude != null)
-              );
+              return hasEventCoordinates(event);
             })
             .map((event) => event.city.trim())
             .filter(Boolean),

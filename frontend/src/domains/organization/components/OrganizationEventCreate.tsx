@@ -8,6 +8,7 @@ import useAuthStore from "../../auth/store/authStore";
 import type { EventCategory } from "../../event/types/event-categories";
 import type { Event } from "../../event/types/event";
 import Button from "../../../shared/components/ui/Button";
+import AddressAutocomplete from "../../../shared/components/forms/AddressAutocomplete";
 import FormField from "../../../shared/components/ui/FormField";
 import ImageField from "../../../shared/components/forms/ImageField";
 import Input from "../../../shared/components/ui/Input";
@@ -75,8 +76,6 @@ export default function OrganizationDashboard() {
       description: form.description.trim(),
       start_date: new Date(form.start_date).toISOString(),
       end_date: new Date(form.end_date).toISOString(),
-      latitude: form.latitude.trim() ? Number(form.latitude) : null,
-      longitude: form.longitude.trim() ? Number(form.longitude) : null,
       address: form.address.trim(),
       city: form.city.trim(),
       postal_code: form.postal_code.trim(),
@@ -222,100 +221,24 @@ export default function OrganizationDashboard() {
               />
             </FormField>
 
-            <FormField
-              label="Adresse"
-              htmlFor="event-address"
-              error={errors.address}
-            >
-              <Input
-                id="event-address"
-                type="text"
-                autoComplete="street-address"
-                value={form.address}
-                hasError={!!errors.address}
-                aria-describedby={
-                  errors.address ? "event-address-error" : undefined
-                }
-                onChange={(event) => updateField("address", event.target.value)}
-              />
-            </FormField>
-
-            <FormField label="Ville" htmlFor="event-city" error={errors.city}>
-              <Input
-                id="event-city"
-                type="text"
-                autoComplete="address-level2"
-                value={form.city}
-                hasError={!!errors.city}
-                aria-describedby={errors.city ? "event-city-error" : undefined}
-                onChange={(event) => updateField("city", event.target.value)}
-              />
-            </FormField>
-
-            <FormField
-              label="Code postal"
-              htmlFor="event-postal-code"
-              error={errors.postal_code}
-            >
-              <Input
-                id="event-postal-code"
-                type="text"
-                inputMode="numeric"
-                autoComplete="postal-code"
-                value={form.postal_code}
-                hasError={!!errors.postal_code}
-                aria-describedby={
-                  errors.postal_code ? "event-postal-code-error" : undefined
-                }
-                onChange={(event) =>
-                  updateField("postal_code", event.target.value)
-                }
-              />
-            </FormField>
-
-            <FormField
-              label="Latitude"
-              htmlFor="event-latitude"
-              error={errors.latitude}
-            >
-              <Input
-                id="event-latitude"
-                type="number"
-                step="any"
-                min="-90"
-                max="90"
-                value={form.latitude}
-                hasError={!!errors.latitude}
-                aria-describedby={
-                  errors.latitude ? "event-latitude-error" : undefined
-                }
-                onChange={(event) =>
-                  updateField("latitude", event.target.value)
-                }
-              />
-            </FormField>
-
-            <FormField
-              label="Longitude"
-              htmlFor="event-longitude"
-              error={errors.longitude}
-            >
-              <Input
-                id="event-longitude"
-                type="number"
-                step="any"
-                min="-180"
-                max="180"
-                value={form.longitude}
-                hasError={!!errors.longitude}
-                aria-describedby={
-                  errors.longitude ? "event-longitude-error" : undefined
-                }
-                onChange={(event) =>
-                  updateField("longitude", event.target.value)
-                }
-              />
-            </FormField>
+            <AddressAutocomplete
+              errors={{
+                address: errors.address,
+                city: errors.city,
+                postal_code: errors.postal_code,
+              }}
+              ids={{
+                address: "event-address",
+                city: "event-city",
+                postalCode: "event-postal-code",
+              }}
+              value={{
+                address: form.address,
+                city: form.city,
+                postal_code: form.postal_code,
+              }}
+              onChange={updateField}
+            />
 
             <ImageField
               className="organization-event-form__wide"

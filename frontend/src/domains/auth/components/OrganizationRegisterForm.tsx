@@ -26,6 +26,9 @@ import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
 import Checkbox from "../../../shared/components/ui/Checkbox";
 import CheckboxGroup from "../../../shared/components/ui/CheckboxGroup";
+import AddressAutocomplete, {
+  type AddressValue,
+} from "../../../shared/components/forms/AddressAutocomplete";
 import ImageField from "../../../shared/components/forms/ImageField";
 import FormField from "../../../shared/components/ui/FormField";
 import Textarea from "../../../shared/components/ui/Textarea";
@@ -121,6 +124,27 @@ export default function OrganizationRegisterForm({
   const isLastStep = currentStep === organizationRegisterSteps.length - 1;
   const step = organizationRegisterSteps[currentStep];
   const logoValue = useWatch({ control, name: "logo" }) ?? "";
+  const addressValue: AddressValue = {
+    address: useWatch({ control, name: "address" }) ?? "",
+    city: useWatch({ control, name: "city" }) ?? "",
+    postal_code: useWatch({ control, name: "postal_code" }) ?? "",
+  };
+
+  const updateAddressField = (field: keyof AddressValue, value: string) => {
+    const options = {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    };
+
+    if (field === "address") {
+      setValue("address", value, options);
+    } else if (field === "city") {
+      setValue("city", value, options);
+    } else {
+      setValue("postal_code", value, options);
+    }
+  };
 
   const goToPreviousStep = () => {
     setServerError(null);
@@ -542,47 +566,15 @@ export default function OrganizationRegisterForm({
           <fieldset className="auth-form-section">
             <legend>Adresse et categories</legend>
 
-            <FormField
-              label="Adresse"
-              htmlFor="address"
-              error={errors.address?.message}
-            >
-              <Input
-                id="address"
-                type="text"
-                autoComplete="street-address"
-                placeholder="Adresse de l'organization"
-                hasError={!!errors.address}
-                {...register("address")}
-              />
-            </FormField>
-
-            <FormField label="Ville" htmlFor="city" error={errors.city?.message}>
-              <Input
-                id="city"
-                type="text"
-                autoComplete="address-level2"
-                placeholder="Marseille"
-                hasError={!!errors.city}
-                {...register("city")}
-              />
-            </FormField>
-
-            <FormField
-              label="Code postal"
-              htmlFor="postal_code"
-              error={errors.postal_code?.message}
-            >
-              <Input
-                id="postal_code"
-                type="text"
-                inputMode="numeric"
-                autoComplete="postal-code"
-                placeholder="13001"
-                hasError={!!errors.postal_code}
-                {...register("postal_code")}
-              />
-            </FormField>
+            <AddressAutocomplete
+              errors={{
+                address: errors.address?.message,
+                city: errors.city?.message,
+                postal_code: errors.postal_code?.message,
+              }}
+              value={addressValue}
+              onChange={updateAddressField}
+            />
 
             <CheckboxGroup
               error={errors.categories?.message}

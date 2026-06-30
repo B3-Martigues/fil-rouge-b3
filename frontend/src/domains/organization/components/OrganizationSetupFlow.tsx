@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
+import AddressAutocomplete from "../../../shared/components/forms/AddressAutocomplete";
 import ImageField from "../../../shared/components/forms/ImageField";
 import ActionRow from "../../../shared/components/layout/ActionRow";
 import Button from "../../../shared/components/ui/Button";
@@ -22,7 +23,6 @@ import {
   createNextId,
   emptyOrganizationForm,
   emptyOrganizerProfileForm,
-  parseOptionalCoordinate,
   validateOrganizationForm,
   validateOrganizerProfileForm,
   type OrganizationForm,
@@ -139,8 +139,6 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
       role_id: null,
       description: organizationForm.description.trim(),
       website: organizationForm.website.trim() || null,
-      latitude: parseOptionalCoordinate(organizationForm.latitude),
-      longitude: parseOptionalCoordinate(organizationForm.longitude),
       address: organizationForm.address.trim(),
       city: organizationForm.city.trim(),
       postal_code: organizationForm.postal_code.trim(),
@@ -170,8 +168,6 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
         contact_email: organization.contact_email,
         description: organization.description,
         website: organization.website,
-        latitude: organization.latitude,
-        longitude: organization.longitude,
         address: organization.address,
         city: organization.city,
         postal_code: organization.postal_code,
@@ -376,45 +372,25 @@ export function OrganizationFields({
           onChange={(value) => onFieldChange("logo", value)}
         />
 
-        <FormField
-          className="organization-form__wide"
-          label="Adresse"
-          htmlFor="organization-address"
-          error={errors.address}
-        >
-          <Input
-            id="organization-address"
-            autoComplete="street-address"
-            hasError={!!errors.address}
-            value={form.address}
-            onChange={(event) => onFieldChange("address", event.target.value)}
-          />
-        </FormField>
-
-        <FormField label="Ville" htmlFor="organization-city" error={errors.city}>
-          <Input
-            id="organization-city"
-            autoComplete="address-level2"
-            hasError={!!errors.city}
-            value={form.city}
-            onChange={(event) => onFieldChange("city", event.target.value)}
-          />
-        </FormField>
-
-        <FormField
-          label="Code postal"
-          htmlFor="organization-postal-code"
-          error={errors.postal_code}
-        >
-          <Input
-            id="organization-postal-code"
-            autoComplete="postal-code"
-            hasError={!!errors.postal_code}
-            inputMode="numeric"
-            value={form.postal_code}
-            onChange={(event) => onFieldChange("postal_code", event.target.value)}
-          />
-        </FormField>
+        <AddressAutocomplete
+          addressClassName="organization-form__wide"
+          errors={{
+            address: errors.address,
+            city: errors.city,
+            postal_code: errors.postal_code,
+          }}
+          ids={{
+            address: "organization-address",
+            city: "organization-city",
+            postalCode: "organization-postal-code",
+          }}
+          value={{
+            address: form.address,
+            city: form.city,
+            postal_code: form.postal_code,
+          }}
+          onChange={onFieldChange}
+        />
 
         <FormField
           label="Telephone"
@@ -440,36 +416,6 @@ export function OrganizationFields({
             inputMode="numeric"
             value={form.siret}
             onChange={(event) => onFieldChange("siret", event.target.value)}
-          />
-        </FormField>
-
-        <FormField
-          label="Latitude"
-          htmlFor="organization-latitude"
-          error={errors.latitude}
-        >
-          <Input
-            id="organization-latitude"
-            hasError={!!errors.latitude}
-            step="any"
-            type="number"
-            value={form.latitude}
-            onChange={(event) => onFieldChange("latitude", event.target.value)}
-          />
-        </FormField>
-
-        <FormField
-          label="Longitude"
-          htmlFor="organization-longitude"
-          error={errors.longitude}
-        >
-          <Input
-            id="organization-longitude"
-            hasError={!!errors.longitude}
-            step="any"
-            type="number"
-            value={form.longitude}
-            onChange={(event) => onFieldChange("longitude", event.target.value)}
           />
         </FormField>
 

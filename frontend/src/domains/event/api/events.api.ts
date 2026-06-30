@@ -89,7 +89,13 @@ export type EventListFilters = {
 
 export type EventCreatePayload = Omit<
   Event,
-  "id" | "created_at" | "updated_at" | "deleted_at" | "organization"
+  | "id"
+  | "latitude"
+  | "longitude"
+  | "created_at"
+  | "updated_at"
+  | "deleted_at"
+  | "organization"
 >;
 
 export type EventUpdatePayload = EventCreatePayload;

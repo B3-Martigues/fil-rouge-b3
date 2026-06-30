@@ -34,6 +34,8 @@ type OrganizationRegistration struct {
 	ContactEmail       string
 	Description        string
 	Website            string
+	Latitude           *float64
+	Longitude          *float64
 	Address            string
 	City               string
 	PostalCode         string
@@ -222,6 +224,8 @@ func (r *Repository) CreateOrganization(ctx context.Context, registration Organi
 			role_id,
 			description,
 			website,
+			latitude,
+			longitude,
 			address,
 			city,
 			postal_code,
@@ -231,7 +235,7 @@ func (r *Repository) CreateOrganization(ctx context.Context, registration Organi
 			is_verified,
 			is_active
 		)
-		SELECT $1, $2, $3, r.id, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+		SELECT $1, $2, $3, r.id, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
 		FROM roles r
 		WHERE r.slug = 'organization'
 		RETURNING id
@@ -241,6 +245,8 @@ func (r *Repository) CreateOrganization(ctx context.Context, registration Organi
 		registration.ContactEmail,
 		nullIfBlank(registration.Description),
 		nullIfBlank(registration.Website),
+		registration.Latitude,
+		registration.Longitude,
 		registration.Address,
 		registration.City,
 		registration.PostalCode,

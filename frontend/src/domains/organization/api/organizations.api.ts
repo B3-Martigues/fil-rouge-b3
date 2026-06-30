@@ -16,8 +16,6 @@ export type OrganizationPayload = {
   contact_email: string;
   description?: string | null;
   website?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
   address: string;
   city: string;
   postal_code: string;

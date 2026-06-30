@@ -21,6 +21,7 @@ import ActionRow from "../../../shared/components/layout/ActionRow";
 import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import FormModal from "../../../shared/components/forms/FormModal";
+import AddressAutocomplete from "../../../shared/components/forms/AddressAutocomplete";
 import ImageField from "../../../shared/components/forms/ImageField";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
@@ -38,8 +39,6 @@ type EventForm = {
   address: string;
   city: string;
   postal_code: string;
-  latitude: string;
-  longitude: string;
   categories: EventCategory[];
   image: string;
   price: string;
@@ -61,8 +60,6 @@ const toEventForm = (event: Event): EventForm => ({
   address: event.address,
   city: event.city,
   postal_code: event.postal_code,
-  latitude: event.latitude?.toString() ?? "",
-  longitude: event.longitude?.toString() ?? "",
   categories: event.category_slugs,
   image: event.image,
   price: event.price.toString(),
@@ -78,26 +75,12 @@ const emptyEventForm = (): EventForm => ({
   address: "",
   city: "",
   postal_code: "",
-  latitude: "",
-  longitude: "",
   categories: [],
   image: "",
   price: "0",
   ticketing_link: "",
   source: "",
 });
-
-const isValidOptionalCoordinate = (value: string, min: number, max: number) => {
-  if (value.trim() === "") return true;
-
-  const numberValue = Number(value);
-  return !Number.isNaN(numberValue) && numberValue >= min && numberValue <= max;
-};
-
-const parseOptionalCoordinate = (value: string) => {
-  const trimmedValue = value.trim();
-  return trimmedValue ? Number(trimmedValue) : null;
-};
 
 const createNextId = (items: { id: number }[]) =>
   Math.max(0, ...items.map((item) => item.id)) + 1;
@@ -143,14 +126,6 @@ const validateEventForm = (form: EventForm): EventFormErrors => {
 
   if (!/^\d{5}$/.test(form.postal_code.trim())) {
     errors.postal_code = "Le code postal doit contenir 5 chiffres";
-  }
-
-  if (!isValidOptionalCoordinate(form.latitude, -90, 90)) {
-    errors.latitude = "La latitude doit être comprise entre -90 et 90";
-  }
-
-  if (!isValidOptionalCoordinate(form.longitude, -180, 180)) {
-    errors.longitude = "La longitude doit être comprise entre -180 et 180";
   }
 
   if (!isValidUploadedImageValue(form.image)) {
@@ -332,8 +307,6 @@ export default function UserOrganizations() {
       description: eventForm.description.trim(),
       start_date: new Date(eventForm.start_date).toISOString(),
       end_date: new Date(eventForm.end_date).toISOString(),
-      latitude: parseOptionalCoordinate(eventForm.latitude),
-      longitude: parseOptionalCoordinate(eventForm.longitude),
       address: eventForm.address.trim(),
       city: eventForm.city.trim(),
       postal_code: eventForm.postal_code.trim(),
@@ -639,70 +612,25 @@ function EventEditor({
             onChange={(event) => onFieldChange("end_date", event.target.value)}
           />
         </FormField>
-        <FormField
-          label="Adresse"
-          htmlFor="member-event-address"
-          className="admin-form-grid__wide"
-          error={errors.address}
-        >
-          <Input
-            id="member-event-address"
-            value={form.address}
-            hasError={!!errors.address}
-            onChange={(event) => onFieldChange("address", event.target.value)}
-          />
-        </FormField>
-        <FormField label="Ville" htmlFor="member-event-city" error={errors.city}>
-          <Input
-            id="member-event-city"
-            value={form.city}
-            hasError={!!errors.city}
-            onChange={(event) => onFieldChange("city", event.target.value)}
-          />
-        </FormField>
-        <FormField
-          label="Code postal"
-          htmlFor="member-event-postal-code"
-          error={errors.postal_code}
-        >
-          <Input
-            id="member-event-postal-code"
-            inputMode="numeric"
-            value={form.postal_code}
-            hasError={!!errors.postal_code}
-            onChange={(event) =>
-              onFieldChange("postal_code", event.target.value)
-            }
-          />
-        </FormField>
-        <FormField
-          label="Latitude"
-          htmlFor="member-event-latitude"
-          error={errors.latitude}
-        >
-          <Input
-            id="member-event-latitude"
-            type="number"
-            step="any"
-            value={form.latitude}
-            hasError={!!errors.latitude}
-            onChange={(event) => onFieldChange("latitude", event.target.value)}
-          />
-        </FormField>
-        <FormField
-          label="Longitude"
-          htmlFor="member-event-longitude"
-          error={errors.longitude}
-        >
-          <Input
-            id="member-event-longitude"
-            type="number"
-            step="any"
-            value={form.longitude}
-            hasError={!!errors.longitude}
-            onChange={(event) => onFieldChange("longitude", event.target.value)}
-          />
-        </FormField>
+        <AddressAutocomplete
+          addressClassName="admin-form-grid__wide"
+          errors={{
+            address: errors.address,
+            city: errors.city,
+            postal_code: errors.postal_code,
+          }}
+          ids={{
+            address: "member-event-address",
+            city: "member-event-city",
+            postalCode: "member-event-postal-code",
+          }}
+          value={{
+            address: form.address,
+            city: form.city,
+            postal_code: form.postal_code,
+          }}
+          onChange={onFieldChange}
+        />
         <ImageField
           className="admin-form-grid__wide"
           id="member-event-image"

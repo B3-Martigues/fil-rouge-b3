@@ -6,7 +6,6 @@ import UserLocationMarker from "./UserLocationMarker";
 import type { UserPosition } from "../hooks/useUserLocation";
 import MapFitBounds from "./MapFitBounds";
 import { hasEventCoordinates } from "../utils/event";
-import useDataStore from "../../../shared/store/dataStore";
 import type { Event } from "../types/event";
 
 type EventMapProps = {
@@ -34,6 +33,7 @@ const SELECTED_EVENT_ZOOM = 16;
 const HOME_MAP_READY_EVENT = "mappening:home-map-ready";
 const DESKTOP_MEDIA_QUERY = "(min-width: 761px)";
 const MOBILE_SHEET_SELECTOR = ".events-list";
+const LOCATION_PRECISION = 6;
 
 const getDesktopSidebarRightEdge = (mapContainer: HTMLElement) => {
   if (!window.matchMedia(DESKTOP_MEDIA_QUERY).matches) return 0;
@@ -118,6 +118,58 @@ const getOffsetFocusCenter = (
   return map.unproject(centerPoint, zoom);
 };
 
+const getLocationKey = (event: MappableEvent) =>
+  `${event.latitude.toFixed(LOCATION_PRECISION)}:${event.longitude.toFixed(
+    LOCATION_PRECISION,
+  )}`;
+
+const getTemporalDistance = (event: Event, now: number) => {
+  const startTime = new Date(event.start_date).getTime();
+
+  return Number.isNaN(startTime) ? Number.POSITIVE_INFINITY : Math.abs(startTime - now);
+};
+
+const isCloserToNow = (
+  candidate: MappableEvent,
+  current: MappableEvent,
+  now: number,
+) => {
+  const candidateDistance = getTemporalDistance(candidate, now);
+  const currentDistance = getTemporalDistance(current, now);
+
+  if (candidateDistance !== currentDistance) {
+    return candidateDistance < currentDistance;
+  }
+
+  return candidate.id < current.id;
+};
+
+const selectClosestEventsByLocation = (
+  events: MappableEvent[],
+  now: number,
+  selectedEventId: number | null,
+) => {
+  const eventByLocation = new Map<string, MappableEvent>();
+
+  events.forEach((event) => {
+    const locationKey = getLocationKey(event);
+    const currentEvent = eventByLocation.get(locationKey);
+
+    if (currentEvent?.id === selectedEventId) {
+      return;
+    }
+
+    if (
+      event.id === selectedEventId ||
+      (!currentEvent || isCloserToNow(event, currentEvent, now))
+    ) {
+      eventByLocation.set(locationKey, event);
+    }
+  });
+
+  return Array.from(eventByLocation.values());
+};
+
 function SelectedEventFocus({
   event,
   requestId,
@@ -167,7 +219,6 @@ export default function EventMap({
   onEventSelect,
   onEventImageError,
 }: EventMapProps) {
-  const organizations = useDataStore((s) => s.organizations);
   const [openPopupEventId, setOpenPopupEventId] = useState<number | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
   const [areTilesLoaded, setAreTilesLoaded] = useState(false);
@@ -176,40 +227,18 @@ export default function EventMap({
     useState(false);
   const hasAnnouncedReady = useRef(false);
   const hasFittedInitialLocation = useRef(false);
-  const activeOrganizationsById = useMemo(
-    () =>
-      new Map(
-        organizations
-          .filter((organization) => organization.is_active && !organization.deleted_at)
-          .map((organization) => [organization.id, organization]),
-      ),
-    [organizations],
-  );
   const mappableEvents = useMemo(
-    () =>
-      events
-        .map((event) => {
-          if (hasEventCoordinates(event)) return event;
+    () => {
+      const now = Date.now();
+      const eventsWithCoordinates = events.filter(hasEventCoordinates);
 
-          const organization = activeOrganizationsById.get(event.organization_id);
-
-          if (
-            organization?.latitude == null ||
-            organization.longitude == null
-          ) {
-            return null;
-          }
-
-          return {
-            ...event,
-            latitude: organization.latitude,
-            longitude: organization.longitude,
-          };
-        })
-        .filter(
-          (event): event is MappableEvent => event != null,
-        ),
-    [activeOrganizationsById, events],
+      return selectClosestEventsByLocation(
+        eventsWithCoordinates,
+        now,
+        selectedEventId,
+      );
+    },
+    [events, selectedEventId],
   );
   const selectedEvent = useMemo(
     () =>
