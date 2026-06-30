@@ -370,10 +370,14 @@ export const eventsApi = {
   },
 
   async listFavorites(): Promise<ApiResult<Favorite[]>> {
-    const result = await apiRequest<Favorite[]>(EVENTS_API_ENDPOINTS.favorites);
-    return result.ok
-      ? { ok: true, data: result.data.map(normalizeFavoriteFromApi) }
-      : result;
+    const result = await apiRequest<Favorite[] | null>(
+      EVENTS_API_ENDPOINTS.favorites,
+    );
+
+    if (!result.ok) return result;
+
+    const data = Array.isArray(result.data) ? result.data : [];
+    return { ok: true, data: data.map(normalizeFavoriteFromApi) };
   },
 
   async recordHistory(eventId: number): Promise<ApiResult<History>> {

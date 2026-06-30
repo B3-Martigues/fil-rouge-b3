@@ -627,12 +627,15 @@ func recipientUsersForAction(ctx context.Context, tx *sql.Tx, targetType string,
 	switch targetType {
 	case "event":
 		var eventID = targetID
-		var organizationID int64
+		var organizationID sql.NullInt64
 		if err := tx.QueryRowContext(ctx, `SELECT organization_id FROM events WHERE id = $1`, targetID).Scan(&organizationID); err != nil {
 			return nil, nil, nil, fmt.Errorf("find event organization: %w", err)
 		}
-		users, err := organizationRecipientUsers(ctx, tx, organizationID)
-		return users, &organizationID, &eventID, err
+		if !organizationID.Valid {
+			return nil, nil, &eventID, nil
+		}
+		users, err := organizationRecipientUsers(ctx, tx, organizationID.Int64)
+		return users, &organizationID.Int64, &eventID, err
 	case "organization":
 		users, err := organizationRecipientUsers(ctx, tx, targetID)
 		organizationID := targetID

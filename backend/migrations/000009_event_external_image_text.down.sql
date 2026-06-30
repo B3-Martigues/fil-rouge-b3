@@ -1,0 +1,10 @@
+BEGIN;
+
+UPDATE events
+SET image = LEFT(image, 255)
+WHERE LENGTH(image) > 255;
+
+ALTER TABLE events
+    ALTER COLUMN image TYPE VARCHAR(255);
+
+COMMIT;

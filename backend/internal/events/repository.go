@@ -36,6 +36,8 @@ const eventSelect = `
 		e.description,
 		e.start_date,
 		e.end_date,
+		TO_CHAR(e.time_start, 'HH24:MI:SS') AS time_start,
+		TO_CHAR(e.time_end, 'HH24:MI:SS') AS time_end,
 		e.latitude,
 		e.longitude,
 		e.address,
@@ -45,6 +47,7 @@ const eventSelect = `
 		e.price,
 		e.ticketing_link,
 		e.source,
+		e.source_url,
 		e.is_active,
 		e.suspended_until,
 		e.suspension_reason,
@@ -59,7 +62,7 @@ const eventSelect = `
 		COUNT(DISTINCT f.id) FILTER (WHERE f.deleted_at IS NULL) AS favorite_count,
 		COUNT(DISTINCT h.id) FILTER (WHERE h.deleted_at IS NULL) AS history_count
 	FROM events e
-	JOIN organizations o ON o.id = e.organization_id
+	LEFT JOIN organizations o ON o.id = e.organization_id
 	LEFT JOIN event_categories_links ecl ON ecl.event_id = e.id
 	LEFT JOIN event_categories ec ON ec.id = ecl.event_category_id
 	LEFT JOIN favorites f ON f.event_id = e.id
@@ -76,34 +79,43 @@ func scanEvent(scanner interface {
 	Scan(dest ...any) error
 }) (*Event, error) {
 	var event Event
+	var organizationID sql.NullInt64
+	var timeStart sql.NullString
+	var timeEnd sql.NullString
 	var latitude sql.NullFloat64
 	var longitude sql.NullFloat64
+	var price sql.NullFloat64
+	var ticketingLink sql.NullString
 	var source sql.NullString
+	var sourceURL sql.NullString
 	var suspendedUntil sql.NullTime
 	var suspensionReason sql.NullString
 	var deletedAt sql.NullTime
-	var organizationName string
-	var organizationActive bool
+	var organizationName sql.NullString
+	var organizationActive sql.NullBool
 	var organizationLatitude sql.NullFloat64
 	var organizationLongitude sql.NullFloat64
 	var categorySlugs string
 
 	err := scanner.Scan(
 		&event.ID,
-		&event.OrganizationID,
+		&organizationID,
 		&event.Title,
 		&event.Description,
 		&event.StartDate,
 		&event.EndDate,
+		&timeStart,
+		&timeEnd,
 		&latitude,
 		&longitude,
 		&event.Address,
 		&event.City,
 		&event.PostalCode,
 		&event.Image,
-		&event.Price,
-		&event.TicketingLink,
+		&price,
+		&ticketingLink,
 		&source,
+		&sourceURL,
 		&event.IsActive,
 		&suspendedUntil,
 		&suspensionReason,
@@ -122,9 +134,19 @@ func scanEvent(scanner interface {
 		return nil, err
 	}
 
+	event.OrganizationID = nullableIntPtr(organizationID)
+	event.TimeStart = nullableStringPtr(timeStart)
+	event.TimeEnd = nullableStringPtr(timeEnd)
 	event.Latitude = nullableFloatPtr(latitude)
 	event.Longitude = nullableFloatPtr(longitude)
+	if price.Valid {
+		event.Price = price.Float64
+	}
+	if ticketingLink.Valid {
+		event.TicketingLink = ticketingLink.String
+	}
 	event.Source = nullableStringPtr(source)
+	event.SourceURL = nullableStringPtr(sourceURL)
 	if suspendedUntil.Valid {
 		event.SuspendedUntil = &suspendedUntil.Time
 	}
@@ -133,12 +155,14 @@ func scanEvent(scanner interface {
 		event.DeletedAt = &deletedAt.Time
 	}
 	event.CategorySlugs = splitCSV(categorySlugs)
-	event.Organization = &OrganizationSummary{
-		ID:        event.OrganizationID,
-		Name:      organizationName,
-		IsActive:  organizationActive,
-		Latitude:  nullableFloatPtr(organizationLatitude),
-		Longitude: nullableFloatPtr(organizationLongitude),
+	if organizationID.Valid {
+		event.Organization = &OrganizationSummary{
+			ID:        organizationID.Int64,
+			Name:      organizationName.String,
+			IsActive:  organizationActive.Bool,
+			Latitude:  nullableFloatPtr(organizationLatitude),
+			Longitude: nullableFloatPtr(organizationLongitude),
+		}
 	}
 
 	return &event, nil
@@ -258,10 +282,10 @@ func (r *Repository) Update(ctx context.Context, eventID int64, input EventInput
 	if err != nil {
 		return nil, err
 	}
-	if err := r.ensureCanManageOrganization(ctx, accountID, role, current.OrganizationID); err != nil {
+	if err := r.ensureCanManageEvent(ctx, accountID, role, current); err != nil {
 		return nil, err
 	}
-	if input.OrganizationID != current.OrganizationID {
+	if current.OrganizationID == nil || input.OrganizationID != *current.OrganizationID {
 		if err := r.ensureCanManageOrganization(ctx, accountID, role, input.OrganizationID); err != nil {
 			return nil, err
 		}
@@ -337,7 +361,7 @@ func (r *Repository) Delete(ctx context.Context, eventID int64, accountID int64,
 	if err != nil {
 		return err
 	}
-	if err := r.ensureCanManageOrganization(ctx, accountID, role, event.OrganizationID); err != nil {
+	if err := r.ensureCanManageEvent(ctx, accountID, role, event); err != nil {
 		return err
 	}
 
@@ -361,7 +385,7 @@ func (r *Repository) SetActive(ctx context.Context, eventID int64, active bool, 
 	if err != nil {
 		return nil, err
 	}
-	if err := r.ensureCanManageOrganization(ctx, accountID, role, event.OrganizationID); err != nil {
+	if err := r.ensureCanManageEvent(ctx, accountID, role, event); err != nil {
 		return nil, err
 	}
 
@@ -430,7 +454,7 @@ func (r *Repository) ReplaceCategories(ctx context.Context, eventID int64, categ
 	if err != nil {
 		return nil, err
 	}
-	if err := r.ensureCanManageOrganization(ctx, accountID, role, event.OrganizationID); err != nil {
+	if err := r.ensureCanManageEvent(ctx, accountID, role, event); err != nil {
 		return nil, err
 	}
 
@@ -457,7 +481,7 @@ func (r *Repository) AddCategory(ctx context.Context, eventID int64, categoryID 
 	if err != nil {
 		return nil, err
 	}
-	if err := r.ensureCanManageOrganization(ctx, accountID, role, event.OrganizationID); err != nil {
+	if err := r.ensureCanManageEvent(ctx, accountID, role, event); err != nil {
 		return nil, err
 	}
 	if _, err := r.GetCategory(ctx, categoryID); err != nil {
@@ -481,7 +505,7 @@ func (r *Repository) RemoveCategory(ctx context.Context, eventID int64, category
 	if err != nil {
 		return nil, err
 	}
-	if err := r.ensureCanManageOrganization(ctx, accountID, role, event.OrganizationID); err != nil {
+	if err := r.ensureCanManageEvent(ctx, accountID, role, event); err != nil {
 		return nil, err
 	}
 
@@ -758,6 +782,16 @@ func (r *Repository) ensureCanManageOrganization(ctx context.Context, accountID 
 	return nil
 }
 
+func (r *Repository) ensureCanManageEvent(ctx context.Context, accountID int64, role string, event *Event) error {
+	if event.OrganizationID == nil {
+		if strings.EqualFold(role, "admin") {
+			return nil
+		}
+		return ErrForbidden
+	}
+	return r.ensureCanManageOrganization(ctx, accountID, role, *event.OrganizationID)
+}
+
 func (r *Repository) userProfileID(ctx context.Context, accountID int64) (int64, error) {
 	var userID int64
 	err := r.db.QueryRowContext(ctx, `
@@ -877,17 +911,17 @@ func (r *Repository) resolveCategoryIDs(ctx context.Context, tx *sql.Tx, ids []i
 }
 
 func buildEventWhere(filters ListFilters) (string, []any) {
-	clauses := []string{"e.deleted_at IS NULL", "o.deleted_at IS NULL"}
+	clauses := []string{"e.deleted_at IS NULL", "(e.organization_id IS NULL OR o.deleted_at IS NULL)"}
 	args := []any{}
 
 	if filters.IncludeDeleted {
 		clauses = []string{"1 = 1"}
 	} else {
-		clauses = []string{"e.deleted_at IS NULL", "o.deleted_at IS NULL"}
+		clauses = []string{"e.deleted_at IS NULL", "(e.organization_id IS NULL OR o.deleted_at IS NULL)"}
 	}
 
 	if !filters.IncludeInactive {
-		clauses = append(clauses, "e.is_active = TRUE", "o.is_active = TRUE")
+		clauses = append(clauses, "e.is_active = TRUE", "(e.organization_id IS NULL OR o.is_active = TRUE)")
 	}
 	if filters.Query != "" {
 		args = append(args, "%"+strings.ToLower(strings.TrimSpace(filters.Query))+"%")
@@ -1041,6 +1075,13 @@ func nullableFloatPtr(value sql.NullFloat64) *float64 {
 		return nil
 	}
 	return &value.Float64
+}
+
+func nullableIntPtr(value sql.NullInt64) *int64 {
+	if !value.Valid {
+		return nil
+	}
+	return &value.Int64
 }
 
 func nullableStringPtr(value sql.NullString) *string {

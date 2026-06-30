@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE events
+    ALTER COLUMN image TYPE TEXT;
+
+COMMIT;

@@ -18,6 +18,7 @@ type EventMapProps = {
   userPosition?: UserPosition | null;
   showPopups?: boolean;
   onEventSelect?: (eventId: number) => void;
+  onEventImageError?: (eventId: number) => void;
 };
 
 type MappableEvent = Event & { latitude: number; longitude: number };
@@ -164,6 +165,7 @@ export default function EventMap({
   userPosition = null,
   showPopups = true,
   onEventSelect,
+  onEventImageError,
 }: EventMapProps) {
   const organizations = useDataStore((s) => s.organizations);
   const [openPopupEventId, setOpenPopupEventId] = useState<number | null>(null);
@@ -329,6 +331,7 @@ export default function EventMap({
           shouldOpenPopup={activeOpenPopupEventId === event.id}
           showPopup={showPopups}
           onSelect={onEventSelect}
+          onImageError={onEventImageError}
         />
       ))}
       {userPosition && (

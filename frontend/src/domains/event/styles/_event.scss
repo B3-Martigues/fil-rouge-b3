@@ -159,7 +159,7 @@ body.events-home-route {
     display: grid;
     grid-auto-columns: minmax(320px, 92%);
     grid-auto-flow: column;
-    grid-auto-rows: minmax(var(--event-card-min-height, 420px), 1fr);
+    grid-auto-rows: var(--event-card-height, var(--event-card-min-height, 460px));
     grid-template-columns: none;
     gap: 12px;
     align-items: stretch;
@@ -171,7 +171,7 @@ body.events-home-route {
     scroll-snap-type: x proximity;
 
     > .event-card {
-      height: 100%;
+      height: var(--event-card-height, var(--event-card-min-height, 460px));
       scroll-snap-align: start;
     }
 
@@ -204,6 +204,9 @@ body.events-home-route {
 
 @media (min-width: ($bp-sm + 1px)) {
   .events-list .event-card {
+    --event-card-description-height: 5.6em;
+    --event-card-description-lines: 4;
+
     grid-template-columns: none;
     grid-template-rows: auto 1fr;
 
@@ -256,10 +259,8 @@ body.events-home-route {
     }
 
     p {
-      min-height: 0;
       font-size: 14px;
       line-height: 1.4;
-      -webkit-line-clamp: 3;
     }
 
     &__details {
@@ -277,6 +278,10 @@ body.events-home-route {
       align-self: end;
       min-height: 38px;
       padding-inline: 12px;
+
+      &.event-card__link--icon-only {
+        padding-inline: 0;
+      }
     }
 
     .event-favorite-button {
@@ -1843,7 +1848,8 @@ body.events-home-route {
     }
 
     p,
-    .event-card__ticketing-link,
+    .event-card__links,
+    .event-card__actions,
     .event-favorite-button,
     .event-report {
       display: none;

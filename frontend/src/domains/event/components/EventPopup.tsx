@@ -12,9 +12,10 @@ import {
 
 type Props = {
   event: Event & { latitude: number; longitude: number };
+  onImageError?: (eventId: number) => void;
 };
 
-export default function EventPopup({ event }: Props) {
+export default function EventPopup({ event, onImageError }: Props) {
   const ticketingHref = getTicketingHref(event.ticketing_link);
 
   return (
@@ -24,6 +25,7 @@ export default function EventPopup({ event }: Props) {
           src={event.image}
           alt={event.title}
           className="event-popup__image"
+          onError={() => onImageError?.(event.id)}
         />
         <FavoriteButton event={event} />
         <ReportEventButton event={event} />

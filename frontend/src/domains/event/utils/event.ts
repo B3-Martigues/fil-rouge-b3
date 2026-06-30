@@ -59,6 +59,18 @@ export function hasEventCoordinates(
   return event.latitude != null && event.longitude != null;
 }
 
+export function hasDisplayableEventImage(event: Pick<Event, "image">): boolean {
+  const image = event.image.trim();
+
+  if (!image) return false;
+
+  const normalizedImage = image.toLowerCase();
+  return (
+    !normalizedImage.startsWith("data:") &&
+    !/\.svg(?:[?#]|$)/.test(normalizedImage)
+  );
+}
+
 export function getDistanceInKilometers(
   firstPoint: GeoPoint,
   secondPoint: GeoPoint,

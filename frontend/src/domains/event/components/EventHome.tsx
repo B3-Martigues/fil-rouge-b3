@@ -54,6 +54,7 @@ import {
   getDefaultPeriodValue,
   getEventStatus,
   getPeriodRange,
+  hasDisplayableEventImage,
   hasEventCoordinates,
   isEventSuspended,
   isEventInPeriod,
@@ -182,6 +183,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
     useState<MapEventSelection | null>(null);
   const mapSectionRef = useRef<HTMLElement | null>(null);
   const mobileSheetTouchStartY = useRef<number | null>(null);
+  const checkedEventImagesRef = useRef(new Map<number, string>());
   const [mapPeriodMode, setMapPeriodMode] =
     useState<EventPeriodMode>(DEFAULT_PERIOD_MODE);
   const [defaultMapPeriodValue] = useState(() =>
@@ -191,6 +193,68 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
   const desktopFloatingSearchInputRef = useRef<HTMLInputElement | null>(null);
   const desktopSidebarSearchInputRef = useRef<HTMLInputElement | null>(null);
   const shouldFocusDesktopSidebarSearchRef = useRef(false);
+  const [failedImageEventIds, setFailedImageEventIds] = useState<Set<number>>(
+    () => new Set(),
+  );
+
+  const markEventImageAsFailed = useCallback((eventId: number) => {
+    setFailedImageEventIds((currentIds) => {
+      if (currentIds.has(eventId)) return currentIds;
+
+      const nextIds = new Set(currentIds);
+      nextIds.add(eventId);
+      return nextIds;
+    });
+    setSelectedEventId((currentEventId) =>
+      currentEventId === eventId ? null : currentEventId,
+    );
+    setMapEventSelection((currentSelection) =>
+      currentSelection?.eventId === eventId ? null : currentSelection,
+    );
+  }, []);
+
+  const displayableEvents = useMemo(
+    () =>
+      events.filter(
+        (event) =>
+          hasDisplayableEventImage(event) && !failedImageEventIds.has(event.id),
+      ),
+    [events, failedImageEventIds],
+  );
+
+  useEffect(() => {
+    let isCancelled = false;
+    const checkedImages: HTMLImageElement[] = [];
+
+    events.forEach((event) => {
+      if (failedImageEventIds.has(event.id)) return;
+      if (!hasDisplayableEventImage(event)) {
+        markEventImageAsFailed(event.id);
+        return;
+      }
+
+      const previousImage = checkedEventImagesRef.current.get(event.id);
+      if (previousImage === event.image) return;
+
+      checkedEventImagesRef.current.set(event.id, event.image);
+      const checkedImage = new Image();
+
+      checkedImage.onerror = () => {
+        if (!isCancelled) {
+          markEventImageAsFailed(event.id);
+        }
+      };
+      checkedImage.src = event.image;
+      checkedImages.push(checkedImage);
+    });
+
+    return () => {
+      isCancelled = true;
+      checkedImages.forEach((checkedImage) => {
+        checkedImage.onerror = null;
+      });
+    };
+  }, [events, failedImageEventIds, markEventImageAsFailed]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 760px)");
@@ -387,14 +451,14 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
     () =>
       Array.from(
         new Set(
-          events
+          displayableEvents
             .filter((event) => event.is_active)
             .filter((event) => !isEventSuspended(event))
             .filter((event) => !event.deleted_at)
             .filter((event) => {
               const organization = activeOrganizationsById.get(event.organization_id);
 
-              if (!organization) return false;
+              if (!organization) return hasEventCoordinates(event);
 
               return (
                 hasEventCoordinates(event) ||
@@ -407,7 +471,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
       ).sort((firstCity, secondCity) =>
         firstCity.localeCompare(secondCity, "fr-FR"),
       ),
-    [activeOrganizationsById, events],
+    [activeOrganizationsById, displayableEvents],
   );
   const preferredCategories = useMemo(
     () =>
@@ -441,12 +505,12 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
     const normalizedSearch = normalizeText(search);
 
     return sortEvents(
-      events.filter((event) => {
+      displayableEvents.filter((event) => {
         if (!event.is_active || event.deleted_at) return false;
         if (isEventSuspended(event)) return false;
         const organization = activeOrganizationsById.get(event.organization_id);
 
-        if (!organization) return false;
+        if (!organization && !hasEventCoordinates(event)) return false;
         if (!getEventCoordinates(event)) return false;
         if (!isEventInPeriod(event, mapPeriod.start, mapPeriod.end)) {
           return false;
@@ -486,7 +550,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
     activeOrganizationsById,
     category,
     city,
-    events,
+    displayableEvents,
     getEventCoordinates,
     mapPeriod.end,
     mapPeriod.start,
@@ -512,8 +576,8 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
     () =>
       mapEventSelection == null
         ? null
-        : events.find((event) => event.id === mapEventSelection.eventId) ?? null,
-    [events, mapEventSelection],
+        : displayableEvents.find((event) => event.id === mapEventSelection.eventId) ?? null,
+    [displayableEvents, mapEventSelection],
   );
   const mapEvents = useMemo(
     () => {
@@ -553,9 +617,9 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
       selectedEventId == null
         ? null
         : displayedEvents.find((event) => event.id === selectedEventId) ??
-          events.find((event) => event.id === selectedEventId) ??
+          displayableEvents.find((event) => event.id === selectedEventId) ??
           null,
-    [displayedEvents, events, selectedEventId],
+    [displayableEvents, displayedEvents, selectedEventId],
   );
   const selectedEventCoordinates = selectedEvent
     ? getEventCoordinates(selectedEvent)
@@ -727,11 +791,15 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
   const handleShareSelectedEvent = async () => {
     if (!selectedEvent) return;
 
+    await shareEvent(selectedEvent);
+  };
+
+  const shareEvent = async (event: Event) => {
     const shareUrl = new URL(ROUTES.PUBLIC.HOME, window.location.origin);
-    shareUrl.searchParams.set("event", String(selectedEvent.id));
+    shareUrl.searchParams.set("event", String(event.id));
     const shareData = {
-      title: selectedEvent.title,
-      text: selectedEvent.description,
+      title: event.title,
+      text: event.description,
       url: shareUrl.toString(),
     };
 
@@ -826,7 +894,9 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
 
     if (!Number.isInteger(requestedEventId)) return;
 
-    const requestedEvent = events.find((event) => event.id === requestedEventId);
+    const requestedEvent = displayableEvents.find(
+      (event) => event.id === requestedEventId,
+    );
 
     if (!requestedEvent || !getEventCoordinates(requestedEvent)) return;
 
@@ -869,7 +939,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
       window.clearTimeout(focusTimer);
     };
   }, [
-    events,
+    displayableEvents,
     getEventCoordinates,
     isMobile,
     location.search,
@@ -879,6 +949,10 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
   const renderEventCard = (event: Event) => {
     const eventDistance = getEventDistance(event);
     const ticketingHref = getTicketingHref(event.ticketing_link);
+    const eventCoordinates = getEventCoordinates(event);
+    const directionsHref = eventCoordinates
+      ? `https://www.google.com/maps/dir/?api=1&destination=${eventCoordinates.latitude},${eventCoordinates.longitude}`
+      : null;
     const isSelectedEventCard = selectedEventId === event.id;
 
     return (
@@ -904,6 +978,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
           src={event.image}
           alt=""
           loading="lazy"
+          onError={() => markEventImageAsFailed(event.id)}
         />
 
         <div className="event-card__content">
@@ -935,20 +1010,63 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
               <dd>{formatEventPrice(event.price)}</dd>
             </div>
           </dl>
-          {ticketingHref && (
-            <a
-              className="btn btn--secondary event-card__ticketing-link"
-              href={ticketingHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(clickEvent) => clickEvent.stopPropagation()}
-              onKeyDown={(keyboardEvent) => keyboardEvent.stopPropagation()}
-            >
-              Billetterie
-            </a>
+          {(ticketingHref || directionsHref) && (
+            <div className="event-card__links">
+              {ticketingHref && (
+                <a
+                  className="btn btn--secondary event-card__ticketing-link event-card__link--icon-only"
+                  href={ticketingHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Billetterie"
+                  title="Billetterie"
+                  onClick={(clickEvent) => clickEvent.stopPropagation()}
+                  onKeyDown={(keyboardEvent) => keyboardEvent.stopPropagation()}
+                >
+                  <Ticket aria-hidden="true" size={16} />
+                </a>
+              )}
+              {directionsHref && (
+                <a
+                  className="btn btn--primary event-card__directions-link event-card__link--icon-only"
+                  href={directionsHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Itinéraire"
+                  title="Itinéraire"
+                  onClick={(clickEvent) => clickEvent.stopPropagation()}
+                  onKeyDown={(keyboardEvent) => keyboardEvent.stopPropagation()}
+                >
+                  <Navigation aria-hidden="true" size={16} />
+                </a>
+              )}
+            </div>
           )}
-          <FavoriteButton event={event} />
-          <ReportEventButton event={event} />
+          <div className="event-card__actions">
+            <FavoriteButton event={event} />
+            <ReportEventButton event={event} />
+            {currentUser && (
+              <Button
+                aria-label="Partager l'evenement"
+                title="Partager l'evenement"
+                className="event-card__share"
+                icon={<Share2 size={16} aria-hidden="true" />}
+                iconOnly
+                size="icon"
+                type="button"
+                variant="secondary"
+                onClick={(clickEvent) => {
+                  clickEvent.stopPropagation();
+                  void shareEvent(event);
+                }}
+                onKeyDown={(keyboardEvent) => {
+                  keyboardEvent.stopPropagation();
+                }}
+              >
+                Partager
+              </Button>
+            )}
+          </div>
         </div>
       </article>
     );
@@ -1207,6 +1325,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
 
             selectSidebarEvent(eventId, false);
           }}
+          onEventImageError={markEventImageAsFailed}
         />
       </section>
 
@@ -1474,6 +1593,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
               className="event-mobile-detail__image"
               src={selectedEvent.image}
               alt=""
+              onError={() => markEventImageAsFailed(selectedEvent.id)}
             />
 
             <div className="event-mobile-detail__info-grid">

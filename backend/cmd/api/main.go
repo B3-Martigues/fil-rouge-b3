@@ -10,6 +10,7 @@ import (
 	dbx "mappening/internal/db"
 	httpx "mappening/internal/http"
 	"mappening/internal/logger"
+	"mappening/internal/scraping"
 
 	"github.com/rs/zerolog/log"
 )
@@ -36,6 +37,19 @@ func main() {
 	defer closeDB(db)
 
 	log.Info().Msg("application database connected")
+
+	var scraperScheduler *scraping.Scheduler
+	if cfg.TarpinBienScraperEnabled {
+		location, err := time.LoadLocation("Europe/Paris")
+		if err != nil {
+			log.Warn().Err(err).Msg("failed to load Europe/Paris timezone, using local timezone")
+			location = time.Local
+		}
+		scraperScheduler = scraping.NewScheduler(db, location)
+		scraperScheduler.Start()
+		defer scraperScheduler.Stop()
+		log.Info().Msg("tarpin bien scraper scheduler started")
+	}
 
 	h := httpx.NewRouter(cfg, db)
 	server := &http.Server{

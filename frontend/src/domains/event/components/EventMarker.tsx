@@ -13,6 +13,7 @@ type Props = {
   shouldOpenPopup?: boolean;
   showPopup?: boolean;
   onSelect?: (eventId: number) => void;
+  onImageError?: (eventId: number) => void;
 };
 
 export default function EventMarker({
@@ -20,6 +21,7 @@ export default function EventMarker({
   shouldOpenPopup = false,
   showPopup = true,
   onSelect,
+  onImageError,
 }: Props) {
   const markerRef = useRef<LeafletMarker | null>(null);
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -65,7 +67,7 @@ export default function EventMarker({
       position={[event.latitude, event.longitude]}
       eventHandlers={{ click: handleMarkerClick }}
     >
-      {showPopup && <EventPopup event={event} />}
+      {showPopup && <EventPopup event={event} onImageError={onImageError} />}
     </Marker>
   );
 }
