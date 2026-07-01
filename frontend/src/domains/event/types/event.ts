@@ -49,6 +49,7 @@ export type EventCreatePayload = {
   price: number;
   ticketing_link: string;
   source?: string | null;
+  is_active?: boolean;
   category_slugs: string[];
   category_ids: number[];
 };

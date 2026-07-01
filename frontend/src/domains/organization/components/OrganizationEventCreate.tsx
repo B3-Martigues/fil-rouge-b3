@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 
 import CategorySelect from "../../event/components/CategorySelect";
 import { eventsApi } from "../../event/api/events.api";
+import type { Event, EventCreatePayload } from "../../event/types/event";
 import useAuthStore from "../../auth/store/authStore";
 import type { EventCategory } from "../../event/types/event-categories";
 import Button from "../../../shared/components/ui/Button";
@@ -67,23 +68,27 @@ export default function OrganizationDashboard() {
     setIsSubmitting(true);
 
     const now = new Date().toISOString();
-    const payload = {
+    const payload: EventCreatePayload = {
+      // id: Date.now(),
       organization_id: currentUser.organization_id,
       title: form.title.trim(),
       description: form.description.trim(),
       start_date: new Date(form.start_date).toISOString(),
       end_date: new Date(form.end_date).toISOString(),
-      latitude: form.latitude.trim() ? Number(form.latitude) : undefined,
-      longitude: form.longitude.trim() ? Number(form.longitude) : undefined,
+      latitude: form.latitude.trim() ? Number(form.latitude) : null,
+      longitude: form.longitude.trim() ? Number(form.longitude) : null,
       address: form.address.trim(),
       city: form.city.trim(),
       postal_code: form.postal_code.trim(),
+      category_slugs: form.categories,
+      category_ids: [],
       image: form.image.trim(),
       price: Number(form.price.trim()),
       ticketing_link: form.ticketing_link.trim(),
       source: "Evenement cree par une organisation",
-      category_slugs: form.categories,
-      category_ids: [],
+      is_active: false,
+      // created_at: now,
+      // updated_at: now,
     };
 
     if (currentUser.auth_source === "api") {
@@ -95,7 +100,7 @@ export default function OrganizationDashboard() {
         return;
       }
 
-      addEvent(result.data); // ✔ bez override
+      addEvent(result.data);
     } else {
       addEvent({
         ...payload,

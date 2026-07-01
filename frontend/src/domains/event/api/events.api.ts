@@ -88,6 +88,12 @@ export type EventListFilters = {
   offset?: number;
 };
 
+// export type EventCreatePayload = Omit<
+//   Event,
+//   "id" | "created_at" | "updated_at" | "deleted_at" | "organization"
+// >;
+
+// export type EventUpdatePayload = EventCreatePayload;
 export type EventUpdatePayload = EventCreatePayload;
 
 export type FavoriteState = {
@@ -177,10 +183,11 @@ const buildEventQuery = (filters: EventListFilters = {}) => {
 const normalizePayload = async (
   payload: EventCreatePayload,
 ): Promise<ApiResult<EventCreatePayload>> => {
-  const normalized: EventCreatePayload = {
+  const normalizedPayload: EventCreatePayload = {
     ...payload,
     organization_id: toBackendId(payload.organization_id),
     category_slugs: Array.from(new Set(payload.category_slugs)),
+    category_ids: payload.category_ids || [],
     image: payload.image.trim(),
     title: payload.title.trim(),
     description: payload.description.trim(),
@@ -192,21 +199,23 @@ const normalizePayload = async (
     price: Number(payload.price),
   };
 
-  if (!isDataImageValue(normalized.image)) {
-    return createApiSuccess(normalized);
+  if (!isDataImageValue(normalizedPayload.image)) {
+    return createApiSuccess(normalizedPayload);
   }
 
-  const uploadResult = await mediaApi.uploadImageValue(normalized.image, {
-    entityType: "event",
-    organizationId: normalized.organization_id,
-  });
-
+  const uploadResult = await mediaApi.uploadImageValue(
+    normalizedPayload.image,
+    {
+      entityType: "event",
+      organizationId: normalizedPayload.organization_id,
+    },
+  );
   if (!uploadResult.ok) {
     return createApiError(uploadResult.error.code, uploadResult.error.message);
   }
 
   return createApiSuccess({
-    ...normalized,
+    ...normalizedPayload,
     image: uploadResult.data.url,
   });
 };
@@ -285,13 +294,9 @@ export const eventsApi = {
     if (!normalizedPayload.ok) return normalizedPayload;
 
     const result = await apiRequest<Event>(EVENTS_API_ENDPOINTS.create, {
+      body: normalizedPayload.data,
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(normalizedPayload.data),
     });
-
     return result.ok
       ? { ok: true, data: normalizeEventFromApi(result.data) }
       : result;
