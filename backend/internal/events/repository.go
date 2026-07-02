@@ -10,7 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	"mappening/internal/cache"
+
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -26,10 +28,10 @@ var (
 
 type Repository struct {
 	db *sql.DB
-	cache *redis.Client
+	cache *cache.Client
 }
 
-func NewRepository(db *sql.DB, cache *redis.Client) *Repository {
+func NewRepository(db *sql.DB, cache *cache.Client) *Repository {
 	return &Repository{
 		db: db,
 		cache: cache,
@@ -221,6 +223,7 @@ func (r *Repository) GetByID(ctx context.Context, id int64, includeInactive bool
 			_ = r.cache.Set(ctx, key, b, 10*time.Minute).Err()
 		}
 	}
+	log.Info().Msg("DB HIT: GetByID")
 
 	return event, nil
 }
@@ -407,9 +410,9 @@ func (r *Repository) Delete(ctx context.Context, eventID int64, accountID int64,
 	if r.cache != nil {
 		_ = r.cache.Del(ctx, fmt.Sprintf("events:byid:%d", eventID)).Err()
 
-		iter := r.cache.Scan(ctx, 0, "events:list:*", 0).Iterator()
-		for iter.Next(ctx) {
-			_ = r.cache.Del(ctx, iter.Val()).Err()
+		keys, err := r.cache.Keys(ctx, "events:list:*").Result()
+		if err == nil && len(keys) > 0 {
+			_ = r.cache.Del(ctx, keys...).Err()
 		}
 	}
 	return requireRows(res, ErrEventNotFound)
@@ -441,9 +444,9 @@ func (r *Repository) SetActive(ctx context.Context, eventID int64, active bool, 
 		if r.cache != nil {
 		_ = r.cache.Del(ctx, fmt.Sprintf("events:byid:%d", eventID)).Err()
 
-		iter := r.cache.Scan(ctx, 0, "events:list:*", 0).Iterator()
-		for iter.Next(ctx) {
-			_ = r.cache.Del(ctx, iter.Val()).Err()
+		keys, err := r.cache.Keys(ctx, "events:list:*").Result()
+		if err == nil && len(keys) > 0 {
+			_ = r.cache.Del(ctx, keys...).Err()
 		}
 	}
 
@@ -1086,10 +1089,13 @@ func appendPaginationArgs(args []any, filters ListFilters) []any {
 }
 
 func (f ListFilters) CacheKey() string {
-	return fmt.Sprintf("%v:%v:%v",
+	return fmt.Sprintf("%d:%d:%s:%t:%s:%s",
 		f.Limit,
+		f.Offset,
 		f.Sort,
 		f.IncludeInactive,
+		f.City,
+		f.Query,
 	)
 }
 

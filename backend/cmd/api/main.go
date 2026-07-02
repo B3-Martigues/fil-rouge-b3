@@ -23,19 +23,24 @@ func main() {
 	logger.Init(os.Stdout)
 
 	cfg := config.Load()
-	redisClient, err := cache.New(cfg.Redis)
-	if err != nil {
-		log.Error().Err(err).Msg("redis connection failed")
-		os.Exit(1)
-	}
-	defer redisClient.Close()
-
-	log.Info().Msg("redis connected")
 
 	if err := cfg.ValidateAPI(); err != nil {
 		log.Error().Err(err).Msg("invalid API configuration")
 		os.Exit(1)
 	}
+
+	redisClient, err := cache.New(cfg.Redis)
+	if err != nil {
+		log.Error().Err(err).Msg("redis connection failed")
+		os.Exit(1)
+	}
+	defer func() {
+		if err := redisClient.Close(); err != nil {
+			log.Error().Err(err).Msg("failed to close redis")
+		}
+	}()
+
+	log.Info().Msg("redis connected")
 
 	db, err := dbx.New(cfg.AppDB)
 	if err != nil {

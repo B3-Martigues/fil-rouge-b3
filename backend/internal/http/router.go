@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"mappening/internal/auth"
+	"mappening/internal/cache"
 	"mappening/internal/config"
 	"mappening/internal/events"
 	"mappening/internal/http/middleware"
@@ -22,7 +23,7 @@ import (
 )
 
 // NewRouter construit le routeur backend minimal: auth, users admin et health.
-func NewRouter(cfg config.Config, db *sql.DB) nethttp.Handler {
+func NewRouter(cfg config.Config, db *sql.DB, cache *cache.Client) nethttp.Handler {
 	var store auth.RefreshTokenStore = auth.NewRefreshStore()
 
 	var authUserRepo authUserReader
@@ -47,7 +48,7 @@ func NewRouter(cfg config.Config, db *sql.DB) nethttp.Handler {
 		SessionStore: store,
 	}
 
-	return newRouter(cfg, db, store, authUserRepo, adminUsersHandler)
+	return newRouter(cfg, db, store, authUserRepo, adminUsersHandler, cache)
 }
 
 type authUserReader interface {
@@ -60,6 +61,7 @@ func newRouter(
 	store auth.RefreshTokenStore,
 	authUserRepo authUserReader,
 	adminUsers users.AdminHandler,
+	cache *cache.Client,
 ) nethttp.Handler {
 	r := chi.NewRouter()
 
@@ -137,7 +139,7 @@ func newRouter(
 		events.RegisterRoutes(
 			r,
 			events.Handler{
-				Repo: events.NewRepository(db),
+				Repo: events.NewRepository(db, cache),
 			},
 			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo),
 		)
@@ -156,7 +158,7 @@ func newRouter(
 		staff.RegisterRoutes(
 			r,
 			staff.Handler{
-				Repo: staff.NewRepository(db),
+				Repo: staff.NewRepository(db, cache),
 			},
 			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo),
 		)

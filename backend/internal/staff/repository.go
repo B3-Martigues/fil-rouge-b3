@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"mappening/internal/events"
+
+	"mappening/internal/cache"
 )
 
 var (
@@ -22,8 +24,8 @@ type Repository struct {
 	eventRepo *events.Repository
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db, eventRepo: events.NewRepository(db)}
+func NewRepository(db *sql.DB, cache *cache.Client) *Repository {
+	return &Repository{db: db, eventRepo: events.NewRepository(db, cache)}
 }
 
 func (r *Repository) Snapshot(ctx context.Context) (*Snapshot, error) {
