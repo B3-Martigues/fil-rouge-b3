@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"mappening/internal/cache"
 	"mappening/internal/config"
 	dbx "mappening/internal/db"
 	httpx "mappening/internal/http"
@@ -22,6 +23,14 @@ func main() {
 	logger.Init(os.Stdout)
 
 	cfg := config.Load()
+	redisClient, err := cache.New(cfg.Redis)
+	if err != nil {
+		log.Error().Err(err).Msg("redis connection failed")
+		os.Exit(1)
+	}
+	defer redisClient.Close()
+
+	log.Info().Msg("redis connected")
 
 	if err := cfg.ValidateAPI(); err != nil {
 		log.Error().Err(err).Msg("invalid API configuration")
@@ -37,7 +46,7 @@ func main() {
 
 	log.Info().Msg("application database connected")
 
-	h := httpx.NewRouter(cfg, db)
+	h := httpx.NewRouter(cfg, db, redisClient)
 	server := &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           h,

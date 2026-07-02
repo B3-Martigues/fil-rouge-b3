@@ -3,10 +3,14 @@ package events
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 var (
@@ -22,10 +26,15 @@ var (
 
 type Repository struct {
 	db *sql.DB
+	cache *redis.Client
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *sql.DB, cache *redis.Client) *Repository {
+	return &Repository{
+		db: db,
+		cache: cache,
+	
+	}
 }
 
 const eventSelect = `
@@ -145,6 +154,15 @@ func scanEvent(scanner interface {
 }
 
 func (r *Repository) List(ctx context.Context, filters ListFilters) ([]Event, error) {
+	key := "events:list:" + filters.CacheKey()
+	if r.cache != nil {
+		if cached, err := r.cache.Get(ctx, key).Result(); err == nil {
+			var events []Event
+			if json.Unmarshal([]byte(cached), &events) == nil {
+				return events, nil
+			}
+		}
+	}
 	where, args := buildEventWhere(filters)
 	query := eventSelect + where + eventGroupBy + buildEventHaving(filters) + buildEventOrder(filters.Sort) + buildLimitOffset(filters, len(args))
 	args = appendPaginationArgs(args, filters)
@@ -166,11 +184,26 @@ func (r *Repository) List(ctx context.Context, filters ListFilters) ([]Event, er
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate events: %w", err)
 	}
+	if r.cache != nil {
+		if b, err := json.Marshal(events); err == nil {
+			_ = r.cache.Set(ctx, key, b, 5*time.Minute).Err()
+		}
+	}
 
 	return events, nil
 }
 
 func (r *Repository) GetByID(ctx context.Context, id int64, includeInactive bool) (*Event, error) {
+	key := fmt.Sprintf("events:byid:%d", id)
+
+	if r.cache != nil {
+		if cached, err := r.cache.Get(ctx, key).Result(); err == nil {
+			var event Event
+			if json.Unmarshal([]byte(cached), &event) == nil {
+				return &event, nil
+			}
+		}
+	}
 	filters := ListFilters{IncludeInactive: includeInactive}
 	where, args := buildEventWhere(filters)
 	query := eventSelect + where + " AND e.id = $" + strconv.Itoa(len(args)+1) + eventGroupBy + " LIMIT 1"
@@ -182,6 +215,11 @@ func (r *Repository) GetByID(ctx context.Context, id int64, includeInactive bool
 			return nil, ErrEventNotFound
 		}
 		return nil, fmt.Errorf("get event: %w", err)
+	}
+	if r.cache != nil {
+		if b, err := json.Marshal(event); err == nil {
+			_ = r.cache.Set(ctx, key, b, 10*time.Minute).Err()
+		}
 	}
 
 	return event, nil
@@ -250,6 +288,12 @@ func (r *Repository) Create(ctx context.Context, input EventInput, accountID int
 		return nil, fmt.Errorf("commit create event tx: %w", err)
 	}
 
+	if r.cache != nil {
+		iter := r.cache.Scan(ctx, 0, "events:list:*", 0).Iterator()
+		for iter.Next(ctx) {
+			_ = r.cache.Del(ctx, iter.Val()).Err()
+		}
+	}
 	return r.GetByID(ctx, eventID, true)
 }
 
@@ -328,6 +372,14 @@ func (r *Repository) Update(ctx context.Context, eventID int64, input EventInput
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit update event tx: %w", err)
 	}
+	if r.cache != nil {
+	_ = r.cache.Del(ctx, fmt.Sprintf("events:byid:%d", eventID)).Err()
+
+	iter := r.cache.Scan(ctx, 0, "events:list:*", 0).Iterator()
+	for iter.Next(ctx) {
+		_ = r.cache.Del(ctx, iter.Val()).Err()
+	}
+}
 
 	return r.GetByID(ctx, eventID, true)
 }
@@ -352,8 +404,16 @@ func (r *Repository) Delete(ctx context.Context, eventID int64, accountID int64,
 	if err != nil {
 		return fmt.Errorf("delete event: %w", err)
 	}
+	if r.cache != nil {
+		_ = r.cache.Del(ctx, fmt.Sprintf("events:byid:%d", eventID)).Err()
 
+		iter := r.cache.Scan(ctx, 0, "events:list:*", 0).Iterator()
+		for iter.Next(ctx) {
+			_ = r.cache.Del(ctx, iter.Val()).Err()
+		}
+	}
 	return requireRows(res, ErrEventNotFound)
+	
 }
 
 func (r *Repository) SetActive(ctx context.Context, eventID int64, active bool, accountID int64, role string) (*Event, error) {
@@ -377,6 +437,14 @@ func (r *Repository) SetActive(ctx context.Context, eventID int64, active bool, 
 	}
 	if err := requireRows(res, ErrEventNotFound); err != nil {
 		return nil, err
+	}
+		if r.cache != nil {
+		_ = r.cache.Del(ctx, fmt.Sprintf("events:byid:%d", eventID)).Err()
+
+		iter := r.cache.Scan(ctx, 0, "events:list:*", 0).Iterator()
+		for iter.Next(ctx) {
+			_ = r.cache.Del(ctx, iter.Val()).Err()
+		}
 	}
 
 	return r.GetByID(ctx, eventID, true)
@@ -1015,6 +1083,14 @@ func appendPaginationArgs(args []any, filters ListFilters) []any {
 		args = append(args, filters.Offset)
 	}
 	return args
+}
+
+func (f ListFilters) CacheKey() string {
+	return fmt.Sprintf("%v:%v:%v",
+		f.Limit,
+		f.Sort,
+		f.IncludeInactive,
+	)
 }
 
 func makePlaceholders(start int, count int) []string {

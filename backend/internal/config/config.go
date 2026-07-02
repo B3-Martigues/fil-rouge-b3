@@ -41,6 +41,14 @@ type Config struct {
 
 	AppDB        DBConfig
 	MigrationsDB DBConfig
+	Redis        RedisConfig
+}
+
+type RedisConfig struct {
+	Host     string
+	Port     string
+	Password string
+	DB       int
 }
 
 // Charge la configuration runtime depuis l'environnement avec des valeurs par defaut adaptees au dev local.
@@ -98,6 +106,12 @@ func Load() Config {
 			MaxConns:    getInt("MIGRATIONS_DB_MAX_CONNS", 5),
 			MaxIdle:     getInt("MIGRATIONS_DB_MAX_IDLE", 2),
 			MaxLifetime: getDuration("MIGRATIONS_DB_MAX_LIFETIME", 30*time.Minute),
+		},
+		Redis: RedisConfig{
+			Host:     getEnv("REDIS_HOST", "127.0.0.1"),
+			Port:     getEnv("REDIS_PORT", "6379"),
+			Password: getEnv("REDIS_PASSWORD", ""),
+			DB:       getInt("REDIS_DB", 0),
 		},
 	}
 }

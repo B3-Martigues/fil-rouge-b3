@@ -17,5 +17,18 @@ services:
       timeout: 5s
       retries: 10
 
+  # Cache pour optimiser les performances API
+  redis:
+    image: redis:7-alpine
+    container_name: mappening-redis
+    ports:
+      - "6379:6379" # Port redis exposé sur l'hôte
+        # Persistance des données redis, Mode AOF (persistance fiable), Redémarrage automatique sauf arrêt manuel
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  redis_data:
