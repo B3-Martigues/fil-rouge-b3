@@ -7,7 +7,7 @@ import { eventsApi } from "../../event/api/events.api";
 export default function useFavorites() {
   const { currentUser, isAuthenticated } = useAuthStore();
   const favoriteRows = useDataStore((s) => s.favorites);
-  const toggleFavoriteInStore = useDataStore((s) => s.toggleFavorite);
+  const setUserFavorites = useDataStore((s) => s.setUserFavorites);
   const upsertFavorite = useDataStore((s) => s.upsertFavorite);
 
   const userId =
@@ -30,22 +30,21 @@ export default function useFavorites() {
     if (!userId) return;
 
     const active = isFavorite(eventId);
-    toggleFavoriteInStore(userId, eventId);
 
-    if (currentUser?.auth_source === "api") {
-      if (active) {
-        const result = await eventsApi.removeFavorite(eventId);
-        if (!result.ok) {
-          toggleFavoriteInStore(userId, eventId);
+    if (active) {
+      const result = await eventsApi.removeFavorite(eventId);
+      if (result.ok) {
+        const favoritesResult = await eventsApi.listFavorites();
+        if (favoritesResult.ok) {
+          setUserFavorites(userId, favoritesResult.data);
         }
-      } else {
-        const result = await eventsApi.addFavorite(eventId);
-        if (!result.ok) {
-          toggleFavoriteInStore(userId, eventId);
-          return;
-        }
-        upsertFavorite(result.data);
       }
+      return;
+    }
+
+    const result = await eventsApi.addFavorite(eventId);
+    if (result.ok) {
+      upsertFavorite(result.data);
     }
   };
 

@@ -24,6 +24,7 @@ import (
 	"mappening/internal/contracts"
 	"mappening/internal/http/middleware"
 	"mappening/internal/httpx"
+	"mappening/internal/mailer"
 	"mappening/internal/users"
 )
 
@@ -42,6 +43,7 @@ type Handler struct {
 
 	Store    RefreshTokenStore
 	UserRepo authUserReader
+	Mailer   mailer.Sender
 }
 
 const dummyPasswordHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
@@ -77,6 +79,7 @@ type authUserPreferencesRepository interface {
 }
 
 type authUserNotificationsRepository interface {
+	ListNotificationTypes(ctx context.Context) ([]users.NotificationType, error)
 	ListNotifications(ctx context.Context, accountID int64) ([]users.Notification, error)
 	MarkNotificationRead(ctx context.Context, accountID int64, notificationID int64) (*users.Notification, error)
 	MarkAllNotificationsRead(ctx context.Context, accountID int64) error
@@ -239,6 +242,7 @@ func (h Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		User:      toAuthUserDTO(user),
 		CSRFToken: csrf,
 	})
+	h.sendWelcomeEmail(r.Context(), user.Email, user.FirstName, false)
 }
 
 func (h Handler) RegisterOrganization(w http.ResponseWriter, r *http.Request) {
@@ -277,6 +281,10 @@ func (h Handler) RegisterOrganization(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := validateEmail(normalizeEmail(req.ContactEmail)); err != nil {
 		httpx.WriteJSONError(w, http.StatusBadRequest, "contact email is invalid")
+		return
+	}
+	if err := validateOrganizationRegistrationFields(req); err != nil {
+		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -323,6 +331,7 @@ func (h Handler) RegisterOrganization(w http.ResponseWriter, r *http.Request) {
 		User:      dto,
 		CSRFToken: csrf,
 	})
+	h.sendWelcomeEmail(r.Context(), user.Email, user.FirstName, true)
 }
 
 func (h Handler) DevLogin(w http.ResponseWriter, r *http.Request) {
@@ -725,6 +734,7 @@ func (h Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 			response.ResetURL = resetPath
 			response.ResetLink = resetPath
 		}
+		h.sendPasswordResetEmail(r.Context(), email, response.ResetURL)
 	}
 	httpx.WriteJSON(w, http.StatusOK, response)
 }
@@ -776,6 +786,63 @@ func (h Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (h Handler) sendPasswordResetEmail(ctx context.Context, email string, resetURL string) {
+	h.sendMail(ctx, mailer.Message{
+		To:      email,
+		Subject: "Reinitialisation de votre mot de passe Mappening",
+		Text: strings.Join([]string{
+			"Bonjour,",
+			"",
+			"Une demande de reinitialisation de mot de passe a ete faite pour votre compte Mappening.",
+			"Vous pouvez choisir un nouveau mot de passe avec ce lien :",
+			resetURL,
+			"",
+			"Si vous n'etes pas a l'origine de cette demande, ignorez ce message.",
+		}, "\n"),
+	}, "password reset")
+}
+
+func (h Handler) sendWelcomeEmail(ctx context.Context, email string, name string, organization bool) {
+	greeting := "Bonjour,"
+	if trimmedName := strings.TrimSpace(name); trimmedName != "" {
+		greeting = "Bonjour " + trimmedName + ","
+	}
+	lines := []string{
+		greeting,
+		"",
+		"Bienvenue sur Mappening.",
+		"Votre compte est maintenant cree.",
+	}
+	if organization {
+		lines = append(lines, "", "Votre espace organisation sera visible apres validation par l'equipe de moderation.")
+	}
+
+	h.sendMail(ctx, mailer.Message{
+		To:      email,
+		Subject: "Bienvenue sur Mappening",
+		Text:    strings.Join(lines, "\n"),
+	}, "welcome")
+}
+
+func (h Handler) sendMail(_ context.Context, message mailer.Message, purpose string) {
+	if h.Mailer == nil {
+		return
+	}
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := h.Mailer.Send(ctx, message); err != nil {
+			log.Error().
+				Err(err).
+				Str("to", message.To).
+				Str("purpose", purpose).
+				Msg("mail delivery failed")
+		}
+	}()
 }
 
 func (h Handler) ListPreferences(w http.ResponseWriter, r *http.Request) {
@@ -842,6 +909,20 @@ func (h Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, notifications)
+}
+
+func (h Handler) ListNotificationTypes(w http.ResponseWriter, r *http.Request) {
+	repo, ok := h.UserRepo.(authUserNotificationsRepository)
+	if h.UserRepo == nil || !ok {
+		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
+		return
+	}
+	types, err := repo.ListNotificationTypes(r.Context())
+	if err != nil {
+		writeAuthMutationError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, types)
 }
 
 func (h Handler) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
@@ -1151,6 +1232,10 @@ func toAuthUserDTO(user *users.User) contracts.AuthUserDTO {
 	if user.AccountID != 0 {
 		accountID = user.AccountID
 	}
+	var organizationID *int64
+	if user.OrganizationID != 0 {
+		organizationID = &user.OrganizationID
+	}
 	username := strings.TrimSpace(user.FirstName)
 	if username == "" {
 		username = strings.TrimSpace(user.LastName)
@@ -1163,17 +1248,18 @@ func toAuthUserDTO(user *users.User) contracts.AuthUserDTO {
 		accountType = user.Role
 	}
 	return contracts.AuthUserDTO{
-		ID:          user.ID,
-		AccountID:   accountID,
-		UserID:      user.ProfileID,
-		Email:       user.Email,
-		LoginEmail:  user.Email,
-		FirstName:   user.FirstName,
-		LastName:    user.LastName,
-		Username:    username,
-		Role:        user.Role,
-		AccountType: accountType,
-		IsActive:    user.IsActive,
+		ID:             user.ID,
+		AccountID:      accountID,
+		UserID:         user.ProfileID,
+		Email:          user.Email,
+		LoginEmail:     user.Email,
+		FirstName:      user.FirstName,
+		LastName:       user.LastName,
+		Username:       username,
+		Role:           user.Role,
+		AccountType:    accountType,
+		IsActive:       user.IsActive,
+		OrganizationID: organizationID,
 	}
 }
 
@@ -1315,6 +1401,9 @@ func validatePublicRegistration(email, username, password string) error {
 	if err := validateEmail(email); err != nil {
 		return err
 	}
+	if utf8.RuneCountInString(email) > 150 {
+		return errors.New("email is too long")
+	}
 	if strings.TrimSpace(username) == "" {
 		return errors.New("username is required")
 	}
@@ -1327,6 +1416,36 @@ func validatePublicRegistration(email, username, password string) error {
 		}
 	}
 	return validatePassword(password)
+}
+
+func validateOrganizationRegistrationFields(req contracts.RegisterOrganizationRequestDTO) error {
+	for _, value := range []struct {
+		name  string
+		field string
+		max   int
+	}{
+		{"name", req.Name, 90},
+		{"contact email", req.ContactEmail, 150},
+		{"member job role", req.MemberJobRole, 50},
+		{"website", req.Website, 255},
+		{"city", req.City, 50},
+		{"postal_code", req.PostalCode, 10},
+		{"logo", req.Logo, 255},
+		{"contact_phone_number", req.ContactPhoneNumber, 20},
+		{"siret", req.SIRET, 50},
+	} {
+		if utf8.RuneCountInString(strings.TrimSpace(value.field)) > value.max {
+			return errors.New(value.name + " is too long")
+		}
+	}
+
+	for _, r := range strings.TrimSpace(req.Description) {
+		if unicode.IsControl(r) && r != '\n' && r != '\t' && r != '\r' {
+			return errors.New("description cannot contain control characters")
+		}
+	}
+
+	return nil
 }
 
 func validateEmail(email string) error {

@@ -24,6 +24,7 @@ import {
   type OrganizerProfileErrors,
   type OrganizerProfileForm,
 } from "../../organization/utils/organizationWorkflow";
+import { organizationsApi } from "../../organization/api/organizations.api";
 import PreferencesGrid from "../../user/components/PreferencesGrid";
 import { userApi } from "../../user/api/user.api";
 import { useUserPreferences } from "../../user/hooks/useUserPreferences";
@@ -45,6 +46,8 @@ const workflowSteps = [
   { key: "organization", label: "Organisation" },
 ] as const;
 const userWorkflowSteps = workflowSteps.slice(0, 2);
+const ORGANIZATION_PENDING_MESSAGE =
+  "Votre compte est en attente de validation. Une fois approuvé, vous pourrez gérer vos événements.";
 
 const isActiveStep = (step: WorkflowStep, key: (typeof workflowSteps)[number]["key"]) => {
   if (step === "organizer-choice") return key === "user-preferences";
@@ -58,6 +61,8 @@ export default function RegistrationWorkflow() {
   const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
   const organizations = useDataStore((s) => s.organizations);
+  const upsertOrganizations = useDataStore((s) => s.upsertOrganizations);
+  const upsertOrganizers = useDataStore((s) => s.upsertOrganizers);
   const setUserEventPreferences = useDataStore((s) => s.setUserEventPreferences);
   const { preferences, toggle } = useUserPreferences([]);
   const [step, setStep] = useState<WorkflowStep>("user-info");
@@ -157,7 +162,7 @@ export default function RegistrationWorkflow() {
           setServerError(preferencesResult.error.message);
           return;
         }
-        setUserEventPreferences(result.data.user_id, preferences);
+        setUserEventPreferences(result.data.user_id, preferencesResult.data);
       }
       login(result.data);
       toast.success("Compte cree avec succes");
@@ -257,11 +262,8 @@ export default function RegistrationWorkflow() {
 
       if (Object.keys(organizationValidationErrors).length > 0) return;
 
-      const result = await authHttpApi.registerOrganization({
-        login_email: userDraft.login_email.trim(),
-        password: userDraft.password,
-        member_name: userDraft.username.trim(),
-        member_job_role: organizerForm.job_role.trim(),
+      const organizationLogo = organizationForm.logo.trim();
+      const organizationPayload = {
         name: organizationForm.name.trim(),
         contact_email: organizationForm.contact_email.trim(),
         description: organizationForm.description.trim(),
@@ -269,10 +271,18 @@ export default function RegistrationWorkflow() {
         address: organizationForm.address.trim(),
         city: organizationForm.city.trim(),
         postal_code: organizationForm.postal_code.trim(),
-        logo: organizationForm.logo.trim(),
         contact_phone_number: organizationForm.contact_phone_number.trim(),
         siret: organizationForm.siret.trim(),
         category_slugs: organizationForm.categories,
+      };
+
+      const result = await authHttpApi.registerOrganization({
+        login_email: userDraft.login_email.trim(),
+        password: userDraft.password,
+        member_name: userDraft.username.trim(),
+        member_job_role: organizerForm.job_role.trim(),
+        ...organizationPayload,
+        logo: "",
       });
 
       if (!result.ok) {
@@ -280,9 +290,46 @@ export default function RegistrationWorkflow() {
         return;
       }
 
-      login(result.data);
-      toast.success("Compte organisation cree. En attente de validation");
-      navigate(ROUTES.ORGANIZATION.DASHBOARD, { replace: true });
+      let nextUser = result.data;
+      const organizationResult = await organizationsApi.me();
+
+      if (organizationResult.ok) {
+        let registeredOrganization = organizationResult.data;
+        upsertOrganizations([registeredOrganization]);
+
+        if (organizationLogo) {
+          const logoResult = await organizationsApi.update(registeredOrganization.id, {
+            ...organizationPayload,
+            logo: organizationLogo,
+            is_active: false,
+            is_verified: false,
+          });
+
+          if (logoResult.ok) {
+            registeredOrganization = logoResult.data;
+            upsertOrganizations([registeredOrganization]);
+          } else {
+            toast.error(logoResult.error.message);
+          }
+        }
+
+        const membersResult = await organizationsApi.listMembers(
+          registeredOrganization.id,
+        );
+        if (membersResult.ok) {
+          upsertOrganizers(membersResult.data);
+        }
+
+        nextUser = {
+          ...nextUser,
+          organization_id: registeredOrganization.id,
+          is_verified: registeredOrganization.is_verified,
+        };
+      }
+
+      login(nextUser);
+      toast.info(ORGANIZATION_PENDING_MESSAGE);
+      navigate(ROUTES.PUBLIC.HOME, { replace: true });
     } finally {
       setLoading(false);
     }

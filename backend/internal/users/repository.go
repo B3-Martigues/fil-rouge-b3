@@ -53,6 +53,7 @@ const userSelect = `
 	SELECT
 		a.id,
 		u.id,
+		COALESCE(o.id, 0),
 		a.login_email,
 		a.password_hash,
 		u.username,
@@ -67,6 +68,7 @@ const userSelect = `
 	JOIN account_types at ON at.id = a.account_type_id
 	JOIN users u ON u.account_id = a.id
 	JOIN roles r ON r.id = u.role_id
+	LEFT JOIN organizations o ON o.account_id = a.id AND o.deleted_at IS NULL
 `
 
 func scanUser(scanner interface {
@@ -77,6 +79,7 @@ func scanUser(scanner interface {
 	err := scanner.Scan(
 		&user.ID,
 		&profileID,
+		&user.OrganizationID,
 		&user.Email,
 		&user.PasswordHash,
 		&user.FirstName,
@@ -179,6 +182,9 @@ func (r *Repository) Create(ctx context.Context, user *User) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	if err := createAccountNotification(ctx, tx, id, "welcome_email", "Bienvenue sur Mappening", "Votre compte Mappening est pret.", "/account"); err != nil {
+		return 0, err
+	}
 
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit create user tx: %w", err)
@@ -264,6 +270,9 @@ func (r *Repository) CreateOrganization(ctx context.Context, registration Organi
 	`, userID, organizationID, nullIfBlank(registration.MemberJobRole))
 	if err != nil {
 		return nil, 0, fmt.Errorf("create organizer: %w", err)
+	}
+	if err := createAccountNotification(ctx, tx, accountID, "welcome_email", "Bienvenue sur Mappening", "Votre espace organisation est pret. Il sera visible apres validation.", "/organization"); err != nil {
+		return nil, 0, err
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -357,6 +366,10 @@ func (r *Repository) UpdatePassword(ctx context.Context, userID int64, passwordH
 		return ErrUserNotFound
 	}
 
+	if err := createAccountNotification(ctx, r.db, userID, "password_changed", "Mot de passe modifie", "Votre mot de passe vient d'etre modifie.", "/account/profile/change-password"); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -397,6 +410,9 @@ func (r *Repository) CreatePasswordResetToken(ctx context.Context, email string,
 		VALUES ($1, $2, $3)
 	`, tokenHash, user.ID, expiresAt); err != nil {
 		return false, fmt.Errorf("create password reset token: %w", err)
+	}
+	if err := createAccountNotification(ctx, r.db, user.ID, "password_reset_requested", "Reinitialisation demandee", "Un lien de reinitialisation de mot de passe vient d'etre envoye.", "/account/profile/change-password"); err != nil {
+		return false, err
 	}
 	return true, nil
 }
@@ -447,6 +463,10 @@ func (r *Repository) ResetPasswordWithToken(ctx context.Context, token string, p
 		WHERE token_hash = $1
 	`, tokenHash); err != nil {
 		return fmt.Errorf("consume password reset token: %w", err)
+	}
+
+	if err := createAccountNotification(ctx, tx, accountID, "password_changed", "Mot de passe modifie", "Votre mot de passe vient d'etre modifie.", "/account/profile/change-password"); err != nil {
+		return err
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -580,6 +600,28 @@ func (r *Repository) ListNotifications(ctx context.Context, accountID int64) ([]
 	return notifications, rows.Err()
 }
 
+func (r *Repository) ListNotificationTypes(ctx context.Context) ([]NotificationType, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, name, slug
+		FROM notification_types
+		ORDER BY id ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list notification types: %w", err)
+	}
+	defer rows.Close()
+
+	var types []NotificationType
+	for rows.Next() {
+		var item NotificationType
+		if err := rows.Scan(&item.ID, &item.Name, &item.Slug); err != nil {
+			return nil, fmt.Errorf("scan notification type: %w", err)
+		}
+		types = append(types, item)
+	}
+	return types, rows.Err()
+}
+
 func (r *Repository) MarkNotificationRead(ctx context.Context, accountID int64, notificationID int64) (*Notification, error) {
 	userID, err := r.UserProfileID(ctx, accountID)
 	if err != nil {
@@ -618,6 +660,28 @@ func (r *Repository) MarkAllNotificationsRead(ctx context.Context, accountID int
 	`, userID)
 	if err != nil {
 		return fmt.Errorf("mark notifications read: %w", err)
+	}
+	return nil
+}
+
+type notificationExecutor interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+func createAccountNotification(ctx context.Context, exec notificationExecutor, accountID int64, typeSlug string, title string, message string, actionURL string) error {
+	res, err := exec.ExecContext(ctx, `
+		INSERT INTO notifications (user_id, notification_type_id, title, message, action_url)
+		SELECT u.id, nt.id, $3, $4, $5
+		FROM users u
+		JOIN notification_types nt ON nt.slug = $2
+		WHERE u.account_id = $1
+		  AND u.deleted_at IS NULL
+	`, accountID, typeSlug, title, message, actionURL)
+	if err != nil {
+		return fmt.Errorf("create account notification: %w", err)
+	}
+	if err := requireRows(res, ErrUserNotFound); err != nil {
+		return err
 	}
 	return nil
 }

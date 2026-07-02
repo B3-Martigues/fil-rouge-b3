@@ -12,20 +12,12 @@ import { FormModalLink } from "../../../shared/components/forms/FormModalLink";
 import { loginSchema, type LoginFormData } from "../validations/login.schema";
 import useAuthStore from "../store/authStore";
 import { ROUTES } from "../../../shared/constants/routes";
-import type { Role } from "../../user/types/user";
 import { authHttpApi } from "../api/authHttp.api";
 
 import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
-
-const getRedirectPathByRole = (role: Role) => {
-  if (role === "admin") return ROUTES.ADMIN.DASHBOARD;
-  if (role === "moderator") return ROUTES.MODERATOR.DASHBOARD;
-  if (role === "organization") return ROUTES.ORGANIZATION.EVENTS;
-  return ROUTES.PUBLIC.HOME;
-};
 
 export default function LoginForm() {
   const navigate = useNavigate();
@@ -60,7 +52,7 @@ export default function LoginForm() {
 
       login(result.data);
 
-      navigate(getRedirectPathByRole(result.data.role), { replace: true });
+      navigate(ROUTES.PUBLIC.HOME, { replace: true });
       toast.success("Connexion reussie");
     } finally {
       setLoading(false);

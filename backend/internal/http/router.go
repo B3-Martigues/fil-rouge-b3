@@ -15,6 +15,7 @@ import (
 	"mappening/internal/config"
 	"mappening/internal/events"
 	"mappening/internal/http/middleware"
+	"mappening/internal/mailer"
 	"mappening/internal/media"
 	"mappening/internal/organizations"
 	"mappening/internal/staff"
@@ -121,6 +122,7 @@ func newRouter(
 		DevLoginEmail:    cfg.DevLoginEmail,
 		Store:            store,
 		UserRepo:         authUserRepo,
+		Mailer:           mailer.NewSender(cfg.Mail),
 	}
 
 	if db != nil {
@@ -156,7 +158,7 @@ func newRouter(
 		staff.RegisterRoutes(
 			r,
 			staff.Handler{
-				Repo: staff.NewRepository(db),
+				Repo: staff.NewRepositoryWithMailer(db, mailer.NewSender(cfg.Mail), cfg.FrontendURL),
 			},
 			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo),
 		)
@@ -194,6 +196,7 @@ func newRouter(
 		pr.Delete("/api/auth/account", authHandler.DeleteAccount)
 		pr.Get("/api/me/preferences", authHandler.ListPreferences)
 		pr.Put("/api/me/preferences", authHandler.ReplacePreferences)
+		pr.Get("/api/notification-types", authHandler.ListNotificationTypes)
 		pr.Get("/api/me/notifications", authHandler.ListNotifications)
 		pr.Patch("/api/me/notifications/read", authHandler.MarkAllNotificationsRead)
 		pr.Patch("/api/me/notifications/{notificationID}/read", authHandler.MarkNotificationRead)

@@ -120,18 +120,14 @@ export default function OrganizationsPage() {
       category_slugs: organizationForm.categories,
     };
 
-    if (currentUser?.auth_source === "api") {
-      const result = await organizationsApi.update(editingOrganizationId, payload);
+    const result = await organizationsApi.update(editingOrganizationId, payload);
 
-      if (!result.ok) {
-        setModalError(result.error.message);
-        return;
-      }
-
-      updateOrganization(editingOrganizationId, result.data);
-    } else {
-      updateOrganization(editingOrganizationId, payload);
+    if (!result.ok) {
+      setModalError(result.error.message);
+      return;
     }
+
+    updateOrganization(editingOrganizationId, result.data);
 
     toast.success("Organisation mise à jour");
     closeOrganizationModal();
@@ -140,13 +136,11 @@ export default function OrganizationsPage() {
   const confirmDeleteOrganization = async () => {
     if (!pendingDeleteOrganization) return;
 
-    if (currentUser?.auth_source === "api") {
-      const result = await organizationsApi.remove(pendingDeleteOrganization.id);
+    const result = await organizationsApi.remove(pendingDeleteOrganization.id);
 
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return;
-      }
+    if (!result.ok) {
+      toast.error(result.error.message);
+      return;
     }
 
     deleteOrganization(pendingDeleteOrganization.id);

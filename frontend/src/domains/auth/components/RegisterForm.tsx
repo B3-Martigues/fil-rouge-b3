@@ -1,40 +1,22 @@
-/**Formulaire d'inscription
- * Utilise:
- * - React Hook Form + Zod pour la validation
- * - composants UI (Input, Button, FormField)
- * - composant feedback (ErrorMessage)
- */
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
+import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
+import Button from "../../../shared/components/ui/Button";
+import FormField from "../../../shared/components/ui/FormField";
+import Input from "../../../shared/components/ui/Input";
+import { ROUTES } from "../../../shared/constants/routes";
+import { adminUsersApi } from "../../admin/api/adminUsers.api";
+import type { Role } from "../../user/types/user";
+import { authHttpApi } from "../api/authHttp.api";
+import useAuthStore from "../store/authStore";
 import {
   registerSchema,
   type RegisterFormData,
 } from "../validations/register.schema";
-import type { Account, User } from "../../user/types/user";
-import {
-  getAccountTypeForRole,
-  getAccountTypeIdForRole,
-  ROLE_IDS,
-  type Role,
-  toAuthenticatedUser,
-} from "../../user/types/user";
-import { ROUTES } from "../../../shared/constants/routes";
-import useAuthStore from "../store/authStore";
-import useDataStore from "../../../shared/store/dataStore";
-import { authHttpApi } from "../api/authHttp.api";
-
-// UI
-import Input from "../../../shared/components/ui/Input";
-import Button from "../../../shared/components/ui/Button";
-import FormField from "../../../shared/components/ui/FormField";
-// FEEDBACK
-import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
-
-import { createWelcomeNotification } from "../../notification/services/notificationFactory";
 
 type RegisterFormProps = {
   mode?: "public" | "admin";
@@ -44,11 +26,6 @@ type RegisterFormProps = {
   onCancel?: () => void;
   onSuccess?: () => void;
 };
-
-const createNextId = (items: { id: number }[]) =>
-  Math.max(0, ...items.map((item) => item.id)) + 1;
-
-const normalizeComparable = (value: string) => value.trim().toLowerCase();
 
 export default function RegisterForm({
   mode = "public",
@@ -60,11 +37,6 @@ export default function RegisterForm({
 }: RegisterFormProps) {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
-  const accounts = useDataStore((s) => s.accounts);
-  const users = useDataStore((s) => s.users);
-  const addAccount = useDataStore((s) => s.addAccount);
-  const addUser = useDataStore((s) => s.addUser);
-  const dispatchNotification = useDataStore((s) => s.dispatchNotification);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -78,19 +50,21 @@ export default function RegisterForm({
   });
 
   const onSubmit = async (data: RegisterFormData) => {
-    const isAdminMode = mode === "admin";
+    const loginEmail = data.login_email.trim();
+    const username = data.username.trim();
 
     setLoading(true);
     setServerError(null);
 
     try {
-      const loginEmail = data.login_email.trim();
-      const username = data.username.trim();
-      if (!isAdminMode) {
-        const result = await authHttpApi.registerUser({
-          login_email: loginEmail,
-          username,
+      if (mode === "admin") {
+        const result = await adminUsersApi.create({
+          email: loginEmail,
           password: data.password,
+          first_name: username,
+          last_name: "",
+          role,
+          is_active: true,
         });
 
         if (!result.ok) {
@@ -98,72 +72,25 @@ export default function RegisterForm({
           return;
         }
 
-        login(result.data);
-        toast.success("Compte cree avec succes");
-        navigate(ROUTES.USER.ONBOARDING);
-        return;
-      }
-
-      /**Vérification email déjà utilsé */
-      const existingAccount = accounts.find(
-        (account) =>
-          normalizeComparable(account.login_email) ===
-          normalizeComparable(loginEmail),
-      );
-
-      if (existingAccount) {
-        setServerError("Cet email est déjà utilisé");
-        return;
-      }
-
-      const existingUsername = users.find(
-        (user) =>
-          !user.deleted_at &&
-          normalizeComparable(user.username) === normalizeComparable(username),
-      );
-
-      if (existingUsername) {
-        setServerError("Ce nom d'utilisateur est déjà utilisé");
-        return;
-      }
-
-      const accountId = createNextId(accounts);
-      const userId = createNextId(users);
-      const createdAt = new Date().toISOString();
-      const account: Account = {
-        id: accountId,
-        account_type_id: getAccountTypeIdForRole(role),
-        account_type: getAccountTypeForRole(role),
-        login_email: loginEmail,
-        password_hash: data.password,
-        is_active: true,
-        created_at: createdAt,
-        updated_at: createdAt,
-      };
-      const newUser: User = {
-        id: userId,
-        account_id: accountId,
-        username,
-        role_id: ROLE_IDS[role],
-        role,
-        created_at: createdAt,
-        updated_at: createdAt,
-      };
-
-      addAccount(account);
-      addUser(newUser);
-      void dispatchNotification(createWelcomeNotification({ user: newUser }));
-
-      if (isAdminMode) {
         toast.success("Compte cree avec succes");
         onSuccess?.();
         return;
       }
 
-      login(toAuthenticatedUser(account, newUser));
+      const result = await authHttpApi.registerUser({
+        login_email: loginEmail,
+        username,
+        password: data.password,
+      });
 
-      toast.success("Compte créé avec succès");
-      navigate(ROUTES.USER.ONBOARDING);
+      if (!result.ok) {
+        setServerError(result.error.message);
+        return;
+      }
+
+      login(result.data);
+      toast.success("Compte cree avec succes");
+      navigate(ROUTES.PUBLIC.HOME, { replace: true });
     } catch {
       setServerError(
         mode === "admin"

@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { toast } from "react-toastify";
 
 import EmptyState from "../../../shared/components/feedback/EmptyState";
+import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
+import Loader from "../../../shared/components/feedback/Loader";
 import DecisionReasonModal from "../../../shared/components/forms/DecisionReasonModal";
 import PanelStats from "../../../shared/components/layout/PanelStats";
 import Toolbar from "../../../shared/components/layout/Toolbar";
@@ -20,18 +22,6 @@ import {
   getTicketingHref,
   isEventSuspended,
 } from "../../event/utils/event";
-import {
-  createAdministrativeAccountNotification,
-  createAdministrativeEventNotification,
-  createAccountSuspendedNotification,
-  createOrganizationApprovedNotification,
-  createOrganizationRejectedNotification,
-  createEventApprovedNotification,
-  createEventDeletedNotification,
-  createEventHiddenNotification,
-  createEventRejectedNotification,
-  createReportUsefulNotification,
-} from "../../notification/services/notificationFactory";
 import type { Account, AccountSummary, User } from "../../user/types/user";
 import { isAccountSuspended } from "../../user/types/user";
 import type {
@@ -56,7 +46,7 @@ type ModeratorDashboardProps = {
 type ModeratorDecisionRequest = {
   title: string;
   variant?: "primary" | "secondary" | "danger";
-  onConfirm: (reason: string) => boolean | void;
+  onConfirm: (reason: string) => boolean | void | Promise<boolean | void>;
 };
 
 type OrganizerRow = {
@@ -208,7 +198,13 @@ export default function ModeratorDashboard({
   view = "dashboard",
 }: ModeratorDashboardProps) {
   const currentUser = useAuthStore((s) => s.currentUser);
-  const { applyAction: applyStaffAction } = useStaffSync();
+  const {
+    applyAction: applyStaffAction,
+    error: staffSyncError,
+    isLoaded: isStaffLoaded,
+    isLoading: isStaffLoading,
+    refresh: refreshStaffData,
+  } = useStaffSync();
   const { can } = useModeratorPermissions();
   const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
@@ -217,22 +213,6 @@ export default function ModeratorDashboard({
   const events = useDataStore((s) => s.events);
   const moderationReports = useDataStore((s) => s.moderationReports);
   const moderationDecisions = useDataStore((s) => s.moderationDecisions);
-  const updateAccount = useDataStore((s) => s.updateAccount);
-  const updateOrganization = useDataStore((s) => s.updateOrganization);
-  const activateOrganization = useDataStore((s) => s.activateOrganization);
-  const updateEvent = useDataStore((s) => s.updateEvent);
-  const approveEvent = useDataStore((s) => s.approveEvent);
-  const suspendEvent = useDataStore((s) => s.suspendEvent);
-  const liftEventSuspension = useDataStore((s) => s.liftEventSuspension);
-  const deleteEvent = useDataStore((s) => s.deleteEvent);
-  const restoreEvent = useDataStore((s) => s.restoreEvent);
-  const deleteEventPermanently = useDataStore(
-    (s) => s.deleteEventPermanently,
-  );
-  const suspendAccount = useDataStore((s) => s.suspendAccount);
-  const updateModerationReport = useDataStore((s) => s.updateModerationReport);
-  const addModerationDecision = useDataStore((s) => s.addModerationDecision);
-  const dispatchNotification = useDataStore((s) => s.dispatchNotification);
   const [reportDecisionMessages, setReportDecisionMessages] = useState<
     Record<number, string>
   >({});
@@ -259,7 +239,6 @@ export default function ModeratorDashboard({
   const [decisionReason, setDecisionReason] = useState("");
   const [decisionReasonError, setDecisionReasonError] = useState("");
 
-  const moderatorUserId = currentUser?.user_id ?? currentUser?.id ?? 0;
   const canFinalizeEvents = currentUser?.role === "admin";
   const accountSummaries = useMemo(
     () => buildAccountSummaries(accounts, users, organizations),
@@ -318,27 +297,13 @@ export default function ModeratorDashboard({
   const pendingReports = moderationReports.filter(
     (report) => report.status === "open",
   );
-  const moderatableAccounts = accountSummaries.filter(
-    (account) =>
-      (account.role === "user" || account.role === "organization") &&
-      account.is_active &&
-      !isAccountSuspended(account),
+  const moderationAccounts = accountSummaries.filter(
+    (account) => account.role === "user" || account.role === "organization",
   );
-  const suspendedAccounts = accountSummaries.filter(
-    (account) =>
-      (account.role === "user" || account.role === "organization") &&
-      isAccountSuspended(account),
-  );
-  const userAccountsToModerate = moderatableAccounts.filter(
+  const userAccounts = moderationAccounts.filter(
     (account) => account.role === "user",
   );
-  const organizationAccountsToModerate = moderatableAccounts.filter(
-    (account) => account.role === "organization",
-  );
-  const suspendedUserAccounts = suspendedAccounts.filter(
-    (account) => account.role === "user",
-  );
-  const suspendedOrganizationAccounts = suspendedAccounts.filter(
+  const organizationAccounts = moderationAccounts.filter(
     (account) => account.role === "organization",
   );
   const organizerRows = useMemo<OrganizerRow[]>(() => {
@@ -377,7 +342,7 @@ export default function ModeratorDashboard({
     });
   };
 
-  const recordDecision = (
+  const recordDecision = async (
     action: ModerationAction,
     targetType: ModerationTargetType,
     targetId: number,
@@ -390,29 +355,8 @@ export default function ModeratorDashboard({
   ) => {
     const trimmedReason = reason.trim();
 
-    if (currentUser?.auth_source === "api" && !action.endsWith("_admin_updated")) {
-      void applyStaffAction({
-        action,
-        target_type: targetType,
-        target_id: targetId,
-        reason: trimmedReason || "Decision staff",
-        report_id: options?.reportId,
-        report_status: options?.reportStatus,
-        suspended_until: options?.suspendedUntil,
-      });
-      return;
-    }
-
-    addModerationDecision({
-      action,
-      target_type: targetType,
-      target_id: targetId,
-      moderator_user_id: moderatorUserId,
-      reason: trimmedReason,
-    });
-
     if (!action.endsWith("_admin_updated")) {
-      void applyStaffAction({
+      return applyStaffAction({
         action,
         target_type: targetType,
         target_id: targetId,
@@ -422,6 +366,8 @@ export default function ModeratorDashboard({
         suspended_until: options?.suspendedUntil,
       });
     }
+
+    return true;
   };
 
   const openDecisionModal = (request: ModeratorDecisionRequest) => {
@@ -436,7 +382,7 @@ export default function ModeratorDashboard({
     setDecisionReasonError("");
   };
 
-  const confirmDecision = () => {
+  const confirmDecision = async () => {
     if (!decisionRequest) return;
 
     const reason = decisionReason.trim();
@@ -446,7 +392,7 @@ export default function ModeratorDashboard({
       return;
     }
 
-    const result = decisionRequest.onConfirm(reason);
+    const result = await decisionRequest.onConfirm(reason);
 
     if (result === false) return;
 
@@ -457,134 +403,7 @@ export default function ModeratorDashboard({
     activeOrganizations.find((organization) => organization.id === organizationId)?.name ??
     "Organization introuvable";
 
-  const getOrganizationNotificationUser = (organization: Organization) => {
-    const organizer = organizers.find(
-      (member) => member.organization_id === organization.id && !member.deleted_at,
-    );
-
-    return (
-      users.find(
-        (user) => user.id === organizer?.user_id && !user.deleted_at,
-      ) ??
-      users.find(
-        (user) => user.account_id === organization.account_id && !user.deleted_at,
-      )
-    );
-  };
-
-  const notifyOrganization = (
-    organization: Organization,
-    buildNotification: (user: User) => Parameters<typeof dispatchNotification>[0],
-  ) => {
-    const notificationUser = getOrganizationNotificationUser(organization);
-
-    if (!notificationUser) {
-      toast.error("Aucun membre organization rattache pour notifier la decision");
-      return;
-    }
-
-    void dispatchNotification(buildNotification(notificationUser));
-  };
-
-  const getOrganizerUsers = (organizationId: number) => {
-    const memberUserIds = new Set(
-      organizers
-        .filter((member) => member.organization_id === organizationId && !member.deleted_at)
-        .map((member) => member.user_id),
-    );
-
-    return users.filter(
-      (user) => memberUserIds.has(user.id) && !user.deleted_at,
-    );
-  };
-
-  const notifyAccountAdministrativeDecision = (
-    account: AccountSummary,
-    operation: string,
-    reason: string,
-  ) => {
-    const organization = account.organization_id
-      ? organizations.find((item) => item.id === account.organization_id) ?? null
-      : null;
-    const recipientUsers = account.organization_id
-      ? getOrganizerUsers(account.organization_id)
-      : users.filter((user) => user.id === account.user_id && !user.deleted_at);
-
-    recipientUsers.forEach((user) => {
-      void dispatchNotification(
-        createAdministrativeAccountNotification({
-          user,
-          organization,
-          operation,
-          reason,
-        }),
-      );
-    });
-  };
-
-  const notifyEventAdministrativeDecision = (
-    event: Event,
-    operation: string,
-    reason: string,
-  ) => {
-    const organization = organizations.find(
-      (item) => item.id === event.organization_id && !item.deleted_at,
-    );
-
-    if (!organization) return;
-
-    getOrganizerUsers(organization.id).forEach((user) => {
-      void dispatchNotification(
-        createAdministrativeEventNotification({
-          organization,
-          event,
-          user,
-          operation,
-          reason,
-        }),
-      );
-    });
-  };
-
-  const notifyUsefulReport = (
-    report: ModerationReport,
-    moderatorMessage: string,
-  ) => {
-    const reporter = users.find(
-      (user) => user.id === report.reporter_user_id && !user.deleted_at,
-    );
-
-    if (!reporter) return;
-
-    const targetEvent =
-      report.target_type === "event"
-        ? events.find((event) => event.id === report.target_id) ?? null
-        : null;
-    const targetOrganization =
-      report.target_type === "organization"
-        ? organizations.find((organization) => organization.id === report.target_id) ?? null
-        : targetEvent
-          ? organizations.find((organization) => organization.id === targetEvent.organization_id) ??
-            null
-          : null;
-
-    void dispatchNotification(
-      createReportUsefulNotification({
-        user: reporter,
-        targetLabel: getReportTargetLabel(
-          report,
-          events,
-          organizations,
-          accountSummaries,
-        ),
-        moderatorMessage,
-        event: targetEvent,
-        organization: targetOrganization,
-      }),
-    );
-  };
-
-  const suspendReportedEventAndNotifyOrganization = (
+  const suspendReportedEvent = async (
     report: ModerationReport,
     moderatorMessage: string,
   ) => {
@@ -602,45 +421,36 @@ export default function ModeratorDashboard({
 
     const suspendedUntil = createSuspendedUntil(30);
 
-    suspendEvent(event.id, moderatorMessage, suspendedUntil);
-    recordDecision("event_hidden", "event", event.id, moderatorMessage, {
+    await recordDecision("event_hidden", "event", event.id, moderatorMessage, {
       suspendedUntil,
     });
-
-    getOrganizerUsers(organization.id).forEach((user) => {
-      void dispatchNotification(
-        createEventHiddenNotification({
-          organization,
-          event,
-          user,
-          reason: moderatorMessage,
-        }),
-      );
-    });
   };
 
-  const handleApproveOrganization = (organization: Organization) => {
-    activateOrganization(organization.id);
-    notifyOrganization(organization, (user) =>
-      createOrganizationApprovedNotification({ organization, user }),
+  const handleApproveOrganization = async (organization: Organization) => {
+    const ok = await recordDecision(
+      "organization_approved",
+      "organization",
+      organization.id,
+      "Compte valide",
     );
-    recordDecision("organization_approved", "organization", organization.id, "Compte valide");
+    if (!ok) return false;
     toast.success(`${organization.name} est validee`);
+    return true;
   };
 
-  const handleRejectOrganization = (organization: Organization, reason: string) => {
-    updateOrganization(organization.id, {
-      is_active: false,
-      is_verified: false,
-    });
-    notifyOrganization(organization, (user) =>
-      createOrganizationRejectedNotification({ organization, user, reason }),
+  const handleRejectOrganization = async (organization: Organization, reason: string) => {
+    const ok = await recordDecision(
+      "organization_rejected",
+      "organization",
+      organization.id,
+      reason,
     );
-    recordDecision("organization_rejected", "organization", organization.id, reason);
+    if (!ok) return false;
     toast.success(`${organization.name} est refusee`);
+    return true;
   };
 
-  const handleApproveEvent = (event: Event) => {
+  const handleApproveEvent = async (event: Event) => {
     const organization = activeOrganizations.find(
       (item) => item.id === event.organization_id && item.is_active,
     );
@@ -650,15 +460,12 @@ export default function ModeratorDashboard({
       return;
     }
 
-    approveEvent(event.id);
-    notifyOrganization(organization, (user) =>
-      createEventApprovedNotification({ organization, event, user }),
-    );
-    recordDecision("event_approved", "event", event.id, "Evenement valide");
+    const ok = await recordDecision("event_approved", "event", event.id, "Evenement valide");
+    if (!ok) return false;
     toast.success(`${event.title} est publie`);
   };
 
-  const handleRejectEvent = (event: Event, reason: string) => {
+  const handleRejectEvent = async (event: Event, reason: string) => {
     const organization = activeOrganizations.find((item) => item.id === event.organization_id);
 
     if (!organization) {
@@ -666,15 +473,12 @@ export default function ModeratorDashboard({
       return false;
     }
 
-    updateEvent(event.id, { is_active: false });
-    notifyOrganization(organization, (user) =>
-      createEventRejectedNotification({ organization, event, user, reason }),
-    );
-    recordDecision("event_rejected", "event", event.id, reason);
+    const ok = await recordDecision("event_rejected", "event", event.id, reason);
+    if (!ok) return false;
     toast.success(`${event.title} est refuse`);
   };
 
-  const handleSuspendEvent = (event: Event, reason: string) => {
+  const handleSuspendEvent = async (event: Event, reason: string) => {
     const daysValue = Number(eventSuspensionDays[event.id] ?? 7);
     const organization = activeOrganizations.find((item) => item.id === event.organization_id);
 
@@ -690,33 +494,25 @@ export default function ModeratorDashboard({
 
     const suspendedUntil = createSuspendedUntil(daysValue);
 
-    suspendEvent(event.id, reason, suspendedUntil);
-    notifyOrganization(organization, (user) =>
-      createEventHiddenNotification({ organization, event, user, reason }),
-    );
-    recordDecision("event_hidden", "event", event.id, reason, {
+    const ok = await recordDecision("event_hidden", "event", event.id, reason, {
       suspendedUntil,
     });
+    if (!ok) return false;
     toast.success(`${event.title} est suspendu temporairement`);
   };
 
-  const handleLiftEventSuspension = (event: Event, reason: string) => {
-    liftEventSuspension(event.id);
-    notifyEventAdministrativeDecision(
-      event,
-      "Levee de suspension de l'evenement",
-      reason,
-    );
-    recordDecision(
+  const handleLiftEventSuspension = async (event: Event, reason: string) => {
+    const ok = await recordDecision(
       "event_restored",
       "event",
       event.id,
       reason,
     );
+    if (!ok) return false;
     toast.success(`Suspension levee pour ${event.title}`);
   };
 
-  const handleDeleteEvent = (event: Event, reason: string) => {
+  const handleDeleteEvent = async (event: Event, reason: string) => {
     const organization = activeOrganizations.find((item) => item.id === event.organization_id);
 
     if (!organization) {
@@ -724,15 +520,12 @@ export default function ModeratorDashboard({
       return false;
     }
 
-    notifyOrganization(organization, (user) =>
-      createEventDeletedNotification({ organization, event, user, reason }),
-    );
-    deleteEvent(event.id);
-    recordDecision("event_deleted", "event", event.id, reason);
+    const ok = await recordDecision("event_deleted", "event", event.id, reason);
+    if (!ok) return false;
     toast.success(`${event.title} est supprime`);
   };
 
-  const handleSuspendAccountSummary = (
+  const handleSuspendAccountSummary = async (
     account: AccountSummary,
     reason: string,
     daysValue: number,
@@ -747,20 +540,8 @@ export default function ModeratorDashboard({
     }
 
     const suspendedUntil = createSuspendedUntil(daysValue);
-    const organization = account.organization_id
-      ? organizations.find((item) => item.id === account.organization_id)
-      : null;
 
-    suspendAccount(account.account_id, reason, suspendedUntil);
-    void dispatchNotification(
-      createAccountSuspendedNotification({
-        user,
-        organization,
-        reason,
-        suspendedUntil,
-      }),
-    );
-    recordDecision(
+    return recordDecision(
       "account_suspended",
       "account",
       account.account_id,
@@ -769,11 +550,9 @@ export default function ModeratorDashboard({
         suspendedUntil,
       },
     );
-
-    return true;
   };
 
-  const handleSuspendAccount = (account: AccountSummary, reason: string) => {
+  const handleSuspendAccount = async (account: AccountSummary, reason: string) => {
     const daysValue = Number(suspensionDays[account.account_id] ?? 7);
 
     if (!Number.isFinite(daysValue) || daysValue < 1 || daysValue > 90) {
@@ -781,32 +560,23 @@ export default function ModeratorDashboard({
       return false;
     }
 
-    if (!handleSuspendAccountSummary(account, reason, daysValue)) {
+    if (!(await handleSuspendAccountSummary(account, reason, daysValue))) {
       return false;
     }
 
     toast.success(`${account.display_name} est suspendu temporairement`);
   };
 
-  const handleLiftAccountSuspension = (
+  const handleLiftAccountSuspension = async (
     account: AccountSummary,
     reason: string,
   ) => {
-    updateAccount(account.account_id, {
-      is_active: true,
-      suspended_until: null,
-      suspension_reason: null,
-    });
-    notifyAccountAdministrativeDecision(
-      account,
-      "Levee de suspension du compte",
-      reason,
-    );
-    recordDecision("account_restored", "account", account.account_id, reason);
+    const ok = await recordDecision("account_restored", "account", account.account_id, reason);
+    if (!ok) return false;
     toast.success(`Suspension levee pour ${account.display_name}`);
   };
 
-  const applyResolvedReportTargetAction = (
+  const applyResolvedReportTargetAction = async (
     report: ModerationReport,
     decisionMessage: string,
   ) => {
@@ -816,7 +586,7 @@ export default function ModeratorDashboard({
       );
 
       if (reportedAccount) {
-        handleSuspendAccountSummary(reportedAccount, decisionMessage, 7);
+        await handleSuspendAccountSummary(reportedAccount, decisionMessage, 7);
       }
 
       return;
@@ -829,18 +599,7 @@ export default function ModeratorDashboard({
 
       if (!reportedOrganization) return;
 
-      updateOrganization(reportedOrganization.id, {
-        is_active: false,
-        is_verified: false,
-      });
-      notifyOrganization(reportedOrganization, (user) =>
-        createOrganizationRejectedNotification({
-          organization: reportedOrganization,
-          user,
-          reason: decisionMessage,
-        }),
-      );
-      recordDecision(
+      await recordDecision(
         "organization_rejected",
         "organization",
         reportedOrganization.id,
@@ -852,29 +611,29 @@ export default function ModeratorDashboard({
       );
 
       if (reportedOrganizationAccount) {
-        handleSuspendAccountSummary(reportedOrganizationAccount, decisionMessage, 7);
+        await handleSuspendAccountSummary(reportedOrganizationAccount, decisionMessage, 7);
       }
     }
   };
 
-  const applyDismissedReportTargetAction = (report: ModerationReport) => {
+  const applyDismissedReportTargetAction = async (report: ModerationReport) => {
     if (report.target_type !== "event") return;
 
     const reportedEvent = events.find((event) => event.id === report.target_id);
 
     if (!reportedEvent) return;
 
-    if (reportedEvent.deleted_at) {
-      restoreEvent(reportedEvent.id);
-      return;
-    }
-
-    if (isEventSuspended(reportedEvent)) {
-      liftEventSuspension(reportedEvent.id);
+    if (reportedEvent.deleted_at || isEventSuspended(reportedEvent)) {
+      await recordDecision(
+        "event_restored",
+        "event",
+        reportedEvent.id,
+        "Signalement classe",
+      );
     }
   };
 
-  const handleReportStatus = (
+  const handleReportStatus = async (
     report: ModerationReport,
     status: ModerationReport["status"],
     moderatorMessage = "",
@@ -889,16 +648,9 @@ export default function ModeratorDashboard({
       return;
     }
 
-    updateModerationReport(report.id, {
-      status,
-      handled_by_user_id: moderatorUserId,
-      resolved_at: handledOutcome ? new Date().toISOString() : null,
-      resolution_note: handledOutcome ? decisionMessage : null,
-    });
-
     if (status === "reviewing") {
       setOpenedReportId(report.id);
-      recordDecision(
+      await recordDecision(
         "report_reviewing",
         report.target_type,
         report.target_id,
@@ -911,7 +663,7 @@ export default function ModeratorDashboard({
     }
 
     if (handledOutcome) {
-      recordDecision(
+      await recordDecision(
         handledOutcome.action,
         report.target_type,
         report.target_id,
@@ -928,38 +680,31 @@ export default function ModeratorDashboard({
     }
 
     if (status === "resolved") {
-      notifyUsefulReport(report, decisionMessage);
-      suspendReportedEventAndNotifyOrganization(report, decisionMessage);
-      applyResolvedReportTargetAction(report, decisionMessage);
+      await suspendReportedEvent(report, decisionMessage);
+      await applyResolvedReportTargetAction(report, decisionMessage);
     }
 
     if (status === "dismissed") {
-      applyDismissedReportTargetAction(report);
+      await applyDismissedReportTargetAction(report);
     }
 
     toast.success("Signalement mis a jour");
   };
 
-  const handleRestoreEvent = (eventId: number, reason: string) => {
-    restoreEvent(eventId);
-    recordDecision(
+  const handleRestoreEvent = async (eventId: number, reason: string) => {
+    const ok = await recordDecision(
       "event_restored",
       "event",
       eventId,
       reason,
     );
+    if (!ok) return false;
     toast.success("Evenement restaure en attente");
   };
 
-  const handleDeleteEventPermanently = (eventId: number, reason: string) => {
-    const event = events.find((item) => item.id === eventId);
-
-    if (event) {
-      notifyEventAdministrativeDecision(event, "Suppression de l'evenement", reason);
-    }
-
-    deleteEventPermanently(eventId);
-    recordDecision("event_deleted", "event", eventId, reason);
+  const handleDeleteEventPermanently = async (eventId: number, reason: string) => {
+    const ok = await recordDecision("event_deleted", "event", eventId, reason);
+    if (!ok) return false;
     toast.success("Evenement supprime definitivement");
   };
 
@@ -1106,8 +851,8 @@ export default function ModeratorDashboard({
       );
   })();
   const filteredOrganizationAccounts = filterAccounts(
-    organizationAccountsToModerate,
-    suspendedOrganizationAccounts,
+    organizationAccounts,
+    [],
     organizationSearch,
     organizationSort,
     matchesOrganizationAccountSearch,
@@ -1130,8 +875,8 @@ export default function ModeratorDashboard({
     );
 
   const filteredUserAccounts = filterAccounts(
-    userAccountsToModerate,
-    suspendedUserAccounts,
+    userAccounts,
+    [],
     accountSearch,
     accountSort,
   );
@@ -1232,7 +977,7 @@ export default function ModeratorDashboard({
     {
       label: "Utilisateurs",
       to: ROUTES.MODERATOR.DASHBOARD,
-      value: userAccountsToModerate.length + suspendedUserAccounts.length,
+      value: userAccounts.length,
       end: true,
     },
     {
@@ -1266,6 +1011,29 @@ export default function ModeratorDashboard({
 
     return canSuspendAccounts;
   });
+
+  if (staffSyncError && !isStaffLoaded) {
+    return (
+      <div className="admin-panel moderator-panel" aria-label={currentViewContent.title}>
+        <section className="admin-section admin-section--wide">
+          <ErrorMessage message={staffSyncError} />
+          <Button type="button" onClick={() => void refreshStaffData()}>
+            Recharger
+          </Button>
+        </section>
+      </div>
+    );
+  }
+
+  if (isStaffLoading || !isStaffLoaded) {
+    return (
+      <div className="admin-panel moderator-panel" aria-label={currentViewContent.title}>
+        <section className="admin-section admin-section--wide">
+          <Loader />
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-panel moderator-panel" aria-label={currentViewContent.title}>
@@ -2367,7 +2135,7 @@ function AccountSuspensionSection({
       </div>
 
       {accounts.length === 0 ? (
-        <EmptyState message="Aucun compte actif a suspendre." />
+        <EmptyState message="Aucun compte a afficher." />
       ) : (
         <div
           className="admin-table admin-table--accounts moderator-account-table"
@@ -2375,42 +2143,66 @@ function AccountSuspensionSection({
           aria-label={title}
         >
           <div role="rowgroup">
-            {accounts.map((account) => (
-              <div
-                className="admin-table__row moderator-account-row moderator-account-row--with-role"
-                role="row"
-                key={account.account_id}
-              >
-                <div className="moderator-account-identity" role="cell">
-                  <span>{account.display_name}</span>
-                  <small>{account.login_email}</small>
-                </div>
-                <StatusBadge className="moderator-account-role" role="cell">
-                  {accountRoleLabels[account.role]}
-                </StatusBadge>
-                <label className="moderator-days" role="cell">
-                  Jours
-                  <Input
-                    min={1}
-                    max={90}
-                    type="number"
-                    value={suspensionDays[account.account_id] ?? "7"}
-                    onChange={(event) =>
-                      onDaysChange(account.account_id, event.target.value)
+            {accounts.map((account) => {
+              const isSuspended = isAccountSuspended(account);
+              const canSuspend = account.is_active && !isSuspended;
+              const status = isSuspended
+                ? {
+                    label: "Suspendu",
+                    variant: "suspended" as const,
+                  }
+                : account.is_active
+                  ? {
+                      label: "Actif",
+                      variant: "active" as const,
                     }
-                  />
-                </label>
-                <div role="cell">
-                  <Button
-                    variant="danger"
-                    type="button"
-                    onClick={() => onSuspend(account)}
-                  >
-                    Suspendre
-                  </Button>
+                  : {
+                      label: "Inactif",
+                      variant: "pending" as const,
+                    };
+
+              return (
+                <div
+                  className="admin-table__row moderator-account-row moderator-account-row--with-role"
+                  role="row"
+                  key={account.account_id}
+                >
+                  <div className="moderator-account-identity" role="cell">
+                    <span>{account.display_name}</span>
+                    <small>{account.login_email}</small>
+                  </div>
+                  <StatusBadge className="moderator-account-role" role="cell">
+                    {accountRoleLabels[account.role]}
+                  </StatusBadge>
+                  <StatusBadge variant={status.variant} role="cell">
+                    {status.label}
+                  </StatusBadge>
+                  <label className="moderator-days" role="cell">
+                    Jours
+                    <Input
+                      disabled={!canSuspend}
+                      min={1}
+                      max={90}
+                      type="number"
+                      value={suspensionDays[account.account_id] ?? "7"}
+                      onChange={(event) =>
+                        onDaysChange(account.account_id, event.target.value)
+                      }
+                    />
+                  </label>
+                  <div role="cell">
+                    <Button
+                      disabled={!canSuspend}
+                      variant="danger"
+                      type="button"
+                      onClick={() => onSuspend(account)}
+                    >
+                      Suspendre
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

@@ -76,7 +76,7 @@ type AuthCheckResponse = {
 const backendRoleToFrontendRole = (role: string): Role => {
   if (role === "admin") return "admin";
   if (role === "moderator") return "moderator";
-  if (role === "organization") return "organization";
+  if (role === "organization") return "user";
   if (role === "user") return "user";
   return "user";
 };
@@ -158,15 +158,10 @@ export const authHttpApi = {
   },
 
   async restoreSession(): Promise<ApiResult<AuthenticatedUser>> {
-    const meResult = await this.me();
-    if (meResult.ok) return meResult;
-
-    if (meResult.error.code !== "unauthorized") {
-      return meResult;
-    }
-
     const refreshResult = await this.refresh();
-    if (!refreshResult.ok) return refreshResult;
+    if (!refreshResult.ok) {
+      return refreshResult;
+    }
 
     return this.me();
   },

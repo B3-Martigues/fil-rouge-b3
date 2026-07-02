@@ -43,15 +43,13 @@ export default function ProfilePreferences() {
       return;
     }
 
-    if (user.auth_source === "api") {
-      const result = await userApi.replacePreferences(preferences);
-      if (!result.ok) {
-        setError(result.error.message);
-        return;
-      }
+    const result = await userApi.replacePreferences(preferences);
+    if (!result.ok) {
+      setError(result.error.message);
+      return;
     }
 
-    setUserEventPreferences(userId, preferences);
+    setUserEventPreferences(userId, result.data);
     toast.success("Preferences mises a jour");
     navigate(ROUTES.USER.PROFILE);
   };

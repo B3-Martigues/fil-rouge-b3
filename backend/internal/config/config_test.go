@@ -7,7 +7,7 @@ import (
 )
 
 func TestLoad_DefaultValues(t *testing.T) {
-	clearEnv(t, "ADDR", "JWT_SECRET", "JWT_ISSUER", "JWT_TTL", "REFRESH_TTL", "COOKIE_SECURE", "CSRF_COOKIE_DOMAIN", "ENV", "FRONTEND_URL")
+	clearEnv(t, "ADDR", "JWT_SECRET", "JWT_ISSUER", "JWT_TTL", "REFRESH_TTL", "COOKIE_SECURE", "CSRF_COOKIE_DOMAIN", "ENV", "FRONTEND_URL", "MAIL_MODE", "MAIL_FROM", "MAIL_FROM_NAME", "SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD")
 
 	cfg := Load()
 
@@ -35,11 +35,14 @@ func TestLoad_DefaultValues(t *testing.T) {
 	if cfg.CSRFCookieDomain != "" {
 		t.Fatalf("expected empty default CSRFCookieDomain, got %q", cfg.CSRFCookieDomain)
 	}
+	if cfg.Mail.Mode != "disabled" {
+		t.Fatalf("expected production-safe default Mail.Mode disabled, got %q", cfg.Mail.Mode)
+	}
 }
 
 func TestLoad_DevDefaultsRemainConvenientWhenEnvIsExplicitlyDev(t *testing.T) {
 	setEnv(t, "ENV", "dev")
-	clearEnv(t, "ADDR", "COOKIE_SECURE", "FRONTEND_URL", "APP_DB_SSLMODE", "MIGRATIONS_DB_SSLMODE")
+	clearEnv(t, "ADDR", "COOKIE_SECURE", "FRONTEND_URL", "APP_DB_SSLMODE", "MIGRATIONS_DB_SSLMODE", "MAIL_MODE")
 
 	cfg := Load()
 
@@ -54,6 +57,9 @@ func TestLoad_DevDefaultsRemainConvenientWhenEnvIsExplicitlyDev(t *testing.T) {
 	}
 	if cfg.AppDB.SSLMode != "disable" || cfg.MigrationsDB.SSLMode != "disable" {
 		t.Fatalf("expected dev DB SSL modes disabled")
+	}
+	if cfg.Mail.Mode != "log" {
+		t.Fatalf("expected dev Mail.Mode log, got %q", cfg.Mail.Mode)
 	}
 }
 
@@ -189,6 +195,7 @@ func validDevConfig() Config {
 	cfg.JWTSecret = "dev-secret"
 	cfg.AppDB.Password = "password"
 	cfg.AppDB.SSLMode = "disable"
+	cfg.Mail.Mode = "log"
 	return cfg
 }
 
@@ -200,6 +207,7 @@ func validProdConfig() Config {
 	cfg.JWTSecret = "01234567890123456789012345678901"
 	cfg.AppDB.Password = "super-secure-password"
 	cfg.AppDB.SSLMode = "require"
+	cfg.Mail.Mode = "disabled"
 	return cfg
 }
 

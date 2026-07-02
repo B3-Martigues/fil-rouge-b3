@@ -64,6 +64,19 @@
     @include surface;
   }
 
+  &__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    span {
+      color: var(--text-m);
+      font-size: 13px;
+      font-weight: 700;
+    }
+  }
+
   &.account-notifications {
     position: static;
     display: grid;

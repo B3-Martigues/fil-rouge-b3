@@ -2,6 +2,7 @@ import type { ApiResult } from "../../../shared/api/api.types";
 import { apiRequest } from "../../../shared/api/httpClient";
 import { toLocalApiId } from "../../../shared/api/idMapping";
 import type { Notification } from "../../notification/types/notification";
+import type { NotificationType } from "../../notification/types/notification";
 import type { EventCategoryName } from "../../event/types/event-categories";
 import type { UserEventPreference } from "../types/user";
 import {
@@ -47,6 +48,7 @@ const normalizePreference = (
   id: toLocalApiId(preference.id) ?? preference.id,
   user_id: toLocalApiId(preference.user_id) ?? preference.user_id,
   event_category_id: preference.event_category_id,
+  category_slug: preference.category_slug,
 });
 
 const normalizeNotification = (notification: Notification): Notification => ({
@@ -62,6 +64,9 @@ const normalizeNotification = (notification: Notification): Notification => ({
       ? toLocalApiId(notification.organization_id)
       : notification.organization_id,
 });
+
+const toApiList = <Item>(items: Item[] | null | undefined): Item[] =>
+  Array.isArray(items) ? items : [];
 
 const backendRoleToFrontendRole = (role: string): Role => {
   if (role === "admin") return "admin";
@@ -127,29 +132,38 @@ export const userApi = {
   },
 
   async listPreferences(): Promise<ApiResult<UserEventPreference[]>> {
-    const result = await apiRequest<BackendEventPreference[]>("/api/me/preferences");
+    const result = await apiRequest<BackendEventPreference[] | null>(
+      "/api/me/preferences",
+    );
     return result.ok
-      ? { ok: true, data: result.data.map(normalizePreference) }
+      ? { ok: true, data: toApiList(result.data).map(normalizePreference) }
       : result;
   },
 
   async replacePreferences(
     categorySlugs: EventCategoryName[],
   ): Promise<ApiResult<UserEventPreference[]>> {
-    const result = await apiRequest<BackendEventPreference[]>("/api/me/preferences", {
-      body: { category_slugs: categorySlugs },
-      method: "PUT",
-    });
+    const result = await apiRequest<BackendEventPreference[] | null>(
+      "/api/me/preferences",
+      {
+        body: { category_slugs: categorySlugs },
+        method: "PUT",
+      },
+    );
     return result.ok
-      ? { ok: true, data: result.data.map(normalizePreference) }
+      ? { ok: true, data: toApiList(result.data).map(normalizePreference) }
       : result;
   },
 
   async listNotifications(): Promise<ApiResult<Notification[]>> {
-    const result = await apiRequest<Notification[]>("/api/me/notifications");
+    const result = await apiRequest<Notification[] | null>("/api/me/notifications");
     return result.ok
-      ? { ok: true, data: result.data.map(normalizeNotification) }
+      ? { ok: true, data: toApiList(result.data).map(normalizeNotification) }
       : result;
+  },
+
+  async listNotificationTypes(): Promise<ApiResult<NotificationType[]>> {
+    return apiRequest<NotificationType[]>("/api/notification-types");
   },
 
   async markNotificationRead(

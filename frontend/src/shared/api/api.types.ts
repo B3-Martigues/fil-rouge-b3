@@ -1,5 +1,3 @@
-export type ApiMode = "mock" | "http";
-
 export type ApiErrorCode =
   | "validation_error"
   | "unauthorized"

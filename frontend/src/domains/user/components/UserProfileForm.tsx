@@ -8,31 +8,21 @@ import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
 import { ROUTES } from "../../../shared/constants/routes";
 import { authHttpApi } from "../../auth/api/authHttp.api";
 import useAuthStore from "../../auth/store/authStore";
-import useDataStore from "../../../shared/store/dataStore";
 import { userApi } from "../api/user.api";
 import {
   profileSchema,
   type ProfileFormData,
 } from "../validations/profile.schema";
-import { createPasswordChangedNotification } from "../../notification/services/notificationFactory";
 
 import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 
-const normalizeComparable = (value: string) => value.trim().toLowerCase();
-
 export default function UserProfileForm() {
   const user = useAuthStore((s) => s.currentUser);
   const updateAuthUser = useAuthStore((s) => s.updateUser);
   const logout = useAuthStore((s) => s.logout);
-  const accounts = useDataStore((s) => s.accounts);
-  const users = useDataStore((s) => s.users);
-  const updateAccount = useDataStore((s) => s.updateAccount);
-  const updateUser = useDataStore((s) => s.updateUser);
-  const deleteUser = useDataStore((s) => s.deleteUser);
-  const dispatchNotification = useDataStore((s) => s.dispatchNotification);
   const navigate = useNavigate();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -67,114 +57,36 @@ export default function UserProfileForm() {
 
       const loginEmail = data.login_email.trim();
       const username = data.username.trim();
-      if (user.auth_source === "api") {
-        if (data.newPassword?.trim()) {
-          setServerError(
-            "Utilisez la page de changement de mot de passe pour modifier votre mot de passe.",
-          );
-          return;
-        }
-
-        const result = await userApi.updateProfile({
-          login_email: loginEmail,
-          username,
-        });
-
-        if (!result.ok) {
-          setServerError(result.error.message);
-          return;
-        }
-
-        updateAuthUser({
-          username: result.data.username,
-          login_email: result.data.login_email,
-        });
-        reset({
-          username: result.data.username,
-          login_email: result.data.login_email,
-          newPassword: "",
-          confirmPassword: "",
-        });
-        toast.success("Profil mis a jour");
+      if (data.newPassword?.trim()) {
+        setServerError(
+          "Utilisez la page de changement de mot de passe pour modifier votre mot de passe.",
+        );
         return;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      const existingAccount = accounts.find(
-        (account) =>
-          account.id !== user.account_id &&
-          normalizeComparable(account.login_email) ===
-            normalizeComparable(loginEmail),
-      );
-
-      if (existingAccount) {
-        setServerError("Cet email est deja utilise");
-        return;
-      }
-
-      const existingUsername = user.user_id
-        ? users.find(
-            (item) =>
-              item.id !== user.user_id &&
-              !item.deleted_at &&
-              normalizeComparable(item.username) === normalizeComparable(username),
-          )
-        : null;
-
-      if (existingUsername) {
-        setServerError("Ce nom d'utilisateur est deja utilise");
-        return;
-      }
-
-      updateAccount(user.account_id, {
+      const result = await userApi.updateProfile({
         login_email: loginEmail,
+        username,
       });
-      if (user.user_id) {
-        updateUser(user.user_id, {
-          username,
-        });
+
+      if (!result.ok) {
+        setServerError(result.error.message);
+        return;
       }
+
       updateAuthUser({
-        username,
-        login_email: loginEmail,
+        username: result.data.username,
+        login_email: result.data.login_email,
       });
-
-      const newPassword = data.newPassword?.trim() ?? "";
-
-      if (newPassword) {
-        const notificationUser = user.user_id
-          ? users.find((item) => item.id === user.user_id && !item.deleted_at)
-          : null;
-
-        if (user.user_id && !notificationUser) {
-          setServerError("Profil utilisateur introuvable");
-          return;
-        }
-
-        updateAccount(user.account_id, {
-          password_hash: newPassword,
-          password_changed_at: new Date().toISOString(),
-        });
-        if (notificationUser) {
-          void dispatchNotification(
-            createPasswordChangedNotification({
-              user: notificationUser,
-              profileUrl: ROUTES.USER.PROFILE,
-            }),
-          );
-        }
-      }
-
       reset({
-        username,
-        login_email: loginEmail,
+        username: result.data.username,
+        login_email: result.data.login_email,
         newPassword: "",
         confirmPassword: "",
       });
-      toast.success(
-        newPassword ? "Profil et mot de passe mis à jour" : "Profil mis à jour",
-      );
+      toast.success("Profil mis a jour");
+      return;
+
     } catch {
       setServerError("Erreur lors de la mise à jour du profil");
     } finally {
@@ -185,19 +97,13 @@ export default function UserProfileForm() {
   const handleDeleteAccount = async () => {
     if (!user) return;
 
-    if (user.auth_source === "api") {
-      const result = await authHttpApi.deleteAccount();
-      if (!result.ok) {
-        setServerError(result.error.message);
-        setShowDeleteModal(false);
-        return;
-      }
-    } else if (user.user_id) {
-      deleteUser(user.user_id);
+    const result = await authHttpApi.deleteAccount();
+    if (!result.ok) {
+      setServerError(result.error.message);
+      setShowDeleteModal(false);
+      return;
     }
-    if (user.auth_source !== "api") {
-      await authHttpApi.logout();
-    }
+
     logout();
     toast.success("Compte supprime");
     navigate(ROUTES.PUBLIC.LOGIN);

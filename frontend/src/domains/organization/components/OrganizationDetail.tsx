@@ -29,7 +29,6 @@ import {
 } from "../../event/utils/event";
 import { OrganizationFields } from "./OrganizationSetupFlow";
 import {
-  createNextId,
   emptyEventForm,
   getManagedEventStatus,
   getOrganizationStatus,
@@ -193,19 +192,14 @@ export default function OrganizationDetailPage() {
       category_slugs: organizationForm.categories,
     };
 
-    if (currentUser?.auth_source === "api") {
-      const result = await organizationsApi.update(organization.id, payload);
+    const result = await organizationsApi.update(organization.id, payload);
 
-      if (!result.ok) {
-        setModalError(result.error.message);
-        return;
-      }
-
-      updateOrganization(organization.id, result.data);
-    } else {
-      updateOrganization(organization.id, payload);
+    if (!result.ok) {
+      setModalError(result.error.message);
+      return;
     }
 
+    updateOrganization(organization.id, result.data);
     closeOrganizationEditor();
     toast.success("Organisation mise a jour");
   };
@@ -213,13 +207,11 @@ export default function OrganizationDetailPage() {
   const confirmDeleteOrganization = async () => {
     if (!organization) return;
 
-    if (currentUser?.auth_source === "api") {
-      const result = await organizationsApi.remove(organization.id);
+    const result = await organizationsApi.remove(organization.id);
 
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return;
-      }
+    if (!result.ok) {
+      toast.error(result.error.message);
+      return;
     }
 
     deleteOrganization(organization.id);
@@ -253,7 +245,6 @@ export default function OrganizationDetailPage() {
 
     if (Object.keys(errors).length > 0) return;
 
-    const now = new Date().toISOString();
     const eventPayload = {
       organization_id: organization.id,
       title: eventForm.title.trim(),
@@ -277,37 +268,24 @@ export default function OrganizationDetailPage() {
     };
 
     if (editingEventId === null) {
-      if (currentUser?.auth_source === "api") {
-        const result = await eventsApi.create(eventPayload);
+      const result = await eventsApi.create(eventPayload);
 
-        if (!result.ok) {
-          setModalError(result.error.message);
-          return;
-        }
-
-        addEvent(result.data);
-      } else {
-        addEvent({
-          id: createNextId(events),
-          ...eventPayload,
-          created_at: now,
-          updated_at: now,
-        });
+      if (!result.ok) {
+        setModalError(result.error.message);
+        return;
       }
+
+      addEvent(result.data);
       toast.success("Evenement cree en attente de validation");
     } else {
-      if (currentUser?.auth_source === "api") {
-        const result = await eventsApi.update(editingEventId, eventPayload);
+      const result = await eventsApi.update(editingEventId, eventPayload);
 
-        if (!result.ok) {
-          setModalError(result.error.message);
-          return;
-        }
-
-        updateEvent(editingEventId, result.data);
-      } else {
-        updateEvent(editingEventId, eventPayload);
+      if (!result.ok) {
+        setModalError(result.error.message);
+        return;
       }
+
+      updateEvent(editingEventId, result.data);
       toast.success("Evenement mis a jour en attente de validation");
     }
 
@@ -317,13 +295,11 @@ export default function OrganizationDetailPage() {
   const confirmDeleteEvent = async () => {
     if (pendingDeleteEventId === null) return;
 
-    if (currentUser?.auth_source === "api") {
-      const result = await eventsApi.remove(pendingDeleteEventId);
+    const result = await eventsApi.remove(pendingDeleteEventId);
 
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return;
-      }
+    if (!result.ok) {
+      toast.error(result.error.message);
+      return;
     }
 
     deleteEvent(pendingDeleteEventId);

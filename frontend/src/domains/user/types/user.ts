@@ -20,7 +20,8 @@ export const ROLE_IDS: Record<Role, number> = {
   moderator: 4,
 };
 
-export const getAccountTypeForRole = (role: Role): AccountType => role;
+export const getAccountTypeForRole = (role: Role): AccountType =>
+  role === "organization" ? "user" : role;
 
 export const getAccountTypeIdForRole = (role: Role) =>
   ACCOUNT_TYPE_IDS[getAccountTypeForRole(role)];
@@ -70,6 +71,7 @@ export type UserEventPreference = {
   id: number;
   user_id: number;
   event_category_id: number;
+  category_slug?: string;
 };
 
 export type AuthenticatedUser = {
@@ -85,7 +87,7 @@ export type AuthenticatedUser = {
   user_id?: number;
   organization_id?: number;
   is_verified?: boolean;
-  auth_source?: "mock" | "api";
+  auth_source?: "api";
 };
 
 export function isAccountSuspended(
@@ -132,8 +134,8 @@ export function toAuthenticatedOrganization(params: {
     id: params.account.id,
     account_id: params.account.id,
     login_email: params.account.login_email,
-    role: "organization",
-    role_id: params.organization.role_id ?? ROLE_IDS.organization,
+    role: "user",
+    role_id: ROLE_IDS.user,
     username: params.organization.name,
     is_active: params.account.is_active && params.organization.is_active,
     suspended_until: params.account.suspended_until ?? null,

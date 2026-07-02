@@ -223,22 +223,18 @@ export default function OrganizationEvents() {
       is_active: false,
     };
 
-    if (currentUser.auth_source === "api") {
-      const result = await eventsApi.update(editingEventId, nextEvent);
+    const result = await eventsApi.update(editingEventId, nextEvent);
 
-      if (!result.ok) {
-        toast.error(result.error.message);
-        setIsSavingEvent(false);
-        return;
-      }
-
-      updateEvent(editingEventId, {
-        ...result.data,
-        organization_id: currentUser.organization_id,
-      });
-    } else {
-      updateEvent(editingEventId, nextEvent);
+    if (!result.ok) {
+      toast.error(result.error.message);
+      setIsSavingEvent(false);
+      return;
     }
+
+    updateEvent(editingEventId, {
+      ...result.data,
+      organization_id: currentUser.organization_id,
+    });
 
     cancelEdit();
     setIsSavingEvent(false);
@@ -249,13 +245,11 @@ export default function OrganizationEvents() {
     const deletedEvent = organizationEvents.find((event) => event.id === eventId);
     if (!deletedEvent) return;
 
-    if (currentUser?.auth_source === "api") {
-      const result = await eventsApi.remove(eventId);
+    const result = await eventsApi.remove(eventId);
 
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return;
-      }
+    if (!result.ok) {
+      toast.error(result.error.message);
+      return;
     }
 
     deleteEventFromStore(eventId);

@@ -83,6 +83,24 @@ go run ./cmd/api
 
 En developpement, l'API ecoute par defaut sur `127.0.0.1:8080`.
 
+## Emails
+
+Les emails sortants sont geres cote backend. En local, `MAIL_MODE=log` ecrit les
+messages dans les logs. Pour envoyer reellement :
+
+```text
+MAIL_MODE=smtp
+MAIL_FROM=no-reply@votre-domaine.fr
+MAIL_FROM_NAME=Mappening
+SMTP_HOST=smtp.votre-fournisseur.fr
+SMTP_PORT=587
+SMTP_USERNAME=...
+SMTP_PASSWORD=...
+```
+
+Les emails de bienvenue, de reinitialisation de mot de passe et de decisions de
+moderation utilisent cette configuration.
+
 ## Connexion pgAdmin locale
 
 Connexion administrateur PostgreSQL :

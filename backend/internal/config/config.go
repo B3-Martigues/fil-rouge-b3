@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"net"
+	mailpkg "net/mail"
 	"net/netip"
 	"net/url"
 	"os"
@@ -23,6 +24,20 @@ type DBConfig struct {
 	MaxLifetime time.Duration
 }
 
+type MailConfig struct {
+	Mode     string
+	From     string
+	FromName string
+	SMTP     SMTPConfig
+}
+
+type SMTPConfig struct {
+	Host     string
+	Port     string
+	Username string
+	Password string
+}
+
 type Config struct {
 	Addr              string
 	JWTSecret         string
@@ -41,6 +56,7 @@ type Config struct {
 
 	AppDB        DBConfig
 	MigrationsDB DBConfig
+	Mail         MailConfig
 }
 
 // Charge la configuration runtime depuis l'environnement avec des valeurs par defaut adaptees au dev local.
@@ -53,6 +69,7 @@ func Load() Config {
 	cookieSecureDefault := true
 	appDBSSLModeDefault := "require"
 	migrationsDBSSLModeDefault := "require"
+	mailModeDefault := "disabled"
 
 	if devLikeEnv {
 		addrDefault = "127.0.0.1:8080"
@@ -60,6 +77,7 @@ func Load() Config {
 		cookieSecureDefault = false
 		appDBSSLModeDefault = "disable"
 		migrationsDBSSLModeDefault = "disable"
+		mailModeDefault = "log"
 	}
 
 	return Config{
@@ -98,6 +116,18 @@ func Load() Config {
 			MaxConns:    getInt("MIGRATIONS_DB_MAX_CONNS", 5),
 			MaxIdle:     getInt("MIGRATIONS_DB_MAX_IDLE", 2),
 			MaxLifetime: getDuration("MIGRATIONS_DB_MAX_LIFETIME", 30*time.Minute),
+		},
+
+		Mail: MailConfig{
+			Mode:     strings.ToLower(strings.TrimSpace(getEnv("MAIL_MODE", mailModeDefault))),
+			From:     strings.TrimSpace(getEnv("MAIL_FROM", "no-reply@mappening.local")),
+			FromName: strings.TrimSpace(getEnv("MAIL_FROM_NAME", "Mappening")),
+			SMTP: SMTPConfig{
+				Host:     strings.TrimSpace(getEnv("SMTP_HOST", "")),
+				Port:     strings.TrimSpace(getEnv("SMTP_PORT", "587")),
+				Username: strings.TrimSpace(getEnv("SMTP_USERNAME", "")),
+				Password: getEnv("SMTP_PASSWORD", ""),
+			},
 		},
 	}
 }
@@ -158,6 +188,9 @@ func (c Config) ValidateAPI() error {
 	if err := validateDBConfig("APP_DB", c.AppDB); err != nil {
 		return err
 	}
+	if err := validateMailConfig(c.Mail); err != nil {
+		return err
+	}
 
 	if c.DevLoginEnabled {
 		if !isRuntimeDevEnv(c.Env) {
@@ -204,6 +237,32 @@ func (c Config) ValidateAPI() error {
 	}
 
 	return nil
+}
+
+func validateMailConfig(mail MailConfig) error {
+	switch strings.ToLower(strings.TrimSpace(mail.Mode)) {
+	case "disabled", "log":
+		return nil
+	case "smtp":
+		if strings.TrimSpace(mail.From) == "" {
+			return fmt.Errorf("MAIL_FROM is required when MAIL_MODE=smtp")
+		}
+		if parsed, err := mailpkg.ParseAddress(mail.From); err != nil || parsed.Address != mail.From {
+			return fmt.Errorf("MAIL_FROM must be a valid email address")
+		}
+		if strings.TrimSpace(mail.SMTP.Host) == "" {
+			return fmt.Errorf("SMTP_HOST is required when MAIL_MODE=smtp")
+		}
+		if strings.TrimSpace(mail.SMTP.Port) == "" {
+			return fmt.Errorf("SMTP_PORT is required when MAIL_MODE=smtp")
+		}
+		if _, err := strconv.Atoi(mail.SMTP.Port); err != nil {
+			return fmt.Errorf("SMTP_PORT must be numeric")
+		}
+		return nil
+	default:
+		return fmt.Errorf("MAIL_MODE must be disabled, log or smtp")
+	}
 }
 
 // Valide la configuration minimale requise pour les migrations SQL.

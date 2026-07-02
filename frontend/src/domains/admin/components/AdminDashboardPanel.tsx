@@ -7,10 +7,12 @@ import {
 } from "react";
 import { toast } from "react-toastify";
 
-import OrganizationRegisterForm from "../../auth/components/OrganizationRegisterForm";
 import RegisterForm from "../../auth/components/RegisterForm";
+import { eventsApi } from "../../event/api/events.api";
 import CategorySelect from "../../event/components/CategorySelect";
 import EmptyState from "../../../shared/components/feedback/EmptyState";
+import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
+import Loader from "../../../shared/components/feedback/Loader";
 import DecisionReasonModal from "../../../shared/components/forms/DecisionReasonModal";
 import FormModal from "../../../shared/components/forms/FormModal";
 import ImageField from "../../../shared/components/forms/ImageField";
@@ -28,13 +30,9 @@ import Textarea from "../../../shared/components/ui/Textarea";
 import { ROUTES } from "../../../shared/constants/routes";
 import { useStaffHeaderAction } from "../../../shared/layouts/StaffHeaderActionContext";
 import { accountRoleLabels } from "../../../shared/utils/account";
+import { adminUsersApi } from "../api/adminUsers.api";
 import useStaffSync from "../../staff/hooks/useStaffSync";
 import useAuthStore from "../../auth/store/authStore";
-import {
-  createAdministrativeAccountNotification,
-  createAdministrativeEventNotification,
-  createAdministrativeOrganizationNotification,
-} from "../../notification/services/notificationFactory";
 import {
   EVENT_CATEGORIES,
   type EventCategory,
@@ -49,16 +47,11 @@ import type {
   ModerationAction,
   ModerationTargetType,
 } from "../../moderator/types/moderation";
+import { organizationsApi } from "../../organization/api/organizations.api";
 import {
-  type Account,
   type AccountSummary,
-  getAccountTypeForRole,
-  getAccountTypeIdForRole,
   isAccountSuspended,
-  ROLE_IDS,
-  ROLES,
   type Role,
-  type User,
 } from "../../user/types/user";
 import useDataStore, {
   buildAccountSummaries,
@@ -136,7 +129,7 @@ type AdminDecisionRequest = {
   targetType: ModerationTargetType;
   action: ModerationAction;
   variant?: "primary" | "secondary" | "danger";
-  onConfirm: (reason: string) => boolean | void;
+  onConfirm: (reason: string) => boolean | void | Promise<boolean | void>;
 };
 
 const viewContent: Record<
@@ -160,12 +153,25 @@ const viewContent: Record<
   },
 };
 
-const accountCreateLabels: Record<Role, string> = {
+const ACCOUNT_LOGIN_ROLES: Exclude<Role, "organization">[] = [
+  "user",
+  "moderator",
+  "admin",
+];
+
+type AccountLoginRole = (typeof ACCOUNT_LOGIN_ROLES)[number];
+type AccountRoleFilter = AccountLoginRole | "organizer" | "all";
+
+const accountLoginCreateLabels: Record<AccountLoginRole, string> = {
   user: "utilisateur",
   moderator: "moderateur",
   admin: "administrateur",
-  organization: "organization",
 };
+
+const getAdminAccountRoleLabel = (account: AccountSummary) =>
+  account.organization_id
+    ? "Utilisateur organisateur"
+    : accountRoleLabels[account.role];
 
 const normalizeText = (value: string) =>
   value
@@ -195,9 +201,6 @@ const parseOptionalCoordinate = (value: string) => {
   const trimmedValue = value.trim();
   return trimmedValue === "" ? null : Number(trimmedValue);
 };
-
-const createNextId = (items: { id: number }[]) =>
-  Math.max(0, ...items.map((item) => item.id)) + 1;
 
 const toUserDraft = (account: AccountSummary): UserDraft => ({
   display_name: account.display_name,
@@ -364,29 +367,21 @@ const toggleEventDraftCategory = (
 
 export default function AdminDashboard({ view = "dashboard" }: AdminDashboardProps) {
   const currentUser = useAuthStore((s) => s.currentUser);
-  const { applyAction: applyStaffAction } = useStaffSync();
+  const {
+    applyAction: applyStaffAction,
+    error: staffSyncError,
+    isLoaded: isStaffLoaded,
+    isLoading: isStaffLoading,
+    refresh: refreshStaffData,
+  } = useStaffSync();
   const accountsData = useDataStore((s) => s.accounts);
   const usersData = useDataStore((s) => s.users);
   const organizationsData = useDataStore((s) => s.organizations);
-  const organizersData = useDataStore((s) => s.organizers);
   const eventsData = useDataStore((s) => s.events);
   const moderationReports = useDataStore((s) => s.moderationReports);
-  const addAccount = useDataStore((s) => s.addAccount);
-  const updateAccount = useDataStore((s) => s.updateAccount);
-  const deleteAccountFromStore = useDataStore((s) => s.deleteAccount);
-  const addUser = useDataStore((s) => s.addUser);
-  const updateUser = useDataStore((s) => s.updateUser);
-  const deleteUserFromStore = useDataStore((s) => s.deleteUser);
-  const updateOrganization = useDataStore((s) => s.updateOrganization);
-  const deleteOrganizationFromStore = useDataStore((s) => s.deleteOrganization);
   const addEvent = useDataStore((s) => s.addEvent);
   const updateEvent = useDataStore((s) => s.updateEvent);
   const deleteEventFromStore = useDataStore((s) => s.deleteEvent);
-  const liftEventSuspensionFromStore = useDataStore(
-    (s) => s.liftEventSuspension,
-  );
-  const addModerationDecision = useDataStore((s) => s.addModerationDecision);
-  const dispatchNotification = useDataStore((s) => s.dispatchNotification);
   const accountSummaries = useMemo(
     () => buildAccountSummaries(accountsData, usersData, organizationsData),
     [accountsData, usersData, organizationsData],
@@ -397,12 +392,14 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const [organizationDraft, setOrganizationDraft] =
     useState<OrganizationDraft | null>(null);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
-  const [accountCreateRole, setAccountCreateRole] = useState<Role>("user");
+  const [accountCreateRole, setAccountCreateRole] =
+    useState<AccountLoginRole>("user");
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const [eventDraft, setEventDraft] = useState<EventDraft | null>(null);
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [accountSearch, setAccountSearch] = useState("");
-  const [accountRoleFilter, setAccountRoleFilter] = useState<Role | "all">("all");
+  const [accountRoleFilter, setAccountRoleFilter] =
+    useState<AccountRoleFilter>("all");
   const [accountStatusFilter, setAccountStatusFilter] =
     useState<AccountStatusFilter>("all");
   const [accountSort, setAccountSort] = useState<AccountSort>("username-asc");
@@ -417,8 +414,6 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     useState<AdminDecisionRequest | null>(null);
   const [decisionReason, setDecisionReason] = useState("");
   const [decisionReasonError, setDecisionReasonError] = useState("");
-
-  const administratorUserId = currentUser?.user_id ?? currentUser?.id ?? 0;
 
   const activeOrganizationsData = organizationsData.filter((organization) => !organization.deleted_at);
   const activeEventsData = eventsData.filter((event) => !event.deleted_at);
@@ -470,104 +465,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     activeOrganizationsData.find((organization) => organization.id === organizationId)?.name ??
     "Non rattache";
 
-  const getOrganizationNotificationUsers = (organizationId: number) => {
-    const organization = organizationsData.find(
-      (item) => item.id === organizationId && !item.deleted_at,
-    );
-    const notifiedUserIds = new Set<number>();
-    const recipientUsers = usersData.filter((user) => {
-      const isOrganizationAccountUser =
-        organization && user.account_id === organization.account_id;
-      const isOrganizerUser = organizersData.some(
-          (organizer) =>
-            organizer.organization_id === organizationId &&
-            organizer.user_id === user.id &&
-            !organizer.deleted_at,
-        );
-
-      if (
-        user.deleted_at ||
-        (!isOrganizationAccountUser && !isOrganizerUser) ||
-        notifiedUserIds.has(user.id)
-      ) {
-        return false;
-      }
-
-      notifiedUserIds.add(user.id);
-      return true;
-    });
-
-    return recipientUsers;
-  };
-
-  const notifyAccountDecision = (
-    account: AccountSummary,
-    operation: string,
-    reason: string,
-  ) => {
-    const organization = account.organization_id
-      ? organizationsData.find((item) => item.id === account.organization_id) ?? null
-      : null;
-    const recipientUsers = account.organization_id
-      ? getOrganizationNotificationUsers(account.organization_id)
-      : usersData.filter(
-          (user) => user.id === account.user_id && !user.deleted_at,
-        );
-
-    recipientUsers.forEach((user) => {
-      void dispatchNotification(
-        createAdministrativeAccountNotification({
-          user,
-          organization,
-          operation,
-          reason,
-        }),
-      );
-    });
-  };
-
-  const notifyOrganizationDecision = (
-    organization: Organization,
-    operation: string,
-    reason: string,
-  ) => {
-    getOrganizationNotificationUsers(organization.id).forEach((user) => {
-      void dispatchNotification(
-        createAdministrativeOrganizationNotification({
-          organization,
-          user,
-          operation,
-          reason,
-        }),
-      );
-    });
-  };
-
-  const notifyEventDecision = (
-    event: Event,
-    operation: string,
-    reason: string,
-  ) => {
-    const organization = organizationsData.find(
-      (item) => item.id === event.organization_id && !item.deleted_at,
-    );
-
-    if (!organization) return;
-
-    getOrganizationNotificationUsers(organization.id).forEach((user) => {
-      void dispatchNotification(
-        createAdministrativeEventNotification({
-          organization,
-          event,
-          user,
-          operation,
-          reason,
-        }),
-      );
-    });
-  };
-
-  const recordDecision = (
+  const recordDecision = async (
     action: ModerationAction,
     targetType: ModerationTargetType,
     targetId: number,
@@ -575,32 +473,16 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   ) => {
     const trimmedReason = reason.trim();
 
-    if (currentUser?.auth_source === "api" && !action.endsWith("_admin_updated")) {
-      void applyStaffAction({
-        action,
-        target_type: targetType,
-        target_id: targetId,
-        reason: trimmedReason || "Decision administrative",
-      });
-      return;
-    }
-
-    addModerationDecision({
-      action,
-      target_type: targetType,
-      target_id: targetId,
-      moderator_user_id: administratorUserId,
-      reason: trimmedReason,
-    });
-
     if (!action.endsWith("_admin_updated")) {
-      void applyStaffAction({
+      return applyStaffAction({
         action,
         target_type: targetType,
         target_id: targetId,
         reason: trimmedReason || "Decision administrative",
       });
     }
+
+    return true;
   };
 
   const openDecisionModal = (request: AdminDecisionRequest) => {
@@ -615,7 +497,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     setDecisionReasonError("");
   };
 
-  const confirmDecision = () => {
+  const confirmDecision = async () => {
     if (!decisionRequest) return;
 
     const reason = decisionReason.trim();
@@ -625,16 +507,17 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       return;
     }
 
-    const result = decisionRequest.onConfirm(reason);
+    const result = await decisionRequest.onConfirm(reason);
 
     if (result === false) return;
 
-    recordDecision(
+    const recorded = await recordDecision(
       decisionRequest.action,
       decisionRequest.targetType,
       decisionRequest.targetId,
       reason,
     );
+    if (recorded === false) return;
     closeDecisionModal();
   };
 
@@ -647,24 +530,23 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
             ? organizationsData.find((item) => item.id === account.organization_id)
             : null;
           const searchableFields =
-            account.role === "organization"
-              ? [
-                  account.display_name,
-                  account.login_email,
-                  organization?.contact_email ?? "",
-                ]
-              : [
-                  account.display_name,
-                  account.login_email,
-                  account.role,
-                  accountStatus.label,
-                  account.suspension_reason ?? "",
-                ];
+            [
+              account.display_name,
+              account.login_email,
+              getAdminAccountRoleLabel(account),
+              organization?.name ?? "",
+              organization?.contact_email ?? "",
+              accountStatus.label,
+              account.suspension_reason ?? "",
+            ];
           const matchesSearch = normalizeText(
             searchableFields.join(" "),
           ).includes(normalizeText(accountSearch));
           const matchesRole =
-            accountRoleFilter === "all" || account.role === accountRoleFilter;
+            accountRoleFilter === "all" ||
+            (accountRoleFilter === "organizer"
+              ? !!account.organization_id
+              : account.role === accountRoleFilter && !account.organization_id);
           const matchesStatus =
             accountStatusFilter === "all" ||
             accountStatus.value === accountStatusFilter;
@@ -677,7 +559,10 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
           }
 
           if (accountSort === "role-asc") {
-            return firstUser.role.localeCompare(secondUser.role, "fr-FR");
+            return getAdminAccountRoleLabel(firstUser).localeCompare(
+              getAdminAccountRoleLabel(secondUser),
+              "fr-FR",
+            );
           }
 
           return firstUser.display_name.localeCompare(secondUser.display_name, "fr-FR");
@@ -797,14 +682,14 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     setAccountCreateRole("user");
   };
 
-  const updateAccountCreateRole = (role: Role) => {
+  const updateAccountCreateRole = (role: AccountLoginRole) => {
     setAccountCreateRole(role);
     setUserDraft((currentDraft) =>
       currentDraft ? { ...currentDraft, role } : currentDraft,
     );
   };
 
-  const saveUser = (reason?: string) => {
+  const saveUser = async (_reason?: string) => {
     if (!userDraft) return false;
 
     const displayName = (organizationDraft?.name ?? userDraft.display_name).trim();
@@ -829,7 +714,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
 
     if (isCreatingUser) {
       if (userDraft.role === "organization") {
-        toast.error("Creez les organizations via le formulaire organization");
+        toast.error("Utilisez le formulaire organisateur pour creer une organization");
         return false;
       }
 
@@ -843,31 +728,21 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         return false;
       }
 
-      const accountId = createNextId(accountsData);
-      const userId = createNextId(usersData);
-      const createdAt = new Date().toISOString();
-      const account: Account = {
-        id: accountId,
-        account_type_id: getAccountTypeIdForRole(userDraft.role),
-        account_type: getAccountTypeForRole(userDraft.role),
-        login_email: loginEmail,
-        password_hash: userDraft.password_hash,
-        is_active: userDraft.is_active,
-        created_at: createdAt,
-        updated_at: createdAt,
-      };
-      const user: User = {
-        id: userId,
-        account_id: accountId,
-        username: displayName,
-        role_id: ROLE_IDS[userDraft.role],
+      const result = await adminUsersApi.create({
+        email: loginEmail,
+        password: userDraft.password_hash,
+        first_name: displayName,
+        last_name: "",
         role: userDraft.role,
-        created_at: createdAt,
-        updated_at: createdAt,
-      };
+        is_active: userDraft.is_active,
+      });
 
-      addAccount(account);
-      addUser(user);
+      if (!result.ok) {
+        toast.error(result.error.message);
+        return false;
+      }
+
+      await refreshStaffData();
 
       setIsCreatingUser(false);
       setUserDraft(null);
@@ -882,16 +757,6 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     );
 
     if (!editedAccount) return false;
-
-    if (userDraft.role === "organization" && !editedAccount.organization_id) {
-      toast.error("Creez les organizations via le formulaire organization");
-      return false;
-    }
-
-    if (editedAccount.organization_id && userDraft.role !== "organization") {
-      toast.error("Un compte organization doit garder le type organization");
-      return false;
-    }
 
     if (editedAccount.organization_id) {
       if (!organizationDraft) return false;
@@ -990,115 +855,98 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       return false;
     }
 
-    updateAccount(editingUserId, {
-      account_type_id: getAccountTypeIdForRole(userDraft.role),
-      account_type: getAccountTypeForRole(userDraft.role),
-      login_email: loginEmail,
-      password_hash: userDraft.password_hash,
-      is_active: userDraft.is_active,
-    });
-
-    if (editedAccount.organization_id) {
-      updateOrganization(editedAccount.organization_id, {
+    if (
+      currentUser?.auth_source === "api" &&
+      editedAccount.organization_id &&
+      organizationDraft
+    ) {
+      const result = await organizationsApi.update(editedAccount.organization_id, {
+        account_id: editedAccount.account_id,
         name: displayName,
-        contact_email: organizationDraft?.contact_email.trim() ?? "",
-        description: organizationDraft?.description.trim() ?? "",
-        website: organizationDraft?.website.trim() || null,
-        latitude: organizationDraft
-          ? parseOptionalCoordinate(organizationDraft.latitude)
-          : null,
-        longitude: organizationDraft
-          ? parseOptionalCoordinate(organizationDraft.longitude)
-          : null,
-        address: organizationDraft?.address.trim() ?? "",
-        city: organizationDraft?.city.trim() ?? "",
-        postal_code: organizationDraft?.postal_code.trim() ?? "",
-        logo: organizationDraft?.logo.trim() || null,
+        contact_email: organizationDraft.contact_email.trim(),
+        description: organizationDraft.description.trim(),
+        website: organizationDraft.website.trim() || null,
+        latitude: parseOptionalCoordinate(organizationDraft.latitude),
+        longitude: parseOptionalCoordinate(organizationDraft.longitude),
+        address: organizationDraft.address.trim(),
+        city: organizationDraft.city.trim(),
+        postal_code: organizationDraft.postal_code.trim(),
+        logo: organizationDraft.logo.trim() || null,
         contact_phone_number:
-          organizationDraft?.contact_phone_number.trim() || null,
-        siret: organizationDraft?.siret.trim() || null,
-        category_slugs: organizationDraft?.category_slugs ?? [],
+          organizationDraft.contact_phone_number.trim() || null,
+        siret: organizationDraft.siret.trim() || null,
+        category_slugs: organizationDraft.category_slugs,
         is_active: userDraft.is_active,
-        is_verified: organizationDraft?.is_verified ?? userDraft.is_active,
+        is_verified: organizationDraft.is_verified,
       });
-      if (reason) {
-        const organization = organizationsData.find(
-          (item) => item.id === editedAccount.organization_id,
-        );
-        if (organization) {
-          notifyOrganizationDecision(
-            organization,
-            "Modification administrative de l'organization",
-            reason,
-          );
-        }
+
+      if (!result.ok) {
+        toast.error(result.error.message);
+        return false;
       }
-    } else if (editedAccount.user_id) {
-      updateUser(editedAccount.user_id, {
-        username: displayName,
-        role: userDraft.role,
-        role_id: ROLE_IDS[userDraft.role],
-      });
-      if (reason) {
-        notifyAccountDecision(
-          editedAccount,
-          "Modification administrative du compte",
-          reason,
-        );
-      }
+
+      await refreshStaffData();
+      setEditingUserId(null);
+      setUserDraft(null);
+      setOrganizationDraft(null);
+      toast.success("Compte mis a jour");
+      return true;
     }
 
-    setEditingUserId(null);
-    setUserDraft(null);
-    setOrganizationDraft(null);
-    toast.success("Compte mis a jour");
-    return true;
+    if (
+      currentUser?.auth_source === "api" &&
+      !editedAccount.organization_id &&
+      editedAccount.user_id
+    ) {
+      const result = await adminUsersApi.update(editingUserId, {
+        email: loginEmail,
+        first_name: displayName,
+        last_name: "",
+        role: userDraft.role === "organization" ? "user" : userDraft.role,
+        is_active: userDraft.is_active,
+      });
+
+      if (!result.ok) {
+        toast.error(result.error.message);
+        return false;
+      }
+
+      await refreshStaffData();
+      setEditingUserId(null);
+      setUserDraft(null);
+      setOrganizationDraft(null);
+      toast.success("Compte mis a jour");
+      return true;
+    }
+
+    toast.error("Session API requise pour modifier un compte");
+    return false;
   };
 
-  const deleteUser = (accountId: number, reason: string) => {
+  const deleteUser = (accountId: number, _reason: string) => {
     const deletedAccount = accountSummaries.find(
       (account) => account.account_id === accountId,
     );
     if (!deletedAccount) return false;
 
-    if (deletedAccount.organization_id) {
-      const organization = organizationsData.find(
-        (item) => item.id === deletedAccount.organization_id,
-      );
-      if (organization) {
-        notifyOrganizationDecision(
-          organization,
-          "Suppression de l'organization",
-          reason,
-        );
-      }
-      deleteOrganizationFromStore(deletedAccount.organization_id);
-    } else if (deletedAccount.user_id) {
-      notifyAccountDecision(deletedAccount, "Suppression du compte", reason);
-      deleteUserFromStore(deletedAccount.user_id);
-    } else {
-      notifyAccountDecision(deletedAccount, "Suppression du compte", reason);
-      deleteAccountFromStore(accountId);
-    }
+    if (currentUser?.auth_source === "api") return true;
 
-    setEditingUserId(null);
-    toast.success(`${deletedAccount.display_name} supprime`);
+    toast.error("Session API requise pour supprimer un compte");
+    return false;
   };
 
-  const liftAccountSuspension = (account: AccountSummary, reason: string) => {
-    updateAccount(account.account_id, {
-      is_active: true,
-      suspended_until: null,
-      suspension_reason: null,
-    });
-    notifyAccountDecision(account, "Levee de suspension du compte", reason);
-    toast.success(`Suspension levee pour ${account.display_name}`);
+  const liftAccountSuspension = (account: AccountSummary, _reason: string) => {
+    if (currentUser?.auth_source === "api") return true;
+
+    toast.error(`Session API requise pour lever la suspension de ${account.display_name}`);
+    return false;
   };
 
-  const liftEventSuspension = (event: Event, reason: string) => {
-    liftEventSuspensionFromStore(event.id);
-    notifyEventDecision(event, "Levee de suspension de l'evenement", reason);
-    toast.success(`Suspension levee pour ${event.title}`);
+  const liftEventSuspension = (event: Event, _reason: string) => {
+    if (currentUser?.auth_source === "api") return true;
+
+    toast.error(`Session API requise pour lever la suspension de ${event.title}`);
+    return false;
   };
 
   const startEventEdit = (event: Event) => {
@@ -1119,7 +967,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     setEventDraft(null);
   };
 
-  const saveEvent = (reason?: string) => {
+  const saveEvent = async (_reason?: string) => {
     if (!eventDraft) return false;
 
     if (!eventDraft.organization_id) {
@@ -1237,38 +1085,46 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     };
 
     if (isCreatingEvent) {
-      addEvent({ id: createNextId(eventsData), ...payload });
-      toast.success("Evenement cree");
+      if (currentUser?.auth_source === "api") {
+        const result = await eventsApi.create(payload);
+
+        if (!result.ok) {
+          toast.error(result.error.message);
+          return false;
+        }
+
+        addEvent(result.data);
+        toast.success("Evenement cree");
+        setEditingEventId(null);
+        setIsCreatingEvent(false);
+        setEventDraft(null);
+        return true;
+      }
+
+      toast.error("Session API requise pour creer un evenement");
+      return false;
     } else if (editingEventId) {
       const event = eventsData.find((item) => item.id === editingEventId);
       if (!event) return false;
-      updateEvent(editingEventId, {
-        title: payload.title,
-        description: payload.description,
-        start_date: payload.start_date,
-        end_date: payload.end_date,
-        latitude: payload.latitude,
-        longitude: payload.longitude,
-        address: payload.address,
-        category_slugs: payload.category_slugs,
-        city: payload.city,
-        postal_code: payload.postal_code,
-        image: payload.image,
-        price: payload.price,
-        ticketing_link: payload.ticketing_link,
-        source: payload.source,
-        organization_id: payload.organization_id,
-        is_active: payload.is_active,
-        updated_at: payload.updated_at,
-      });
-      if (reason) {
-        notifyEventDecision(
-          event,
-          "Modification administrative de l'evenement",
-          reason,
-        );
+
+      if (currentUser?.auth_source === "api") {
+        const result = await eventsApi.update(editingEventId, payload);
+
+        if (!result.ok) {
+          toast.error(result.error.message);
+          return false;
+        }
+
+        updateEvent(editingEventId, result.data);
+        toast.success("Evenement mis a jour");
+        setEditingEventId(null);
+        setIsCreatingEvent(false);
+        setEventDraft(null);
+        return true;
       }
-      toast.success("Evenement mis a jour");
+
+      toast.error("Session API requise pour modifier un evenement");
+      return false;
     }
 
     setEditingEventId(null);
@@ -1277,11 +1133,24 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     return true;
   };
 
-  const deleteEvent = (eventId: number, reason: string) => {
+  const deleteEvent = async (eventId: number, _reason: string) => {
     const deletedEvent = eventsData.find((event) => event.id === eventId);
     if (!deletedEvent) return false;
 
-    notifyEventDecision(deletedEvent, "Suppression de l'evenement", reason);
+    if (currentUser?.auth_source === "api") {
+      const result = await eventsApi.remove(eventId);
+
+      if (!result.ok) {
+        toast.error(result.error.message);
+        return false;
+      }
+    }
+
+    if (currentUser?.auth_source !== "api") {
+      toast.error("Session API requise pour supprimer un evenement");
+      return false;
+    }
+
     deleteEventFromStore(eventId);
     setEditingEventId(null);
     toast.success(`${deletedEvent.title} supprime`);
@@ -1296,9 +1165,27 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
 
     if (!editedAccount) return;
 
+    const editedOrganization = editedAccount.organization_id
+      ? organizationsData.find((item) => item.id === editedAccount.organization_id)
+      : null;
+    const isOrganizationApproval =
+      !!editedOrganization &&
+      !editedOrganization.is_verified &&
+      !!organizationDraft?.is_verified &&
+      !!userDraft?.is_active;
+    const isOrganizationRejection =
+      !!editedOrganization &&
+      !organizationDraft?.is_verified &&
+      !userDraft?.is_active;
+    const organizationAction: ModerationAction = isOrganizationApproval
+      ? "organization_approved"
+      : isOrganizationRejection
+        ? "organization_rejected"
+        : "organization_admin_updated";
+
     openDecisionModal({
       action: editedAccount.organization_id
-        ? "organization_admin_updated"
+        ? organizationAction
         : "account_admin_updated",
       targetId: editedAccount.organization_id ?? editingUserId,
       targetType: editedAccount.organization_id ? "organization" : "account",
@@ -1372,6 +1259,29 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     return () => setStaffHeaderAction(null);
   }, [setStaffHeaderAction, staffHeaderAction]);
 
+  if (staffSyncError && !isStaffLoaded) {
+    return (
+      <div className="admin-panel" aria-label={currentViewContent.title}>
+        <section className="admin-section admin-section--wide">
+          <ErrorMessage message={staffSyncError} />
+          <Button type="button" onClick={() => void refreshStaffData()}>
+            Recharger
+          </Button>
+        </section>
+      </div>
+    );
+  }
+
+  if (isStaffLoading || !isStaffLoaded) {
+    return (
+      <div className="admin-panel" aria-label={currentViewContent.title}>
+        <section className="admin-section admin-section--wide">
+          <Loader />
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="admin-panel" aria-label={currentViewContent.title}>
       {shouldRenderLocalActionHeader && (
@@ -1401,17 +1311,18 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                 />
               </label>
               <label>
-                Role
+                Type
                 <Select
                   value={accountRoleFilter}
                   onChange={(event) =>
-                    setAccountRoleFilter(event.target.value as Role | "all")
+                    setAccountRoleFilter(event.target.value as AccountRoleFilter)
                   }
                 >
-                  <option value="all">Tous les roles</option>
-                  {ROLES.map((role) => (
+                  <option value="all">Tous les types</option>
+                  <option value="organizer">Utilisateurs organisateurs</option>
+                  {ACCOUNT_LOGIN_ROLES.map((role) => (
                     <option key={role} value={role}>
-                      {role}
+                      {accountRoleLabels[role]}
                     </option>
                   ))}
                 </Select>
@@ -1440,7 +1351,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                 >
                   <option value="username-asc">Nom A-Z</option>
                   <option value="username-desc">Nom Z-A</option>
-                  <option value="role-asc">Role</option>
+                  <option value="role-asc">Type</option>
                 </Select>
               </label>
             </Toolbar>
@@ -1474,7 +1385,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                         <span role="cell">{user.display_name}</span>
                         <span role="cell">{user.login_email}</span>
                         <StatusBadge className="admin-account-role" role="cell">
-                          {accountRoleLabels[user.role]}
+                          {getAdminAccountRoleLabel(user)}
                         </StatusBadge>
                         <div className="admin-status-cell" role="cell">
                           <StatusBadge variant={accountStatus.variant}>
@@ -1737,40 +1648,33 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         {userDraft && isCreatingUser && (
           <div className="admin-create-account">
             <h2>Ajouter un compte</h2>
-            <FormField label="Type de compte" htmlFor="admin-account-type">
+            <FormField label="Type d'utilisateur" htmlFor="admin-account-type">
               <Select
                 id="admin-account-type"
                 value={accountCreateRole}
                 onChange={(event) =>
-                  updateAccountCreateRole(event.target.value as Role)
+                  updateAccountCreateRole(event.target.value as AccountLoginRole)
                 }
               >
-                {ROLES.map((role) => (
+                {ACCOUNT_LOGIN_ROLES.map((role) => (
                   <option key={role} value={role}>
-                    {role}
+                    {accountRoleLabels[role]}
                   </option>
                 ))}
               </Select>
             </FormField>
 
-            {accountCreateRole === "organization" ? (
-              <OrganizationRegisterForm
-                mode="admin"
-                title="Ajouter une organization"
-                submitLabel="Creer l'organization"
-                onCancel={closeUserForm}
-                onSuccess={closeUserForm}
-              />
-            ) : (
-              <RegisterForm
-                mode="admin"
-                role={accountCreateRole}
-                title={`Ajouter un compte ${accountCreateLabels[accountCreateRole]}`}
-                submitLabel={`Creer le compte ${accountCreateLabels[accountCreateRole]}`}
-                onCancel={closeUserForm}
-                onSuccess={closeUserForm}
-              />
-            )}
+            <RegisterForm
+              mode="admin"
+              role={accountCreateRole}
+              title={`Ajouter un compte ${accountLoginCreateLabels[accountCreateRole]}`}
+              submitLabel={`Creer le compte ${accountLoginCreateLabels[accountCreateRole]}`}
+              onCancel={closeUserForm}
+              onSuccess={() => {
+                closeUserForm();
+                void refreshStaffData();
+              }}
+            />
           </div>
         )}
 
@@ -1894,17 +1798,17 @@ function UserEditor({
         />
       </FormField>
       {showRoleSelect && (
-        <FormField label="Role" htmlFor="admin-user-role">
+        <FormField label="Type d'utilisateur" htmlFor="admin-user-role">
           <Select
             id="admin-user-role"
             value={draft.role}
             onChange={(event) =>
-              setDraft({ ...draft, role: event.target.value as Role })
+              setDraft({ ...draft, role: event.target.value as AccountLoginRole })
             }
           >
-            {ROLES.map((role) => (
+            {ACCOUNT_LOGIN_ROLES.map((role) => (
               <option key={role} value={role}>
-                {role}
+                {accountRoleLabels[role]}
               </option>
             ))}
           </Select>

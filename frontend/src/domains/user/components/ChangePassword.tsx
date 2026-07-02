@@ -7,12 +7,10 @@ import { toast } from "react-toastify";
 import { ROUTES } from "../../../shared/constants/routes";
 import { authHttpApi } from "../../auth/api/authHttp.api";
 import useAuthStore from "../../auth/store/authStore";
-import useDataStore from "../../../shared/store/dataStore";
 import {
   changePasswordSchema,
   type ChangePasswordFormData,
 } from "../validations/changePassword.schema";
-import { createPasswordChangedNotification } from "../../notification/services/notificationFactory";
 
 import Input from "../../../shared/components/ui/Input";
 import Button from "../../../shared/components/ui/Button";
@@ -22,10 +20,6 @@ import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 export default function ChangePassword() {
   const user = useAuthStore((s) => s.currentUser);
   const logout = useAuthStore((s) => s.logout);
-  const updateAccount = useDataStore((s) => s.updateAccount);
-  const accounts = useDataStore((s) => s.accounts);
-  const users = useDataStore((s) => s.users);
-  const dispatchNotification = useDataStore((s) => s.dispatchNotification);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -54,58 +48,19 @@ export default function ChangePassword() {
         return;
       }
 
-      if (user.auth_source === "api") {
-        const result = await authHttpApi.changePassword({
-          current_password: data.oldPassword,
-          new_password: data.newPassword,
-        });
-
-        if (!result.ok) {
-          setServerError(result.error.message);
-          return;
-        }
-
-        logout();
-        toast.success("Mot de passe mis a jour. Reconnectez-vous.");
-        navigate(ROUTES.PUBLIC.LOGIN);
-        return;
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      const account = accounts.find((item) => item.id === user.account_id);
-      const notificationUser = users.find(
-        (item) => item.id === user.user_id && !item.deleted_at,
-      );
-
-      if (!account) {
-        setServerError("Compte introuvable");
-        return;
-      }
-
-      if (!notificationUser) {
-        setServerError("Profil utilisateur introuvable");
-        return;
-      }
-
-      if (account.password_hash !== data.oldPassword) {
-        setServerError("Ancien mot de passe incorrect");
-        return;
-      }
-
-      updateAccount(user.account_id, {
-        password_hash: data.newPassword,
-        password_changed_at: new Date().toISOString(),
+      const result = await authHttpApi.changePassword({
+        current_password: data.oldPassword,
+        new_password: data.newPassword,
       });
-      void dispatchNotification(
-        createPasswordChangedNotification({
-          user: notificationUser,
-          profileUrl: ROUTES.USER.PROFILE,
-        }),
-      );
 
-      toast.success("Mot de passe mis a jour");
-      navigate(ROUTES.USER.PROFILE);
+      if (!result.ok) {
+        setServerError(result.error.message);
+        return;
+      }
+
+      logout();
+      toast.success("Mot de passe mis a jour. Reconnectez-vous.");
+      navigate(ROUTES.PUBLIC.LOGIN);
     } catch {
       setServerError("Erreur lors du changement de mot de passe");
     } finally {

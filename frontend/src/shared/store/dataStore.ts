@@ -1,40 +1,16 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
-import { accountsMock } from "../../domains/auth/mocks/accounts.mock";
-import { organizersMock } from "../../domains/organization/mocks/organizers.mock";
-import { organizationsMock } from "../../domains/organization/mocks/organizations.mock";
 import type { Organization } from "../../domains/organization/types/organization";
 import type { Organizer } from "../../domains/organization/types/organizer";
 import type { Event } from "../../domains/event/types/event";
-import {
-  moderationDecisionsMock,
-  moderationReportsMock,
-} from "../../domains/moderator/mocks/moderation.mock";
 import type {
   ModerationDecision,
   ModerationReport,
-  ModerationReportPriority,
-  ModerationTargetType,
 } from "../../domains/moderator/types/moderation";
-import { notificationTypesMock } from "../../domains/notification/mocks/notification-types.mock";
-import { getNotificationTypeConfig } from "../../domains/notification/mocks/notification-types.mock";
-import {
-  sendNotificationEmail,
-  type EmailDeliveryResult,
-} from "../../domains/notification/services/emailProviders";
-import { createFavoriteEventTodayNotification } from "../../domains/notification/services/notificationFactory";
 import type {
   Notification,
-  NotificationDraft,
   NotificationType,
 } from "../../domains/notification/types/notification";
-import { favoritesMock } from "../../domains/user/mocks/favorites.mock";
-import { historiesMock } from "../../domains/user/mocks/history.mock";
-import {
-  userEventPreferencesMock,
-  usersMock,
-} from "../../domains/user/mocks/users.mock";
 import type { Favorite } from "../../domains/user/types/favorite";
 import type { History } from "../../domains/user/types/history";
 import type {
@@ -44,23 +20,6 @@ import type {
   UserEventPreference,
 } from "../../domains/user/types/user";
 import { ROLE_IDS } from "../../domains/user/types/user";
-import {
-  getEventCategoryId,
-  type EventCategoryName,
-} from "../../domains/event/types/event-categories";
-
-type NotificationEmailDelivery = EmailDeliveryResult & {
-  notification_id: number;
-};
-
-type AddModerationReportPayload = {
-  target_type: ModerationTargetType;
-  target_id: number;
-  reporter_user_id: number;
-  reason: string;
-  details: string;
-  priority?: ModerationReportPriority;
-};
 
 type StaffDataSnapshot = {
   accounts: Account[];
@@ -85,21 +44,18 @@ type DataState = {
   userEventPreferences: UserEventPreference[];
   notificationTypes: NotificationType[];
   notifications: Notification[];
-  notificationEmailDeliveries: NotificationEmailDelivery[];
   moderationReports: ModerationReport[];
   moderationDecisions: ModerationDecision[];
 
+  clearStaffSnapshot: () => void;
   hydrateStaffSnapshot: (snapshot: StaffDataSnapshot) => void;
   getAccountSummaries: () => AccountSummary[];
 
-  dispatchNotification: (
-    notification: NotificationDraft,
-  ) => Promise<Notification | null>;
   setUserNotifications: (userId: number, notifications: Notification[]) => void;
+  setNotificationTypes: (notificationTypes: NotificationType[]) => void;
   upsertNotification: (notification: Notification) => void;
   markNotificationAsRead: (notificationId: number) => void;
   markUserNotificationsAsRead: (userId: number) => void;
-  syncTodaysFavoriteEventNotifications: (userId: number) => void;
 
   addAccount: (account: Account) => void;
   updateAccount: (accountId: number, data: Partial<Account>) => void;
@@ -135,13 +91,6 @@ type DataState = {
   restoreEvent: (eventId: number) => void;
   deleteEventPermanently: (eventId: number) => void;
 
-  addModerationDecision: (
-    decision: Omit<ModerationDecision, "id" | "created_at"> &
-      Partial<Pick<ModerationDecision, "created_at">>,
-  ) => void;
-  addModerationReport: (
-    report: AddModerationReportPayload,
-  ) => ModerationReport | null;
   updateModerationReport: (
     reportId: number,
     data: Partial<Omit<ModerationReport, "id" | "created_at">>,
@@ -152,23 +101,19 @@ type DataState = {
     suspendedUntil: string,
   ) => void;
 
-  toggleFavorite: (userId: number, eventId: number) => void;
   setUserFavorites: (userId: number, favorites: Favorite[]) => void;
   upsertFavorite: (favorite: Favorite) => void;
-  recordHistory: (userId: number, eventId: number) => void;
   setUserHistories: (userId: number, histories: History[]) => void;
   upsertHistory: (history: History) => void;
   removeHistory: (userId: number, eventId: number) => void;
   removeHistoryById: (historyId: number) => void;
   setUserEventPreferences: (
     userId: number,
-    categories: EventCategoryName[],
+    preferences: UserEventPreference[],
   ) => void;
 };
 
 const now = () => new Date().toISOString();
-const shouldUsePersistedEvents =
-  (import.meta.env.VITE_EVENTS_API_MODE ?? "http") !== "http";
 
 const isNotDeleted = (record: { deleted_at?: string | null }) =>
   !record.deleted_at;
@@ -177,9 +122,6 @@ const createSoftDeletePatch = () => ({
   deleted_at: now(),
   updated_at: now(),
 });
-
-const createNextId = (items: { id: number }[]) =>
-  Math.max(0, ...items.map((item) => item.id)) + 1;
 
 const normalizeEvent = (event: Event): Event => {
   const legacyEvent = event as Event & {
@@ -198,97 +140,6 @@ const normalizeEvent = (event: Event): Event => {
   };
 };
 
-const getLocalDayKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
-    2,
-    "0",
-  )}-${String(date.getDate()).padStart(2, "0")}`;
-
-const getDayRange = (date: Date) => {
-  const start = new Date(date);
-  const end = new Date(date);
-
-  start.setHours(0, 0, 0, 0);
-  end.setHours(23, 59, 59, 999);
-
-  return { start, end };
-};
-
-const isEventHappeningOnDay = (event: Event, date: Date) => {
-  const { start, end } = getDayRange(date);
-  const eventStart = new Date(event.start_date);
-  const eventEnd = new Date(event.end_date);
-
-  return eventStart <= end && eventEnd >= start;
-};
-
-const isDuplicateNotification = (
-  notifications: Notification[],
-  draft: NotificationDraft,
-) => {
-  const notificationTypeConfig = getNotificationTypeConfig(
-    draft.notification_type_id,
-  );
-
-  if (!notificationTypeConfig) return false;
-
-  return notifications.some((notification) => {
-    if (
-      notification.user_id !== draft.user_id ||
-      notification.notification_type_id !== draft.notification_type_id
-    ) {
-      return false;
-    }
-
-    if (notificationTypeConfig.slug === "favorite_event_today") {
-      return (
-        notification.event_id === draft.event_id &&
-        getLocalDayKey(new Date(notification.created_at)) ===
-          getLocalDayKey(new Date())
-      );
-    }
-
-    if (notificationTypeConfig.slug === "organization_approved") {
-      return notification.organization_id === draft.organization_id;
-    }
-
-    if (notificationTypeConfig.slug === "event_approved") {
-      return (
-        notification.organization_id === draft.organization_id &&
-        notification.event_id === draft.event_id
-      );
-    }
-
-    return false;
-  });
-};
-
-const getNotificationRecipient = (
-  notification: Notification,
-  accounts: Account[],
-  users: User[],
-  organizations: Organization[],
-) => {
-  const user = users.find(
-    (item) => item.id === notification.user_id && !item.deleted_at,
-  );
-  const account = user
-    ? accounts.find((item) => item.id === user.account_id && !item.deleted_at)
-    : undefined;
-  const organization = notification.organization_id
-    ? organizations.find(
-        (item) => item.id === notification.organization_id && !item.deleted_at,
-      )
-    : undefined;
-
-  if (!user || !account) return null;
-
-  return {
-    email: organization?.contact_email || account.login_email,
-    name: organization?.name ?? user.username,
-  };
-};
-
 export const buildAccountSummaries = (
   accounts: Account[],
   users: User[],
@@ -298,21 +149,21 @@ export const buildAccountSummaries = (
     const user = users.find(
       (item) => item.account_id === account.id && isNotDeleted(item),
     );
-    const organization =
-      account.account_type === "organization"
-        ? organizations.find(
-            (item) => item.account_id === account.id && isNotDeleted(item),
-          )
-        : undefined;
+    const organization = organizations.find(
+      (item) => item.account_id === account.id && isNotDeleted(item),
+    );
 
     if (organization) {
       return {
         account_id: account.id,
         login_email: account.login_email,
         password_hash: account.password_hash,
-        role: "organization",
-        role_id: organization.role_id ?? ROLE_IDS.organization,
-        display_name: organization.name,
+        role: user?.role === "organization" ? "user" : (user?.role ?? "user"),
+        role_id:
+          user?.role === "organization"
+            ? ROLE_IDS.user
+            : (user?.role_id ?? ROLE_IDS.user),
+        display_name: user?.username ?? account.login_email,
         is_active: account.is_active && organization.is_active,
         suspended_until: account.suspended_until ?? null,
         suspension_reason: account.suspension_reason ?? null,
@@ -322,14 +173,21 @@ export const buildAccountSummaries = (
       };
     }
 
-    const accountRole = user?.role ?? account.account_type;
+    const accountType =
+      account.account_type === "organization" ? "user" : account.account_type;
+    const accountRole = user?.role === "organization"
+      ? "user"
+      : (user?.role ?? accountType);
 
     return {
       account_id: account.id,
       login_email: account.login_email,
       password_hash: account.password_hash,
       role: accountRole,
-      role_id: user?.role_id ?? ROLE_IDS[accountRole],
+      role_id:
+        user?.role === "organization"
+          ? ROLE_IDS.user
+          : (user?.role_id ?? ROLE_IDS[accountRole]),
       display_name: user?.username ?? account.login_email,
       is_active: account.is_active,
       suspended_until: account.suspended_until ?? null,
@@ -339,21 +197,32 @@ export const buildAccountSummaries = (
   });
 
 const useDataStore = create<DataState>()(
-  persist(
     (set, get) => ({
-      accounts: accountsMock,
-      users: usersMock,
-      organizations: organizationsMock,
-      organizers: organizersMock,
+      accounts: [],
+      users: [],
+      organizations: [],
+      organizers: [],
       events: [],
-      favorites: favoritesMock,
-      histories: historiesMock,
-      userEventPreferences: userEventPreferencesMock,
-      notificationTypes: notificationTypesMock,
+      favorites: [],
+      histories: [],
+      userEventPreferences: [],
+      notificationTypes: [],
       notifications: [],
-      notificationEmailDeliveries: [],
-      moderationReports: moderationReportsMock,
-      moderationDecisions: moderationDecisionsMock,
+      moderationReports: [],
+      moderationDecisions: [],
+
+      clearStaffSnapshot: () =>
+        set(() => ({
+          accounts: [],
+          users: [],
+          organizations: [],
+          organizers: [],
+          events: [],
+          notificationTypes: [],
+          notifications: [],
+          moderationReports: [],
+          moderationDecisions: [],
+        })),
 
       hydrateStaffSnapshot: (snapshot) =>
         set(() => ({
@@ -371,87 +240,6 @@ const useDataStore = create<DataState>()(
       getAccountSummaries: () =>
         buildAccountSummaries(get().accounts, get().users, get().organizations),
 
-      dispatchNotification: async (draft) => {
-        if (isDuplicateNotification(get().notifications, draft)) {
-          return null;
-        }
-
-        const notification: Notification = {
-          id: createNextId(get().notifications),
-          user_id: draft.user_id,
-          event_id: draft.event_id ?? null,
-          organization_id: draft.organization_id ?? null,
-          notification_type_id: draft.notification_type_id,
-          title: draft.title,
-          message: draft.message,
-          is_read: draft.is_read ?? false,
-          read_at: draft.read_at ?? null,
-          action_url: draft.action_url ?? null,
-          created_at: now(),
-        };
-
-        set((state) => ({
-          notifications: [notification, ...state.notifications],
-        }));
-
-        const notificationTypeConfig = getNotificationTypeConfig(
-          notification.notification_type_id,
-        );
-
-        if (!notificationTypeConfig?.channels.includes("email")) {
-          return notification;
-        }
-
-        const recipient = getNotificationRecipient(
-          notification,
-          get().accounts,
-          get().users,
-          get().organizations,
-        );
-
-        if (!recipient) {
-          return notification;
-        }
-
-        try {
-          const delivery = await sendNotificationEmail({
-            notification,
-            recipient,
-          });
-
-          set((state) => ({
-            notificationEmailDeliveries: [
-              {
-                ...delivery,
-                notification_id: notification.id,
-              },
-              ...state.notificationEmailDeliveries.filter(
-                (item) => item.notification_id !== notification.id,
-              ),
-            ],
-          }));
-        } catch (error) {
-          const delivery: NotificationEmailDelivery = {
-            notification_id: notification.id,
-            status: "failed",
-            sent_at: now(),
-            error:
-              error instanceof Error ? error.message : "Erreur d'envoi email",
-          };
-
-          set((state) => ({
-            notificationEmailDeliveries: [
-              delivery,
-              ...state.notificationEmailDeliveries.filter(
-                (item) => item.notification_id !== notification.id,
-              ),
-            ],
-          }));
-        }
-
-        return notification;
-      },
-
       setUserNotifications: (userId, notifications) =>
         set((state) => ({
           notifications: [
@@ -460,6 +248,11 @@ const useDataStore = create<DataState>()(
             ),
             ...notifications,
           ],
+        })),
+
+      setNotificationTypes: (notificationTypes) =>
+        set(() => ({
+          notificationTypes,
         })),
 
       upsertNotification: (notification) =>
@@ -488,54 +281,16 @@ const useDataStore = create<DataState>()(
 
       markUserNotificationsAsRead: (userId) =>
         set((state) => ({
-          notifications: state.notifications.map((notification) => {
-            const notificationTypeConfig = getNotificationTypeConfig(
-              notification.notification_type_id,
-            );
-
-            return notification.user_id === userId &&
-              notificationTypeConfig?.channels.includes("in_app")
+          notifications: state.notifications.map((notification) =>
+            notification.user_id === userId
               ? {
                   ...notification,
                   is_read: true,
                   read_at: notification.read_at ?? now(),
                 }
-              : notification;
-          }),
+              : notification,
+          ),
         })),
-
-      syncTodaysFavoriteEventNotifications: (userId) => {
-        const state = get();
-        const user = state.users.find(
-          (item) =>
-            item.id === userId && item.role === "user" && !item.deleted_at,
-        );
-
-        if (!user) return;
-
-        state.favorites
-          .filter(
-            (favorite) => favorite.user_id === user.id && !favorite.deleted_at,
-          )
-          .forEach((favorite) => {
-            const event = state.events.find(
-              (item) =>
-                item.id === favorite.event_id &&
-                item.is_active &&
-                !item.deleted_at &&
-                isEventHappeningOnDay(item, new Date()),
-            );
-
-            if (!event) return;
-
-            void state.dispatchNotification(
-              createFavoriteEventTodayNotification({
-                user,
-                event,
-              }),
-            );
-          });
-      },
 
       addAccount: (account) =>
         set((state) => ({
@@ -874,81 +629,6 @@ const useDataStore = create<DataState>()(
           ),
         })),
 
-      addModerationDecision: (decision) =>
-        set((state) => ({
-          moderationDecisions: [
-            {
-              ...decision,
-              id: createNextId(state.moderationDecisions),
-              created_at: decision.created_at ?? now(),
-            },
-            ...state.moderationDecisions,
-          ],
-        })),
-
-      addModerationReport: (report) => {
-        const reporter = get().users.find(
-          (user) =>
-            user.id === report.reporter_user_id &&
-            user.role === "user" &&
-            !user.deleted_at,
-        );
-        const reporterAccount = reporter
-          ? get().accounts.find(
-              (account) =>
-                account.id === reporter.account_id &&
-                account.is_active &&
-                !account.deleted_at,
-            )
-          : undefined;
-
-        if (!reporter || !reporterAccount) return null;
-
-        if (report.target_type === "event") {
-          const targetEvent = get().events.find(
-            (event) =>
-              event.id === report.target_id &&
-              event.is_active &&
-              !event.deleted_at,
-          );
-
-          if (!targetEvent) return null;
-        }
-
-        const duplicateReport = get().moderationReports.find(
-          (item) =>
-            item.target_type === report.target_type &&
-            item.target_id === report.target_id &&
-            item.reporter_user_id === report.reporter_user_id &&
-            (item.status === "open" || item.status === "reviewing"),
-        );
-
-        if (duplicateReport) return null;
-
-        const createdAt = now();
-        const moderationReport: ModerationReport = {
-          id: createNextId(get().moderationReports),
-          target_type: report.target_type,
-          target_id: report.target_id,
-          reporter_user_id: report.reporter_user_id,
-          reason: report.reason,
-          details: report.details,
-          status: "open",
-          priority: report.priority ?? "medium",
-          created_at: createdAt,
-          updated_at: createdAt,
-          resolved_at: null,
-          handled_by_user_id: null,
-          resolution_note: null,
-        };
-
-        set((state) => ({
-          moderationReports: [moderationReport, ...state.moderationReports],
-        }));
-
-        return moderationReport;
-      },
-
       updateModerationReport: (reportId, data) =>
         set((state) => ({
           moderationReports: state.moderationReports.map((report) =>
@@ -976,40 +656,6 @@ const useDataStore = create<DataState>()(
           ),
         })),
 
-      toggleFavorite: (userId, eventId) =>
-        set((state) => {
-          const existingFavorite = state.favorites.find(
-            (favorite) =>
-              favorite.user_id === userId && favorite.event_id === eventId,
-          );
-
-          if (existingFavorite) {
-            return {
-              favorites: state.favorites.map((favorite) =>
-                favorite.id === existingFavorite.id
-                  ? {
-                      ...favorite,
-                      deleted_at: favorite.deleted_at ? null : now(),
-                    }
-                  : favorite,
-              ),
-            };
-          }
-
-          return {
-            favorites: [
-              ...state.favorites,
-              {
-                id: Date.now(),
-                user_id: userId,
-                event_id: eventId,
-                created_at: now(),
-                deleted_at: null,
-              },
-            ],
-          };
-        }),
-
       setUserFavorites: (userId, favorites) =>
         set((state) => ({
           favorites: [
@@ -1035,44 +681,6 @@ const useDataStore = create<DataState>()(
               )
             : [...state.favorites, favorite],
         })),
-
-      recordHistory: (userId, eventId) =>
-        set((state) => {
-          const visitedAt = now();
-          const existingHistory = state.histories.find(
-            (history) =>
-              history.user_id === userId &&
-              history.event_id === eventId &&
-              !history.deleted_at,
-          );
-
-          if (existingHistory) {
-            return {
-              histories: state.histories.map((history) =>
-                history.user_id === userId &&
-                history.event_id === eventId &&
-                !history.deleted_at
-                  ? { ...history, visited_at: visitedAt }
-                  : history,
-              ),
-            };
-          }
-
-          return {
-            histories: [
-              ...state.histories,
-              {
-                id:
-                  Math.max(0, ...state.histories.map((history) => history.id)) +
-                  1,
-                user_id: userId,
-                event_id: eventId,
-                visited_at: visitedAt,
-                deleted_at: null,
-              },
-            ],
-          };
-        }),
 
       setUserHistories: (userId, histories) =>
         set((state) => ({
@@ -1120,56 +728,14 @@ const useDataStore = create<DataState>()(
           ),
         })),
 
-      setUserEventPreferences: (userId, categories) =>
-        set((state) => {
-          const filtered = state.userEventPreferences.filter(
-            (p) => p.user_id !== userId,
-          );
-          const uniqueCategories = Array.from(new Set(categories));
-
-          const newPrefs: UserEventPreference[] = uniqueCategories.map(
-            (cat, index) => ({
-              id: Date.now() + index,
-              user_id: userId,
-              event_category_id: getEventCategoryId(cat),
-            }),
-          );
-          return {
-            userEventPreferences: [...filtered, ...newPrefs],
-          };
-        }),
-    }),
-    {
-      name: "app-data-storage-v10",
-      merge: (persistedState, currentState) => {
-        const persistedData = persistedState as Partial<DataState> | undefined;
-
-        if (!persistedData) return currentState;
-
-        const persistedOrganizers = persistedData.organizers ?? [];
-        const persistedOrganizerIds = new Set(
-          persistedOrganizers.map((member) => member.id),
-        );
-        const events = (
-          shouldUsePersistedEvents
-            ? persistedData.events ?? currentState.events
-            : currentState.events
-        ).map(normalizeEvent);
-
-        return {
-          ...currentState,
-          ...persistedData,
-          events,
-          organizers: [
-            ...persistedOrganizers,
-            ...organizersMock.filter(
-              (member) => !persistedOrganizerIds.has(member.id),
-            ),
+      setUserEventPreferences: (userId, preferences) =>
+        set((state) => ({
+          userEventPreferences: [
+            ...state.userEventPreferences.filter((p) => p.user_id !== userId),
+            ...preferences,
           ],
-        };
-      },
-    },
-  ),
+        })),
+    }),
 );
 
 export default useDataStore;

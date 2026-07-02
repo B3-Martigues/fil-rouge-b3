@@ -3,7 +3,6 @@ import { Bell } from "lucide-react";
 
 import useAuthStore from "../../auth/store/authStore";
 import Button from "../../../shared/components/ui/Button";
-import { getNotificationTypeConfig } from "../mocks/notification-types.mock";
 import useDataStore from "../../../shared/store/dataStore";
 import NotificationInbox from "./NotificationInbox";
 
@@ -11,20 +10,11 @@ export default function NotificationCenter() {
   const panelId = "notification-center-panel";
   const currentUser = useAuthStore((s) => s.currentUser);
   const notifications = useDataStore((s) => s.notifications);
-  const syncTodaysFavoriteEventNotifications = useDataStore(
-    (s) => s.syncTodaysFavoriteEventNotifications,
-  );
   const [isOpen, setIsOpen] = useState(false);
   const centerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const userId = currentUser?.user_id;
-
-  useEffect(() => {
-    if (userId) {
-      syncTodaysFavoriteEventNotifications(userId);
-    }
-  }, [syncTodaysFavoriteEventNotifications, userId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -82,16 +72,7 @@ export default function NotificationCenter() {
   const inAppNotifications = useMemo(
     () =>
       notifications
-        .filter((notification) => {
-          const notificationTypeConfig = getNotificationTypeConfig(
-            notification.notification_type_id,
-          );
-
-          return (
-            notification.user_id === userId &&
-            notificationTypeConfig?.channels.includes("in_app")
-          );
-        })
+        .filter((notification) => notification.user_id === userId)
         .sort(
           (first, second) =>
             new Date(second.created_at).getTime() -

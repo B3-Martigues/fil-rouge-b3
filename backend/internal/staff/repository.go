@@ -8,7 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog/log"
+
 	"mappening/internal/events"
+	"mappening/internal/mailer"
 )
 
 var (
@@ -18,12 +21,18 @@ var (
 )
 
 type Repository struct {
-	db        *sql.DB
-	eventRepo *events.Repository
+	db          *sql.DB
+	eventRepo   *events.Repository
+	mailSender  mailer.Sender
+	frontendURL string
 }
 
 func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db, eventRepo: events.NewRepository(db)}
+	return NewRepositoryWithMailer(db, nil, "")
+}
+
+func NewRepositoryWithMailer(db *sql.DB, sender mailer.Sender, frontendURL string) *Repository {
+	return &Repository{db: db, eventRepo: events.NewRepository(db), mailSender: sender, frontendURL: strings.TrimRight(frontendURL, "/")}
 }
 
 func (r *Repository) Snapshot(ctx context.Context) (*Snapshot, error) {
@@ -114,13 +123,15 @@ func (r *Repository) ApplyAction(ctx context.Context, req ActionRequest, moderat
 	`, req.Action, req.TargetType, req.TargetID, moderatorUserID, req.Reason); err != nil {
 		return nil, fmt.Errorf("record moderation decision: %w", err)
 	}
-	if err := r.createActionNotification(ctx, tx, req); err != nil {
+	emailMessages, err := r.createActionNotification(ctx, tx, req)
+	if err != nil {
 		return nil, err
 	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit staff action tx: %w", err)
 	}
+	r.sendActionEmails(emailMessages)
 
 	return r.Snapshot(ctx)
 }
@@ -281,31 +292,34 @@ func (r *Repository) applyTargetMutation(ctx context.Context, tx *sql.Tx, req Ac
 	return nil
 }
 
-func (r *Repository) createActionNotification(ctx context.Context, tx *sql.Tx, req ActionRequest) error {
+func (r *Repository) createActionNotification(ctx context.Context, tx *sql.Tx, req ActionRequest) ([]mailer.Message, error) {
 	recipientUserIDs, organizationID, eventID, err := recipientUsersForAction(ctx, tx, req.TargetType, req.TargetID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if len(recipientUserIDs) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	typeID, err := notificationTypeForAction(ctx, tx, req.Action)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	title := notificationTitle(req.Action)
-	for _, userID := range recipientUserIDs {
+	actionPath := actionURL(req.TargetType, req.TargetID)
+	messages := make([]mailer.Message, 0, len(recipientUserIDs))
+	for _, recipient := range recipientUserIDs {
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO notifications (
 				user_id, event_id, organization_id, notification_type_id, title, message, action_url
 			)
 			VALUES ($1, $2, $3, $4, $5, $6, $7)
-		`, userID, eventID, organizationID, typeID, title, req.Reason, actionURL(req.TargetType, req.TargetID)); err != nil {
-			return fmt.Errorf("create action notification: %w", err)
+		`, recipient.UserID, eventID, organizationID, typeID, title, req.Reason, actionPath); err != nil {
+			return nil, fmt.Errorf("create action notification: %w", err)
 		}
+		messages = append(messages, r.notificationEmail(recipient, title, req.Reason, actionPath))
 	}
-	return nil
+	return messages, nil
 }
 
 func (r *Repository) listAccounts(ctx context.Context) ([]Account, error) {
@@ -623,7 +637,13 @@ func updateReportInTx(ctx context.Context, tx *sql.Tx, reportID int64, status st
 	return nil
 }
 
-func recipientUsersForAction(ctx context.Context, tx *sql.Tx, targetType string, targetID int64) ([]int64, *int64, *int64, error) {
+type notificationRecipient struct {
+	UserID int64
+	Email  string
+	Name   string
+}
+
+func recipientUsersForAction(ctx context.Context, tx *sql.Tx, targetType string, targetID int64) ([]notificationRecipient, *int64, *int64, error) {
 	switch targetType {
 	case "event":
 		var eventID = targetID
@@ -638,29 +658,38 @@ func recipientUsersForAction(ctx context.Context, tx *sql.Tx, targetType string,
 		organizationID := targetID
 		return users, &organizationID, nil, err
 	case "account":
-		var userID int64
+		var recipient notificationRecipient
 		err := tx.QueryRowContext(ctx, `
-			SELECT id FROM users WHERE account_id = $1 AND deleted_at IS NULL LIMIT 1
-		`, targetID).Scan(&userID)
+			SELECT u.id, a.login_email, COALESCE(NULLIF(u.username, ''), SPLIT_PART(a.login_email, '@', 1))
+			FROM users u
+			JOIN accounts a ON a.id = u.account_id
+			WHERE u.account_id = $1
+			  AND u.deleted_at IS NULL
+			  AND a.deleted_at IS NULL
+			LIMIT 1
+		`, targetID).Scan(&recipient.UserID, &recipient.Email, &recipient.Name)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil, nil, nil
 		}
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("find account notification user: %w", err)
 		}
-		return []int64{userID}, nil, nil, nil
+		return []notificationRecipient{recipient}, nil, nil, nil
 	default:
 		return nil, nil, nil, ErrValidation
 	}
 }
 
-func organizationRecipientUsers(ctx context.Context, tx *sql.Tx, organizationID int64) ([]int64, error) {
+func organizationRecipientUsers(ctx context.Context, tx *sql.Tx, organizationID int64) ([]notificationRecipient, error) {
 	rows, err := tx.QueryContext(ctx, `
-		SELECT DISTINCT u.id
+		SELECT DISTINCT u.id, a.login_email, COALESCE(NULLIF(u.username, ''), SPLIT_PART(a.login_email, '@', 1))
 		FROM users u
+		JOIN accounts a ON a.id = u.account_id
 		LEFT JOIN organizations o ON o.account_id = u.account_id AND o.id = $1
 		LEFT JOIN organizers org ON org.user_id = u.id AND org.organization_id = $1 AND org.deleted_at IS NULL
 		WHERE u.deleted_at IS NULL
+		  AND a.deleted_at IS NULL
+		  AND a.is_active = TRUE
 		  AND (o.id IS NOT NULL OR org.id IS NOT NULL)
 	`, organizationID)
 	if err != nil {
@@ -668,13 +697,13 @@ func organizationRecipientUsers(ctx context.Context, tx *sql.Tx, organizationID 
 	}
 	defer rows.Close()
 
-	var users []int64
+	var users []notificationRecipient
 	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
+		var recipient notificationRecipient
+		if err := rows.Scan(&recipient.UserID, &recipient.Email, &recipient.Name); err != nil {
 			return nil, fmt.Errorf("scan organization notification user: %w", err)
 		}
-		users = append(users, id)
+		users = append(users, recipient)
 	}
 	return users, rows.Err()
 }
@@ -709,7 +738,10 @@ func canApplyAction(role string, action string) bool {
 		return true
 	}
 	switch action {
-	case "event_hidden", "event_restored", "account_suspended", "account_restored", "report_reviewing", "report_resolved", "report_dismissed":
+	case "event_approved", "event_rejected", "event_hidden", "event_restored",
+		"organization_approved", "organization_rejected",
+		"account_suspended", "account_restored",
+		"report_reviewing", "report_resolved", "report_dismissed":
 		return true
 	default:
 		return false
@@ -760,6 +792,55 @@ func actionURL(targetType string, targetID int64) string {
 	default:
 		return "/profile"
 	}
+}
+
+func (r *Repository) notificationEmail(recipient notificationRecipient, title string, reason string, actionPath string) mailer.Message {
+	link := actionPath
+	if r.frontendURL != "" && strings.HasPrefix(actionPath, "/") {
+		link = r.frontendURL + actionPath
+	}
+
+	body := strings.Join([]string{
+		"Bonjour " + recipient.Name + ",",
+		"",
+		title,
+		"",
+		reason,
+		"",
+		"Consulter dans Mappening : " + link,
+	}, "\n")
+
+	return mailer.Message{
+		To:      recipient.Email,
+		Subject: title + " - Mappening",
+		Text:    body,
+	}
+}
+
+func (r *Repository) sendActionEmails(messages []mailer.Message) {
+	if r.mailSender == nil || len(messages) == 0 {
+		return
+	}
+
+	for _, message := range messages {
+		message := message
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			if err := r.mailSender.Send(ctx, message); err != nil {
+				logActionMailError(message.To, err)
+			}
+		}()
+	}
+}
+
+func logActionMailError(to string, err error) {
+	log.Error().
+		Err(err).
+		Str("to", to).
+		Str("purpose", "moderation notification").
+		Msg("mail delivery failed")
 }
 
 func nullableString(value sql.NullString) *string {

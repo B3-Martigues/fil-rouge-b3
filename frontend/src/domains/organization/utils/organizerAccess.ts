@@ -15,7 +15,7 @@ export function getCurrentUserOrganizationMemberships(
   const userId = currentUser?.user_id;
   if (!userId) return [];
 
-  return organizers
+  const memberships = organizers
     .filter(
       (organizer) => organizer.user_id === userId && !organizer.deleted_at,
     )
@@ -26,19 +26,39 @@ export function getCurrentUserOrganizationMemberships(
 
       if (!organization) return null;
 
-      if (
-        currentUser.auth_source === "api" &&
-        organization.account_id !== currentUser.account_id
-      ) {
-        return null;
-      }
-
       return { organizer, organization };
     })
     .filter(
       (membership): membership is UserOrganizationMembership =>
         membership !== null,
     );
+
+  if (
+    currentUser.organization_id &&
+    !memberships.some(
+      ({ organization }) => organization.id === currentUser.organization_id,
+    )
+  ) {
+    const directOrganization = organizations.find(
+      (item) => item.id === currentUser.organization_id && !item.deleted_at,
+    );
+
+    if (directOrganization) {
+      memberships.push({
+        organizer: {
+          id: -directOrganization.id,
+          user_id: userId,
+          organization_id: directOrganization.id,
+          job_role: "Organisateur",
+          created_at: directOrganization.created_at,
+          updated_at: directOrganization.updated_at,
+        },
+        organization: directOrganization,
+      });
+    }
+  }
+
+  return memberships;
 }
 
 export function hasCurrentUserOrganizationMembership(

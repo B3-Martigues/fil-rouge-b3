@@ -212,20 +212,15 @@ export default function OrganizationProfile() {
       category_slugs: form.categories,
     };
 
-    if (user.auth_source === "api") {
-      const result = await organizationsApi.update(organization.id, payload);
+    const result = await organizationsApi.update(organization.id, payload);
 
-      if (!result.ok) {
-        setServerError(result.error.message);
-        setIsSubmitting(false);
-        return;
-      }
-
-      updateOrganization(organization.id, result.data);
-    } else {
-      updateOrganization(organization.id, payload);
+    if (!result.ok) {
+      setServerError(result.error.message);
+      setIsSubmitting(false);
+      return;
     }
 
+    updateOrganization(organization.id, result.data);
     login({
       ...user,
       username: form.name.trim(),

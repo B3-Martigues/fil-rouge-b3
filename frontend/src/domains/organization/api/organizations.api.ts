@@ -69,6 +69,9 @@ const normalizeOrganizerFromApi = (organizer: Organizer): Organizer => ({
     toLocalApiId(organizer.organization_id) ?? organizer.organization_id,
 });
 
+const toApiList = <Item>(items: Item[] | null | undefined): Item[] =>
+  Array.isArray(items) ? items : [];
+
 const normalizePayload = async (
   payload: OrganizationPayload,
   organizationId?: number,
@@ -120,13 +123,13 @@ export const organizationsApi = {
       params.set("q", query.trim());
     }
 
-    const result = await apiRequest<Organization[]>(
+    const result = await apiRequest<Organization[] | null>(
       `${ORGANIZATIONS_API_ENDPOINTS.list}${
         params.toString() ? `?${params.toString()}` : ""
       }`,
     );
     return result.ok
-      ? { ok: true, data: result.data.map(normalizeOrganizationFromApi) }
+      ? { ok: true, data: toApiList(result.data).map(normalizeOrganizationFromApi) }
       : result;
   },
 
@@ -147,9 +150,11 @@ export const organizationsApi = {
   },
 
   async mine(): Promise<ApiResult<Organization[]>> {
-    const result = await apiRequest<Organization[]>(ORGANIZATIONS_API_ENDPOINTS.mine);
+    const result = await apiRequest<Organization[] | null>(
+      ORGANIZATIONS_API_ENDPOINTS.mine,
+    );
     return result.ok
-      ? { ok: true, data: result.data.map(normalizeOrganizationFromApi) }
+      ? { ok: true, data: toApiList(result.data).map(normalizeOrganizationFromApi) }
       : result;
   },
 
@@ -234,11 +239,11 @@ export const organizationsApi = {
   },
 
   async listMembers(organizationId: number): Promise<ApiResult<Organizer[]>> {
-    const result = await apiRequest<Organizer[]>(
+    const result = await apiRequest<Organizer[] | null>(
       ORGANIZATIONS_API_ENDPOINTS.members(organizationId),
     );
     return result.ok
-      ? { ok: true, data: result.data.map(normalizeOrganizerFromApi) }
+      ? { ok: true, data: toApiList(result.data).map(normalizeOrganizerFromApi) }
       : result;
   },
 

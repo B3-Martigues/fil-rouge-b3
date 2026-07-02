@@ -67,9 +67,7 @@ export default function OrganizationDashboard() {
     }
     setIsSubmitting(true);
 
-    const now = new Date().toISOString();
-    const newEvent: Event = {
-      id: Date.now(),
+    const newEvent: Omit<Event, "id" | "created_at" | "updated_at"> = {
       organization_id: currentUser.organization_id,
       title: form.title.trim(),
       description: form.description.trim(),
@@ -86,27 +84,20 @@ export default function OrganizationDashboard() {
       ticketing_link: form.ticketing_link.trim(),
       source: "Evenement cree par une organisation",
       is_active: false,
-      created_at: now,
-      updated_at: now,
     };
 
-    if (currentUser.auth_source === "api") {
-      const result = await eventsApi.create(newEvent);
+    const result = await eventsApi.create(newEvent);
 
-      if (!result.ok) {
-        setServerError(result.error.message);
-        setIsSubmitting(false);
-        return;
-      }
-
-      addEvent({
-        ...result.data,
-        organization_id: currentUser.organization_id,
-      });
-    } else {
-      addEvent(newEvent);
+    if (!result.ok) {
+      setServerError(result.error.message);
+      setIsSubmitting(false);
+      return;
     }
 
+    addEvent({
+      ...result.data,
+      organization_id: currentUser.organization_id,
+    });
     setForm(emptyEventForm());
     toast.success("Evenement envoye en attente de publication");
     setIsSubmitting(false);

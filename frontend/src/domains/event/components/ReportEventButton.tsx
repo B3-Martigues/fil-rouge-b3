@@ -6,7 +6,6 @@ import useAuthStore from "../../auth/store/authStore";
 import FormModal from "../../../shared/components/forms/FormModal";
 import Button from "../../../shared/components/ui/Button";
 import Textarea from "../../../shared/components/ui/Textarea";
-import useDataStore from "../../../shared/store/dataStore";
 import { staffApi } from "../../staff/api/staff.api";
 import type { Event } from "../types/event";
 
@@ -16,8 +15,6 @@ type Props = {
 
 export default function ReportEventButton({ event }: Props) {
   const currentUser = useAuthStore((s) => s.currentUser);
-  const moderationReports = useDataStore((s) => s.moderationReports);
-  const addModerationReport = useDataStore((s) => s.addModerationReport);
   const statusId = useId();
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,22 +26,11 @@ export default function ReportEventButton({ event }: Props) {
     currentUser?.role === "user" && currentUser.is_active
       ? currentUser.user_id
       : undefined;
-  const existingReport = userId
-    ? moderationReports.find(
-        (report) =>
-          report.target_type === "event" &&
-          report.target_id === event.id &&
-          report.reporter_user_id === userId &&
-          (report.status === "open" || report.status === "reviewing"),
-      )
-    : null;
   const unavailableMessage = currentUser.role !== "user"
       ? "Seuls les comptes utilisateur peuvent signaler un evenement."
       : !currentUser.is_active
         ? "Votre compte doit etre actif pour signaler un evenement."
-        : existingReport
-          ? "Vous avez deja un signalement en cours pour cet evenement."
-          : null;
+        : null;
   const isReportUnavailable = !!unavailableMessage;
 
   const stopCardActivation = (mouseEvent: MouseEvent) => {
@@ -75,30 +61,7 @@ export default function ReportEventButton({ event }: Props) {
     }
 
     setIsSubmitting(true);
-    if (currentUser.auth_source === "api") {
-      const result = await staffApi.createReport({
-        target_type: "event",
-        target_id: event.id,
-        reporter_user_id: userId,
-        reason: "Signalement utilisateur",
-        details: trimmedDetails,
-        priority: "medium",
-      });
-
-      setIsSubmitting(false);
-
-      if (!result.ok) {
-        toast.info(result.error.message);
-        return;
-      }
-
-      setDetails("");
-      setIsOpen(false);
-      toast.success("Signalement transmis a la moderation");
-      return;
-    }
-
-    const report = addModerationReport({
+    const result = await staffApi.createReport({
       target_type: "event",
       target_id: event.id,
       reporter_user_id: userId,
@@ -107,9 +70,10 @@ export default function ReportEventButton({ event }: Props) {
       priority: "medium",
     });
 
-    if (!report) {
-      setIsSubmitting(false);
-      toast.info("Signalement impossible ou deja en cours pour cet evenement");
+    setIsSubmitting(false);
+
+    if (!result.ok) {
+      toast.info(result.error.message);
       return;
     }
 

@@ -14,7 +14,6 @@ export default function History() {
   const histories = useDataStore((s) => s.histories);
   const events = useDataStore((s) => s.events);
   const organizations = useDataStore((s) => s.organizations);
-  const removeHistory = useDataStore((s) => s.removeHistory);
   const removeHistoryById = useDataStore((s) => s.removeHistoryById);
   const { getEventDistance } = useEventDistance();
   const activeOrganizationIds = new Set(
@@ -84,15 +83,11 @@ export default function History() {
                     variant="danger"
                     onClick={() => {
                       if (user?.user_id) {
-                        if (user.auth_source === "api") {
-                          void eventsApi.removeHistory(history.id).then((result) => {
-                            if (result.ok) {
-                              removeHistoryById(history.id);
-                            }
-                          });
-                        } else {
-                          removeHistory(user.user_id, event.id);
-                        }
+                        void eventsApi.removeHistory(history.id).then((result) => {
+                          if (result.ok) {
+                            removeHistoryById(history.id);
+                          }
+                        });
                       }
                     }}
                   >

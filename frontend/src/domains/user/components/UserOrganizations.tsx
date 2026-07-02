@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { toast } from "react-toastify";
 
 import CategorySelect from "../../event/components/CategorySelect";
+import { eventsApi } from "../../event/api/events.api";
 import type { Organization } from "../../organization/types/organization";
 import type { Event } from "../../event/types/event";
 import type { EventCategory } from "../../event/types/event-categories";
@@ -99,9 +100,6 @@ const parseOptionalCoordinate = (value: string) => {
   return trimmedValue ? Number(trimmedValue) : null;
 };
 
-const createNextId = (items: { id: number }[]) =>
-  Math.max(0, ...items.map((item) => item.id)) + 1;
-
 const validateEventForm = (form: EventForm): EventFormErrors => {
   const errors: EventFormErrors = {};
 
@@ -198,6 +196,7 @@ export default function UserOrganizations() {
     null,
   );
   const [modalError, setModalError] = useState<string | null>(null);
+  const [isSavingEvent, setIsSavingEvent] = useState(false);
 
   const userOrganizations = useMemo<UserOrganization[]>(() => {
     return getCurrentUserOrganizationMemberships(
@@ -293,10 +292,10 @@ export default function UserOrganizations() {
     );
   };
 
-  const saveEvent = (submitEvent: FormEvent<HTMLFormElement>) => {
+  const saveEvent = async (submitEvent: FormEvent<HTMLFormElement>) => {
     submitEvent.preventDefault();
 
-    if (!eventForm) return;
+    if (!eventForm || isSavingEvent) return;
 
     if (eventOrganizationId === null) {
       setModalError("Sélectionnez une organisation pour cet événement");
@@ -325,7 +324,6 @@ export default function UserOrganizations() {
 
     if (Object.keys(errors).length > 0) return;
 
-    const now = new Date().toISOString();
     const eventPayload = {
       organization_id: eventOrganizationId,
       title: eventForm.title.trim(),
@@ -345,26 +343,46 @@ export default function UserOrganizations() {
       is_active: false,
     };
 
+    setIsSavingEvent(true);
+
     if (editingEventId === null) {
-      addEvent({
-        id: createNextId(events),
-        ...eventPayload,
-        created_at: now,
-        updated_at: now,
-      });
+      const result = await eventsApi.create(eventPayload);
+      setIsSavingEvent(false);
+
+      if (!result.ok) {
+        setModalError(result.error.message);
+        return;
+      }
+
+      addEvent(result.data);
       toast.success("Événement envoyé en attente de publication");
     } else {
-      updateEvent(editingEventId, eventPayload);
+      const result = await eventsApi.update(editingEventId, eventPayload);
+      setIsSavingEvent(false);
+
+      if (!result.ok) {
+        setModalError(result.error.message);
+        return;
+      }
+
+      updateEvent(editingEventId, result.data);
       toast.success("Événement mis à jour, en attente de publication");
     }
 
     closeEventModal();
   };
 
-  const confirmDeleteEvent = () => {
+  const confirmDeleteEvent = async () => {
     if (pendingDeleteEventId === null) return;
 
     const deletedEvent = events.find((event) => event.id === pendingDeleteEventId);
+
+    const result = await eventsApi.remove(pendingDeleteEventId);
+
+    if (!result.ok) {
+      toast.error(result.error.message);
+      return;
+    }
 
     deleteEvent(pendingDeleteEventId);
     setPendingDeleteEventId(null);
@@ -414,6 +432,7 @@ export default function UserOrganizations() {
             organizationOptions={manageableOrganizations}
             modalError={modalError}
             showOrganizationSelect={editingEventId === null}
+            isSaving={isSavingEvent}
             onCancel={closeEventModal}
             onCategoryToggle={toggleEventCategory}
             onFieldChange={updateEventField}
@@ -529,6 +548,7 @@ function EventEditor({
   errors,
   form,
   modalError,
+  isSaving,
   organizationId,
   organizationOptions,
   showOrganizationSelect,
@@ -541,6 +561,7 @@ function EventEditor({
   errors: EventFormErrors;
   form: EventForm;
   modalError: string | null;
+  isSaving: boolean;
   organizationId: number | null;
   organizationOptions: Organization[];
   showOrganizationSelect: boolean;
@@ -748,7 +769,9 @@ function EventEditor({
       {modalError && <ErrorMessage message={modalError} />}
 
       <ActionRow className="admin-actions">
-        <Button type="submit">Valider</Button>
+        <Button type="submit" loading={isSaving} loadingLabel="Enregistrement...">
+          Valider
+        </Button>
         <Button variant="secondary" type="button" onClick={onCancel}>
           Annuler
         </Button>

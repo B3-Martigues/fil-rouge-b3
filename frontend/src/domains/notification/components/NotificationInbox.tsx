@@ -1,12 +1,10 @@
-import { useEffect, useMemo } from "react";
-import { ExternalLink, Mail } from "lucide-react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 import useAuthStore from "../../auth/store/authStore";
 import EmptyState from "../../../shared/components/feedback/EmptyState";
 import Button from "../../../shared/components/ui/Button";
 import useDataStore from "../../../shared/store/dataStore";
-import { getNotificationTypeConfig } from "../mocks/notification-types.mock";
 import type { Notification } from "../types/notification";
 import { userApi } from "../../user/api/user.api";
 
@@ -17,36 +15,18 @@ type Props = {
 export default function NotificationInbox({ onNotificationOpen }: Props) {
   const currentUser = useAuthStore((s) => s.currentUser);
   const notifications = useDataStore((s) => s.notifications);
-  const notificationEmailDeliveries = useDataStore(
-    (s) => s.notificationEmailDeliveries,
-  );
-  const markNotificationAsRead = useDataStore((s) => s.markNotificationAsRead);
+  const notificationTypes = useDataStore((s) => s.notificationTypes);
   const upsertNotification = useDataStore((s) => s.upsertNotification);
-  const syncTodaysFavoriteEventNotifications = useDataStore(
-    (s) => s.syncTodaysFavoriteEventNotifications,
+  const markUserNotificationsAsRead = useDataStore(
+    (s) => s.markUserNotificationsAsRead,
   );
   const navigate = useNavigate();
   const userId = currentUser?.user_id;
 
-  useEffect(() => {
-    if (userId && currentUser?.auth_source !== "api") {
-      syncTodaysFavoriteEventNotifications(userId);
-    }
-  }, [currentUser?.auth_source, syncTodaysFavoriteEventNotifications, userId]);
-
   const inAppNotifications = useMemo(
     () =>
       notifications
-        .filter((notification) => {
-          const notificationTypeConfig = getNotificationTypeConfig(
-            notification.notification_type_id,
-          );
-
-          return (
-            notification.user_id === userId &&
-            notificationTypeConfig?.channels.includes("in_app")
-          );
-        })
+        .filter((notification) => notification.user_id === userId)
         .sort(
           (first, second) =>
             new Date(second.created_at).getTime() -
@@ -54,26 +34,9 @@ export default function NotificationInbox({ onNotificationOpen }: Props) {
         ),
     [notifications, userId],
   );
-  const emailNotifications = useMemo(
-    () =>
-      notifications
-        .filter((notification) => {
-          const notificationTypeConfig = getNotificationTypeConfig(
-            notification.notification_type_id,
-          );
-
-          return (
-            notification.user_id === userId &&
-            notificationTypeConfig?.channels.includes("email")
-          );
-        })
-        .sort(
-          (first, second) =>
-            new Date(second.created_at).getTime() -
-            new Date(first.created_at).getTime(),
-        ),
-    [notifications, userId],
-  );
+  const unreadCount = inAppNotifications.filter(
+    (notification) => !notification.is_read,
+  ).length;
 
   const getInternalActionPath = (actionUrl?: string | null) => {
     if (!actionUrl) return null;
@@ -90,14 +53,11 @@ export default function NotificationInbox({ onNotificationOpen }: Props) {
   };
 
   const openNotification = (notification: Notification) => {
-    if (currentUser?.auth_source === "api") {
-      void userApi.markNotificationRead(notification.id).then((result) => {
-        if (result.ok) {
-          upsertNotification(result.data);
-        }
-      });
-    }
-    markNotificationAsRead(notification.id);
+    void userApi.markNotificationRead(notification.id).then((result) => {
+      if (result.ok) {
+        upsertNotification(result.data);
+      }
+    });
 
     const actionPath = getInternalActionPath(notification.action_url);
 
@@ -107,83 +67,70 @@ export default function NotificationInbox({ onNotificationOpen }: Props) {
     navigate(actionPath);
   };
 
+  const markAllAsRead = () => {
+    if (!userId || unreadCount === 0) return;
+
+    void userApi.markAllNotificationsRead().then((result) => {
+      if (result.ok) {
+        markUserNotificationsAsRead(userId);
+      }
+    });
+  };
+
   return (
     <>
       {inAppNotifications.length === 0 ? (
         <EmptyState message="Aucune notification." />
       ) : (
-        <ul aria-label="Liste des notifications">
-          {inAppNotifications.map((notification) => (
-            <li
-              className={notification.is_read ? "" : "is-unread"}
-              key={notification.id}
+        <>
+          <div className="notification-center__toolbar">
+            <span>
+              {unreadCount} non lue{unreadCount > 1 ? "s" : ""}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={unreadCount === 0}
+              onClick={markAllAsRead}
             >
-              <Button
-                className="notification-center__item"
-                type="button"
-                fullWidth
-                variant="ghost"
-                aria-label={`${notification.title}. ${
-                  notification.is_read ? "Lue" : "Non lue"
-                }. ${
-                  notification.action_url
-                    ? "Ouvrir la notification"
-                    : "Marquer comme lue"
-                }`}
-                onClick={() => openNotification(notification)}
+              Tout marquer comme lu
+            </Button>
+          </div>
+          <ul aria-label="Liste des notifications">
+            {inAppNotifications.map((notification) => (
+              <li
+                className={notification.is_read ? "" : "is-unread"}
+                key={notification.id}
               >
-                <strong>{notification.title}</strong>
-                <span className="notification-center__message">
-                  {notification.message}
-                </span>
-                {getNotificationTypeConfig(
-                  notification.notification_type_id,
-                )?.channels.includes("email") && (
-                  <small>
-                    <Mail size={13} aria-hidden="true" />
-                    email
-                  </small>
-                )}
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {emailNotifications.length > 0 && (
-        <details className="notification-center__outbox">
-          <summary>Emails envoyes</summary>
-          <ul>
-            {emailNotifications.map((notification) => {
-              const delivery = notificationEmailDeliveries.find(
-                (item) => item.notification_id === notification.id,
-              );
-
-              return (
-                <li key={`email-${notification.id}`}>
-                  <span>
-                    <Mail size={13} aria-hidden="true" />
-                    {notification.title}
+                <Button
+                  className="notification-center__item"
+                  type="button"
+                  fullWidth
+                  variant="ghost"
+                  aria-label={`${notification.title}. ${
+                    notification.is_read ? "Lue" : "Non lue"
+                  }. ${
+                    notification.action_url
+                      ? "Ouvrir la notification"
+                      : "Marquer comme lue"
+                  }`}
+                  onClick={() => openNotification(notification)}
+                >
+                  <strong>{notification.title}</strong>
+                  <span className="notification-center__message">
+                    {notification.message}
                   </span>
                   <small>
-                    {delivery?.provider ?? "email"} -{" "}
-                    {delivery?.status ?? "queued"}
+                    {notificationTypes.find(
+                      (type) => type.id === notification.notification_type_id,
+                    )?.name ?? "Notification"}
                   </small>
-                  {delivery?.preview_url && (
-                    <a
-                      href={delivery.preview_url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <ExternalLink size={13} aria-hidden="true" />
-                      Apercu
-                    </a>
-                  )}
-                </li>
-              );
-            })}
+                </Button>
+              </li>
+            ))}
           </ul>
-        </details>
+        </>
       )}
     </>
   );

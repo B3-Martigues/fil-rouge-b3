@@ -1,7 +1,6 @@
 import {
   createApiError,
   createApiSuccess,
-  type ApiMode,
   type ApiResult,
 } from "../../../shared/api/api.types";
 import { apiRequest } from "../../../shared/api/httpClient";
@@ -17,8 +16,7 @@ import type {
   EventCategoryOption,
 } from "../types/event-categories";
 
-export const EVENTS_API_MODE = (import.meta.env.VITE_EVENTS_API_MODE ??
-  "http") as ApiMode;
+export const EVENTS_API_MODE = "http";
 
 export const EVENTS_API_ENDPOINTS = {
   list: "/api/events",
@@ -122,6 +120,9 @@ const normalizeEventFromApi = (event: Event): Event => ({
 
 const normalizeEventsFromApi = (events: Event[]) => events.map(normalizeEventFromApi);
 
+const toApiList = <Item>(items: Item[] | null | undefined): Item[] =>
+  Array.isArray(items) ? items : [];
+
 const normalizeFavoriteFromApi = (favorite: Favorite): Favorite => ({
   ...favorite,
   id: toLocalApiId(favorite.id) ?? favorite.id,
@@ -213,50 +214,62 @@ const normalizePayload = async (
 
 export const eventsApi = {
   async list(filters?: EventListFilters): Promise<ApiResult<Event[]>> {
-    const result = await apiRequest<Event[]>(
+    const result = await apiRequest<Event[] | null>(
       `${EVENTS_API_ENDPOINTS.list}${buildEventQuery(filters)}`,
     );
-    return result.ok ? { ok: true, data: normalizeEventsFromApi(result.data) } : result;
+    return result.ok
+      ? { ok: true, data: normalizeEventsFromApi(toApiList(result.data)) }
+      : result;
   },
 
   async listMap(filters?: EventListFilters): Promise<ApiResult<Event[]>> {
-    const result = await apiRequest<Event[]>(
+    const result = await apiRequest<Event[] | null>(
       `${EVENTS_API_ENDPOINTS.map}${buildEventQuery(filters)}`,
     );
-    return result.ok ? { ok: true, data: normalizeEventsFromApi(result.data) } : result;
+    return result.ok
+      ? { ok: true, data: normalizeEventsFromApi(toApiList(result.data)) }
+      : result;
   },
 
   async listUpcoming(filters?: EventListFilters): Promise<ApiResult<Event[]>> {
-    const result = await apiRequest<Event[]>(
+    const result = await apiRequest<Event[] | null>(
       `${EVENTS_API_ENDPOINTS.upcoming}${buildEventQuery(filters)}`,
     );
-    return result.ok ? { ok: true, data: normalizeEventsFromApi(result.data) } : result;
+    return result.ok
+      ? { ok: true, data: normalizeEventsFromApi(toApiList(result.data)) }
+      : result;
   },
 
   async listPast(filters?: EventListFilters): Promise<ApiResult<Event[]>> {
-    const result = await apiRequest<Event[]>(
+    const result = await apiRequest<Event[] | null>(
       `${EVENTS_API_ENDPOINTS.past}${buildEventQuery(filters)}`,
     );
-    return result.ok ? { ok: true, data: normalizeEventsFromApi(result.data) } : result;
+    return result.ok
+      ? { ok: true, data: normalizeEventsFromApi(toApiList(result.data)) }
+      : result;
   },
 
   async listPopular(filters?: EventListFilters): Promise<ApiResult<Event[]>> {
-    const result = await apiRequest<Event[]>(
+    const result = await apiRequest<Event[] | null>(
       `${EVENTS_API_ENDPOINTS.popular}${buildEventQuery(filters)}`,
     );
-    return result.ok ? { ok: true, data: normalizeEventsFromApi(result.data) } : result;
+    return result.ok
+      ? { ok: true, data: normalizeEventsFromApi(toApiList(result.data)) }
+      : result;
   },
 
   async listByOrganization(
     organizationId: number,
     filters?: Omit<EventListFilters, "organizationId">,
   ): Promise<ApiResult<Event[]>> {
-    const result = await apiRequest<Event[]>(
+    const result = await apiRequest<Event[] | null>(
       `${EVENTS_API_ENDPOINTS.organizationEvents(organizationId)}${buildEventQuery(
         filters,
       )}`,
     );
-    return result.ok ? { ok: true, data: normalizeEventsFromApi(result.data) } : result;
+    return result.ok
+      ? { ok: true, data: normalizeEventsFromApi(toApiList(result.data)) }
+      : result;
   },
 
   async get(eventId: number): Promise<ApiResult<Event>> {
@@ -315,10 +328,12 @@ export const eventsApi = {
     categoryId: number,
     filters?: EventListFilters,
   ): Promise<ApiResult<Event[]>> {
-    const result = await apiRequest<Event[]>(
+    const result = await apiRequest<Event[] | null>(
       `${EVENTS_API_ENDPOINTS.categoryEvents(categoryId)}${buildEventQuery(filters)}`,
     );
-    return result.ok ? { ok: true, data: normalizeEventsFromApi(result.data) } : result;
+    return result.ok
+      ? { ok: true, data: normalizeEventsFromApi(toApiList(result.data)) }
+      : result;
   },
 
   async replaceCategories(
@@ -370,9 +385,9 @@ export const eventsApi = {
   },
 
   async listFavorites(): Promise<ApiResult<Favorite[]>> {
-    const result = await apiRequest<Favorite[]>(EVENTS_API_ENDPOINTS.favorites);
+    const result = await apiRequest<Favorite[] | null>(EVENTS_API_ENDPOINTS.favorites);
     return result.ok
-      ? { ok: true, data: result.data.map(normalizeFavoriteFromApi) }
+      ? { ok: true, data: toApiList(result.data).map(normalizeFavoriteFromApi) }
       : result;
   },
 
@@ -384,9 +399,9 @@ export const eventsApi = {
   },
 
   async listHistory(): Promise<ApiResult<History[]>> {
-    const result = await apiRequest<History[]>(EVENTS_API_ENDPOINTS.histories);
+    const result = await apiRequest<History[] | null>(EVENTS_API_ENDPOINTS.histories);
     return result.ok
-      ? { ok: true, data: result.data.map(normalizeHistoryFromApi) }
+      ? { ok: true, data: toApiList(result.data).map(normalizeHistoryFromApi) }
       : result;
   },
 
@@ -397,7 +412,7 @@ export const eventsApi = {
   },
 };
 
-export const isPublicMockEvent = (
+export const isPublicEvent = (
   event: Event,
   organization?: Organization | null,
 ) =>

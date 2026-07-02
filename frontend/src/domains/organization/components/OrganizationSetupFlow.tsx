@@ -15,11 +15,8 @@ import { ROUTES } from "../../../shared/constants/routes";
 import useDataStore from "../../../shared/store/dataStore";
 import useAuthStore from "../../auth/store/authStore";
 import { organizationsApi } from "../api/organizations.api";
-import type { Organization } from "../types/organization";
 import { CATEGORIES, type OrganizationCategoryName } from "../types/organization-categories";
-import type { Organizer } from "../types/organizer";
 import {
-  createNextId,
   emptyOrganizationForm,
   emptyOrganizerProfileForm,
   parseOptionalCoordinate,
@@ -41,8 +38,6 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
   const currentUser = useAuthStore((s) => s.currentUser);
   const organizations = useDataStore((s) => s.organizations);
   const organizers = useDataStore((s) => s.organizers);
-  const addOrganization = useDataStore((s) => s.addOrganization);
-  const addOrganizer = useDataStore((s) => s.addOrganizer);
   const upsertOrganizations = useDataStore((s) => s.upsertOrganizations);
   const upsertOrganizers = useDataStore((s) => s.upsertOrganizers);
   const [step, setStep] = useState(0);
@@ -128,15 +123,9 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
     if (Object.keys(errors).length > 0) return;
     setIsSubmitting(true);
 
-    const createdAt = new Date().toISOString();
-    const organizationId = createNextId(organizations);
-    const organizerId = createNextId(organizers);
-    const organization: Organization = {
-      id: organizationId,
-      account_id: currentUser.account_id,
+    const organizationResult = await organizationsApi.create({
       name: organizationForm.name.trim(),
       contact_email: organizationForm.contact_email.trim(),
-      role_id: null,
       description: organizationForm.description.trim(),
       website: organizationForm.website.trim() || null,
       latitude: parseOptionalCoordinate(organizationForm.latitude),
@@ -147,62 +136,31 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
       logo: organizationForm.logo.trim() || null,
       contact_phone_number: organizationForm.contact_phone_number.trim() || null,
       siret: organizationForm.siret.trim() || null,
-      is_verified: false,
       is_active: false,
-      created_at: createdAt,
-      updated_at: createdAt,
-      deleted_at: null,
+      is_verified: false,
       category_slugs: organizationForm.categories,
-    };
-    const organizer: Organizer = {
-      id: organizerId,
-      user_id: userId,
-      organization_id: organizationId,
-      job_role: organizerForm.job_role.trim(),
-      created_at: createdAt,
-      updated_at: createdAt,
-      deleted_at: null,
-    };
+    });
 
-    if (currentUser.auth_source === "api") {
-      const organizationResult = await organizationsApi.create({
-        name: organization.name,
-        contact_email: organization.contact_email,
-        description: organization.description,
-        website: organization.website,
-        latitude: organization.latitude,
-        longitude: organization.longitude,
-        address: organization.address,
-        city: organization.city,
-        postal_code: organization.postal_code,
-        logo: organization.logo,
-        contact_phone_number: organization.contact_phone_number,
-        siret: organization.siret,
-        is_active: false,
-        is_verified: false,
-        category_slugs: organization.category_slugs,
-      });
-
-      if (!organizationResult.ok) {
-        setServerError(organizationResult.error.message);
-        setIsSubmitting(false);
-        return;
-      }
-
-      upsertOrganizations([organizationResult.data]);
-
-      const memberResult = await organizationsApi.addMember(organizationResult.data.id, {
-        user_id: userId,
-        job_role: organizer.job_role ?? null,
-      });
-
-      if (memberResult.ok) {
-        upsertOrganizers([memberResult.data]);
-      }
-    } else {
-      addOrganization(organization);
-      addOrganizer(organizer);
+    if (!organizationResult.ok) {
+      setServerError(organizationResult.error.message);
+      setIsSubmitting(false);
+      return;
     }
+
+    upsertOrganizations([organizationResult.data]);
+
+    const memberResult = await organizationsApi.addMember(organizationResult.data.id, {
+      user_id: userId,
+      job_role: organizerForm.job_role.trim() || null,
+    });
+
+    if (!memberResult.ok) {
+      setServerError(memberResult.error.message);
+      setIsSubmitting(false);
+      return;
+    }
+
+    upsertOrganizers([memberResult.data]);
     toast.success("Organisation créée et rattachee à votre compte");
     setIsSubmitting(false);
     navigate(ROUTES.USER.ORGANIZATIONS, { replace: true });

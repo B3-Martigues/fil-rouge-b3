@@ -1,11 +1,16 @@
 import { useMemo } from "react";
 
 import useAuthStore from "../../auth/store/authStore";
-import {
-  moderatorPermissions,
-  moderatorProfilesMock,
-  type ModeratorPermission,
-} from "../mocks/moderators.mock";
+
+export const moderatorPermissions = [
+  "review_events",
+  "review_organizations",
+  "moderate_events",
+  "suspend_accounts",
+  "manage_reports",
+] as const;
+
+export type ModeratorPermission = (typeof moderatorPermissions)[number];
 
 export default function useModeratorPermissions() {
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -18,11 +23,8 @@ export default function useModeratorPermissions() {
       };
     }
 
-    const profile =
-      currentUser?.role === "moderator"
-        ? moderatorProfilesMock.find((item) => item.user_id === currentUser.user_id)
-        : undefined;
-    const permissions = profile?.permissions ?? [];
+    const permissions =
+      currentUser?.role === "moderator" ? [...moderatorPermissions] : [];
 
     return {
       permissions,

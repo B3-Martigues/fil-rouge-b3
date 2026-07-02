@@ -12,7 +12,7 @@ import HeaderUser from "./HeaderUser";
 const accountTypeLabels = {
   admin: "Compte administrateur",
   moderator: "Compte moderateur",
-  organization: "Compte organization",
+  organization: "Utilisateur organisateur",
   user: "Compte utilisateur",
 } as const;
 

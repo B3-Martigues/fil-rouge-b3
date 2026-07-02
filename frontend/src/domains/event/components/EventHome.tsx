@@ -32,7 +32,6 @@ import Select from "../../../shared/components/ui/Select";
 import { ROUTES } from "../../../shared/constants/routes";
 import useAuthStore from "../../auth/store/authStore";
 import useDataStore from "../../../shared/store/dataStore";
-import { getNotificationTypeConfig } from "../../notification/mocks/notification-types.mock";
 import {
   EVENT_CATEGORIES,
   getEventCategorySlug,
@@ -153,11 +152,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
   const favorites = useDataStore((s) => s.favorites);
   const histories = useDataStore((s) => s.histories);
   const notifications = useDataStore((s) => s.notifications);
-  const recordHistory = useDataStore((s) => s.recordHistory);
   const upsertHistory = useDataStore((s) => s.upsertHistory);
-  const syncTodaysFavoriteEventNotifications = useDataStore(
-    (s) => s.syncTodaysFavoriteEventNotifications,
-  );
   const { position: userPosition, loading: isUserLocationLoading } =
     useUserLocation();
   const [search, setSearch] = useState("");
@@ -581,14 +576,9 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
           ? ROUTES.ADMIN.PROFILE
           : ROUTES.MODERATOR.PROFILE;
   const unreadNotificationCount = notifications.filter((notification) => {
-    const notificationTypeConfig = getNotificationTypeConfig(
-      notification.notification_type_id,
-    );
-
     return (
       notification.user_id === currentUserId &&
-      !notification.is_read &&
-      notificationTypeConfig?.channels.includes("in_app")
+      !notification.is_read
     );
   }).length;
   const selectedEventDirectionsHref = selectedEventCoordinates
@@ -651,12 +641,6 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
     selectedEvent,
   ]);
 
-  useEffect(() => {
-    if (currentUserId) {
-      syncTodaysFavoriteEventNotifications(currentUserId);
-    }
-  }, [currentUserId, syncTodaysFavoriteEventNotifications]);
-
   const handleMapPeriodModeChange = (mode: EventPeriodMode) => {
     setMapPeriodMode(mode);
     setMapPeriodValue(getDefaultPeriodValue(mode));
@@ -684,17 +668,13 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
     (eventId: number) => {
       if (currentUser?.role !== "user" || !currentUser.user_id) return;
 
-      recordHistory(currentUser.user_id, eventId);
-
-      if (currentUser.auth_source === "api") {
-        void eventsApi.recordHistory(eventId).then((result) => {
-          if (result.ok) {
-            upsertHistory(result.data);
-          }
-        });
-      }
+      void eventsApi.recordHistory(eventId).then((result) => {
+        if (result.ok) {
+          upsertHistory(result.data);
+        }
+      });
     },
-    [currentUser, recordHistory, upsertHistory],
+    [currentUser, upsertHistory],
   );
 
   const selectMobileEvent = (eventId: number, shouldRecordHistory = true) => {

@@ -76,7 +76,7 @@ export default function ForgotPassword() {
 
         {devResetLink && (
           <p className="dev-reset-link">
-            Lien de reinitialisation mock:{" "}
+            Lien de reinitialisation de developpement:{" "}
             <FormModalLink to={new URL(devResetLink).pathname}>ouvrir</FormModalLink>
           </p>
         )}

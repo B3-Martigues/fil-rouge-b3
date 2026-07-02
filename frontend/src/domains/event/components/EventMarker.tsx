@@ -23,7 +23,6 @@ export default function EventMarker({
 }: Props) {
   const markerRef = useRef<LeafletMarker | null>(null);
   const currentUser = useAuthStore((s) => s.currentUser);
-  const recordHistory = useDataStore((s) => s.recordHistory);
   const upsertHistory = useDataStore((s) => s.upsertHistory);
   const eventIcon = useMemo(
     () =>
@@ -45,14 +44,11 @@ export default function EventMarker({
 
   const handleMarkerClick = () => {
     if (currentUser?.role === "user" && currentUser.user_id) {
-      recordHistory(currentUser.user_id, event.id);
-      if (currentUser.auth_source === "api") {
-        void eventsApi.recordHistory(event.id).then((result) => {
-          if (result.ok) {
-            upsertHistory(result.data);
-          }
-        });
-      }
+      void eventsApi.recordHistory(event.id).then((result) => {
+        if (result.ok) {
+          upsertHistory(result.data);
+        }
+      });
     }
 
     onSelect?.(event.id);

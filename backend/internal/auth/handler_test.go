@@ -7,6 +7,7 @@ import (
 	"mappening/internal/users"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,6 +26,25 @@ func (f fakeAuthUserRepo) GetByEmail(_ context.Context, email string) (*users.Us
 		return nil, users.ErrUserNotFound
 	}
 	return f.user, nil
+}
+
+type fakeOrganizationRegistrationRepo struct {
+	fakeAuthUserRepo
+	called bool
+}
+
+func (f *fakeOrganizationRegistrationRepo) CreateOrganization(_ context.Context, _ users.OrganizationRegistration) (*users.User, int64, error) {
+	f.called = true
+	return &users.User{
+		ID:          42,
+		AccountID:   42,
+		ProfileID:   7,
+		Email:       "org@mappening.local",
+		FirstName:   "Org Owner",
+		Role:        "organization",
+		AccountType: "organization",
+		IsActive:    true,
+	}, 12, nil
 }
 
 func makeTestAuthUser(t *testing.T) *users.User {
@@ -115,20 +135,80 @@ func TestAuthHandler_Login_OK_SetsCookies_AndStore(t *testing.T) {
 
 func TestToAuthUserDTO_IncludesAccountAndProfileIDs(t *testing.T) {
 	user := &users.User{
-		ID:          42,
-		AccountID:   42,
-		ProfileID:   7,
-		Email:       "user@mappening.local",
-		FirstName:   "User",
-		Role:        "user",
-		AccountType: "user",
-		IsActive:    true,
+		ID:             42,
+		AccountID:      42,
+		ProfileID:      7,
+		OrganizationID: 12,
+		Email:          "user@mappening.local",
+		FirstName:      "User",
+		Role:           "organization",
+		AccountType:    "organization",
+		IsActive:       true,
 	}
 
 	dto := toAuthUserDTO(user)
 
 	if dto.ID != 42 || dto.AccountID != 42 || dto.UserID != 7 {
 		t.Fatalf("unexpected auth ids: %+v", dto)
+	}
+	if dto.OrganizationID == nil || *dto.OrganizationID != 12 {
+		t.Fatalf("expected organization id in auth dto, got %+v", dto)
+	}
+}
+
+func TestAuthHandler_RegisterOrganization_RejectsTooLongLogo(t *testing.T) {
+	store := NewRefreshStore()
+	repo := &fakeOrganizationRegistrationRepo{}
+	h := Handler{
+		Secret:       "test-secret",
+		Issuer:       "mappening",
+		AccessTTL:    10 * time.Second,
+		RefreshTTL:   7 * 24 * time.Hour,
+		CookieSecure: false,
+		FrontendURL:  "http://localhost:5173",
+		Store:        store,
+		UserRepo:     repo,
+	}
+
+	body := map[string]any{
+		"login_email":          "org@mappening.local",
+		"password":             "Password123!",
+		"member_name":          "Org Owner",
+		"member_job_role":      "Responsable",
+		"name":                 "Organisation Test",
+		"contact_email":        "contact-org@mappening.local",
+		"description":          "Une organisation de test.",
+		"website":              "",
+		"address":              "1 rue du Test",
+		"city":                 "Paris",
+		"postal_code":          "75001",
+		"logo":                 "data:image/png;base64," + strings.Repeat("a", 260),
+		"contact_phone_number": "",
+		"siret":                "",
+		"category_slugs":       []string{"art"},
+	}
+	b, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/register/organization", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "http://localhost:5173")
+	rec := httptest.NewRecorder()
+
+	h.RegisterOrganization(rec, req)
+
+	if rec.Result().StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", rec.Result().StatusCode)
+	}
+	if repo.called {
+		t.Fatalf("expected invalid registration to be rejected before repository call")
+	}
+
+	var payload map[string]string
+	if err := json.NewDecoder(rec.Result().Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload["error"] != "logo is too long" {
+		t.Fatalf("expected logo length error, got %+v", payload)
 	}
 }
 

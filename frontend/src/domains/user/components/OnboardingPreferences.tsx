@@ -34,15 +34,13 @@ export default function Onboarding() {
       return;
     }
 
-    if (user.auth_source === "api") {
-      const result = await userApi.replacePreferences(preferences);
-      if (!result.ok) {
-        setError(result.error.message);
-        return;
-      }
+    const result = await userApi.replacePreferences(preferences);
+    if (!result.ok) {
+      setError(result.error.message);
+      return;
     }
 
-    setUserEventPreferences(user.user_id, preferences);
+    setUserEventPreferences(user.user_id, result.data);
     navigate(ROUTES.PUBLIC.HOME);
   };
 

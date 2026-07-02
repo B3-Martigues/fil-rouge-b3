@@ -31,7 +31,6 @@ import {
 } from "../../../shared/utils/account";
 import useAuthStore from "../../auth/store/authStore";
 import { authHttpApi } from "../../auth/api/authHttp.api";
-import { getNotificationTypeConfig } from "../../notification/mocks/notification-types.mock";
 import { getCurrentUserOrganizationMemberships } from "../../organization/utils/organizerAccess";
 
 type AccountSection =
@@ -181,14 +180,9 @@ export default function AccountPageShell() {
           ["profile", "preferences"].includes(section.key),
         );
   const unreadNotificationCount = notifications.filter((notification) => {
-    const notificationTypeConfig = getNotificationTypeConfig(
-      notification.notification_type_id,
-    );
-
     return (
       notification.user_id === userId &&
-      !notification.is_read &&
-      notificationTypeConfig?.channels.includes("in_app")
+      !notification.is_read
     );
   }).length;
 

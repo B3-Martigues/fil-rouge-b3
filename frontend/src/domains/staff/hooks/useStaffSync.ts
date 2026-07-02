@@ -10,8 +10,11 @@ const canUseStaffApi = (role?: string | null) =>
 
 export default function useStaffSync() {
   const currentUser = useAuthStore((state) => state.currentUser);
+  const clearStaffSnapshot = useDataStore((state) => state.clearStaffSnapshot);
   const hydrateStaffSnapshot = useDataStore((state) => state.hydrateStaffSnapshot);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const hydrate = useCallback(
     (snapshot: StaffSnapshot) => {
@@ -21,21 +24,32 @@ export default function useStaffSync() {
   );
 
   const refresh = useCallback(async () => {
-    if (!canUseStaffApi(currentUser?.role)) return;
+    if (!canUseStaffApi(currentUser?.role)) {
+      clearStaffSnapshot();
+      setIsLoaded(false);
+      setError(null);
+      return;
+    }
 
+    clearStaffSnapshot();
+    setError(null);
+    setIsLoaded(false);
     setIsLoading(true);
     const result = await staffApi.snapshot();
     setIsLoading(false);
 
     if (result.ok) {
       hydrate(result.data);
+      setIsLoaded(true);
       return;
     }
 
+    clearStaffSnapshot();
+    setError(result.error.message);
     if (result.error.code !== "unauthorized" && result.error.code !== "forbidden") {
       toast.error(result.error.message);
     }
-  }, [currentUser?.role, hydrate]);
+  }, [clearStaffSnapshot, currentUser?.role, hydrate]);
 
   const applyAction = useCallback(
     async (payload: StaffActionPayload) => {
@@ -44,9 +58,12 @@ export default function useStaffSync() {
       const result = await staffApi.applyAction(payload);
       if (result.ok) {
         hydrate(result.data);
+        setIsLoaded(true);
+        setError(null);
         return true;
       }
 
+      setError(result.error.message);
       toast.error(result.error.message);
       return false;
     },
@@ -61,6 +78,8 @@ export default function useStaffSync() {
 
   return {
     applyAction,
+    error,
+    isLoaded,
     isLoading,
     refresh,
   };

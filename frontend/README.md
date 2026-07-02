@@ -18,20 +18,9 @@ Le frontend permet notamment :
 - La validation et la modération des comptes, événements et signalements
 - L'administration de la plateforme
 
-**Version actuelle :** l'authentification est branchée sur le backend Go via `/api/auth/*`.
-Les autres domaines métier conservent leurs données mockées et leur persistance locale
-tant que les endpoints événements, organisations et notifications ne sont pas exposés.
-
-Les données temporaires sont principalement stockées dans les dossiers `mocks` des domaines :
-
-- `src/domains/auth/mocks`
-- `src/domains/event/mocks`
-- `src/domains/user/mocks`
-- `src/domains/organization/mocks`
-- `src/domains/moderator/mocks`
-- `src/domains/notification/mocks`
-
-Cette organisation permet de remplacer progressivement les mocks par les futures API backend.
+**Version actuelle :** l'application est branchée sur le backend Go via `/api/*`.
+Les données métier sont récupérées depuis l'API et hydratées dans le store frontend.
+Les anciens dossiers `mocks` ont été retirés.
 
 ## Stack technique
 
@@ -71,13 +60,13 @@ Chaque domaine contient sa propre logique métier afin de garder une architectur
 
 | Domaine | Contenu principal |
 | --- | --- |
-| `auth` | Pages de connexion et d'inscription, formulaires, store d'authentification, validations, mocks et types |
+| `auth` | Pages de connexion et d'inscription, formulaires, store d'authentification, validations et types |
 | `user` | Profil, préférences, onboarding, favoris, historique, changement de mot de passe, hooks et validations |
-| `event` | Accueil, carte, marqueurs, popup, météo, favoris, signalements, hooks, mocks, types et styles |
-| `organization` | Pages organisation, profil, dashboard, gestion des événements, composants, hooks, mocks et types |
+| `event` | Accueil, carte, marqueurs, popup, météo, favoris, signalements, hooks, types et styles |
+| `organization` | Pages organisation, profil, dashboard, gestion des événements, composants, hooks et types |
 | `admin` | Tableau de bord d'administration, validations, statistiques, composants et styles |
 | `moderator` | Tableau de bord modérateur, comptes, organisations, événements, signalements et suspensions |
-| `notification` | Centre de notifications, types, mocks, factory et modèles de messages |
+| `notification` | Centre de notifications, types et modèles de messages |
 | `shared` | Composants UI, layouts, stores, constantes, styles, hooks, services et utilitaires |
 
 ### Dossier `shared`
@@ -215,7 +204,7 @@ Les utilisateurs connectés peuvent :
 - Retirer un événement des favoris
 - Consulter une page dédiée aux événements favoris
 
-Les favoris sont actuellement sauvegardés dans le localStorage avec une clé unique par utilisateur.
+Les favoris sont désormais synchronisés via les endpoints backend et ne sont plus sauvegardés dans le localStorage.
 
 ### Historique et préférences
 
@@ -249,7 +238,7 @@ Les espaces administrateur et modérateur permettent :
 
 ### Notifications
 
-Le frontend intègre un système de notifications mocké et persistant localement.
+Le frontend affiche les notifications fournies par l'API et les hydrate dans le store applicatif.
 
 Fonctionnalités disponibles :
 
@@ -257,7 +246,7 @@ Fonctionnalités disponibles :
 - Notifications liées aux changements administratifs
 - Notifications pour les validations, refus, suppressions et suspensions
 - Notifications de sécurité pour les mots de passe
-- Templates email et fournisseurs mockés pour préparer l'intégration backend
+- Templates email pour les messages de notification
 
 ### Modération
 
