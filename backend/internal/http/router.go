@@ -21,10 +21,11 @@ import (
 	"mappening/internal/organizations"
 	"mappening/internal/staff"
 	"mappening/internal/users"
+	"mappening/internal/cache"
 )
 
 // NewRouter construit le routeur backend minimal: auth, users admin et health.
-func NewRouter(cfg config.Config, db *sql.DB) nethttp.Handler {
+func NewRouter(cfg config.Config, db *sql.DB, cache *cache.Client) nethttp.Handler {
 	var store auth.RefreshTokenStore = auth.NewRefreshStore()
 
 	var authUserRepo authUserReader
@@ -49,7 +50,7 @@ func NewRouter(cfg config.Config, db *sql.DB) nethttp.Handler {
 		SessionStore: store,
 	}
 
-	return newRouter(cfg, db, store, authUserRepo, adminUsersHandler, geocoding.NewClient())
+	return newRouter(cfg, db, store, authUserRepo, adminUsersHandler, geocoding.NewClient(), cache)
 }
 
 type authUserReader interface {
@@ -71,6 +72,7 @@ func newRouter(
 	authUserRepo authUserReader,
 	adminUsers users.AdminHandler,
 	geocoder geocoding.Normalizer,
+	cache *cache.Client,
 ) nethttp.Handler {
 	r := chi.NewRouter()
 
@@ -156,7 +158,7 @@ func newRouter(
 		events.RegisterRoutes(
 			r,
 			events.Handler{
-				Repo:     events.NewRepository(db),
+				Repo:     events.NewRepository(db, cache),
 				Geocoder: geocoder,
 			},
 			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo),

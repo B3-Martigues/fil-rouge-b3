@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"mappening/internal/cache"
 	"mappening/internal/config"
 	dbx "mappening/internal/db"
 	httpx "mappening/internal/http"
@@ -37,6 +38,18 @@ func main() {
 	defer closeDB(db)
 
 	log.Info().Msg("application database connected")
+	redisClient, err := cache.New(cfg.Redis)
+	if err != nil {
+		log.Error().Err(err).Msg("redis connection failed")
+		os.Exit(1)
+	}
+	defer func() {
+		if err := redisClient.Close(); err != nil {
+			log.Error().Err(err).Msg("failed to close redis")
+		}
+	}()
+
+	log.Info().Msg("redis connected")
 
 	var scraperScheduler *scraping.Scheduler
 	if cfg.TarpinBienScraperEnabled {
@@ -51,7 +64,7 @@ func main() {
 		log.Info().Msg("tarpin bien scraper scheduler started")
 	}
 
-	h := httpx.NewRouter(cfg, db)
+	h := httpx.NewRouter(cfg, db, redisClient)
 	server := &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           h,

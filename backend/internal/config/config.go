@@ -24,6 +24,13 @@ type DBConfig struct {
 	MaxLifetime time.Duration
 }
 
+type RedisConfig struct {
+	Host     string
+	Port     string
+	Password string
+	DB       int
+}
+
 type MailConfig struct {
 	Mode     string
 	From     string
@@ -58,6 +65,7 @@ type Config struct {
 	AppDB        DBConfig
 	MigrationsDB DBConfig
 	Mail         MailConfig
+	Redis       RedisConfig
 }
 
 // Charge la configuration runtime depuis l'environnement avec des valeurs par defaut adaptees au dev local.
@@ -120,6 +128,13 @@ func Load() Config {
 			MaxLifetime: getDuration("MIGRATIONS_DB_MAX_LIFETIME", 30*time.Minute),
 		},
 
+		Redis: RedisConfig{
+			Host:     getEnv("REDIS_HOST", "127.0.0.1"),
+			Port:     getEnv("REDIS_PORT", "6379"),
+			Password: getEnv("REDIS_PASSWORD", ""),
+			DB:       getInt("REDIS_DB", 0),
+		},
+
 		Mail: MailConfig{
 			Mode:     strings.ToLower(strings.TrimSpace(getEnv("MAIL_MODE", mailModeDefault))),
 			From:     strings.TrimSpace(getEnv("MAIL_FROM", "no-reply@mappening.local")),
@@ -131,6 +146,7 @@ func Load() Config {
 				Password: getEnv("SMTP_PASSWORD", ""),
 			},
 		},
+		
 	}
 }
 
