@@ -27,12 +27,12 @@ type Repository struct {
 	frontendURL string
 }
 
-func NewRepository(db *sql.DB) *Repository {
+func NewRepository(db *sql.DB,) *Repository {
 	return NewRepositoryWithMailer(db, nil, "")
 }
 
-func NewRepositoryWithMailer(db *sql.DB, sender mailer.Sender, frontendURL string) *Repository {
-	return &Repository{db: db, eventRepo: events.NewRepository(db), mailSender: sender, frontendURL: strings.TrimRight(frontendURL, "/")}
+func NewRepositoryWithMailer(db *sql.DB, sender mailer.Sender, frontendURL string, ) *Repository {
+	return &Repository{db: db, eventRepo: events.NewRepository(db, nil), mailSender: sender, frontendURL: strings.TrimRight(frontendURL, "/")}
 }
 
 func (r *Repository) ApplyAction(ctx context.Context, req ActionRequest, moderatorUserID int64, role string) error {

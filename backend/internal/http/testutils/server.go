@@ -11,7 +11,7 @@ func NewTestServer(t *testing.T) *httptest.Server {
 	t.Helper()
 
 	cfg := TestConfig()
-	srv := httptest.NewServer(httpapi.NewRouter(cfg, nil))
+	srv := httptest.NewServer(httpapi.NewRouter(cfg, nil, nil))
 	t.Cleanup(srv.Close)
 	return srv
 }

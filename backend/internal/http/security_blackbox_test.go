@@ -27,7 +27,7 @@ func TestSecurity_Blackbox(t *testing.T) {
 		EnableTestAuthFallback: true,
 	}
 
-	srv := httptest.NewServer(httpapi.NewRouter(cfg, nil))
+	srv := httptest.NewServer(httpapi.NewRouter(cfg, nil, nil))
 	t.Cleanup(srv.Close)
 
 	jar, _ := cookiejar.New(nil)

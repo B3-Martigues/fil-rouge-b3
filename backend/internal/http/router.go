@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"mappening/internal/auth"
+	"mappening/internal/cache"
 	"mappening/internal/config"
 	"mappening/internal/events"
 	"mappening/internal/geocoding"
@@ -21,7 +22,6 @@ import (
 	"mappening/internal/organizations"
 	"mappening/internal/staff"
 	"mappening/internal/users"
-	"mappening/internal/cache"
 )
 
 // NewRouter construit le routeur backend minimal: auth, users admin et health.
