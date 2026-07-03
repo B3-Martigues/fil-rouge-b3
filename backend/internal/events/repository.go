@@ -1089,13 +1089,16 @@ func appendPaginationArgs(args []any, filters ListFilters) []any {
 }
 
 func (f ListFilters) CacheKey() string {
-	return fmt.Sprintf("%d:%d:%s:%t:%s:%s",
+	return fmt.Sprintf(
+		"%d:%d:%s:%t:%s:%s:%t:%t",
 		f.Limit,
 		f.Offset,
 		f.Sort,
 		f.IncludeInactive,
 		f.City,
 		f.Query,
+		f.FreeOnly,
+		f.UpcomingOnly,
 	)
 }
 
