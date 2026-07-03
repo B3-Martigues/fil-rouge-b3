@@ -420,6 +420,7 @@ func (r *Repository) List(ctx context.Context, filters ListFilters) ([]Event, er
 			}
 		}
 	}
+
 	where, args := buildEventWhere(filters)
 	query := eventSelect + where + eventGroupBy + buildEventHaving(filters) + buildEventOrder(filters.Sort) + buildLimitOffset(filters, len(args))
 	args = appendPaginationArgs(args, filters)
@@ -451,6 +452,7 @@ func (r *Repository) List(ctx context.Context, filters ListFilters) ([]Event, er
 }
 
 func (r *Repository) GetByID(ctx context.Context, id int64, includeInactive bool) (*Event, error) {
+	
 	key := fmt.Sprintf("events:byid:%d", id)
 	if r.cache != nil {
 		if cached, err := r.cache.Get(ctx, key).Result(); err == nil {
@@ -460,6 +462,7 @@ func (r *Repository) GetByID(ctx context.Context, id int64, includeInactive bool
 			}
 		}
 	}
+
 	filters := ListFilters{IncludeInactive: includeInactive}
 	where, args := buildEventWhere(filters)
 	query := eventSelect + where + " AND e.id = $" + strconv.Itoa(len(args)+1) + eventGroupBy + " LIMIT 1"
