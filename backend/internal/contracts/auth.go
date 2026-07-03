@@ -1,18 +1,21 @@
 package contracts
 
 type AuthUserDTO struct {
-	ID             int64  `json:"id"`
-	AccountID      int64  `json:"account_id"`
-	UserID         int64  `json:"user_id,omitempty"`
-	Email          string `json:"email"`
-	LoginEmail     string `json:"login_email"`
-	FirstName      string `json:"first_name"`
-	LastName       string `json:"last_name"`
-	Username       string `json:"username"`
-	Role           string `json:"role"`
-	AccountType    string `json:"account_type"`
-	IsActive       bool   `json:"is_active"`
-	OrganizationID *int64 `json:"organization_id,omitempty"`
+	ID               int64   `json:"id"`
+	AccountID        int64   `json:"account_id"`
+	UserID           int64   `json:"user_id,omitempty"`
+	Email            string  `json:"email"`
+	LoginEmail       string  `json:"login_email"`
+	FirstName        string  `json:"first_name"`
+	LastName         string  `json:"last_name"`
+	Username         string  `json:"username"`
+	Role             string  `json:"role"`
+	AccountType      string  `json:"account_type"`
+	IsActive         bool    `json:"is_active"`
+	SuspendedUntil   *string `json:"suspended_until,omitempty"`
+	SuspensionReason *string `json:"suspension_reason,omitempty"`
+	CreatedAt        string  `json:"created_at,omitempty"`
+	OrganizationID   *int64  `json:"organization_id,omitempty"`
 }
 
 type LoginRequestDTO struct {
@@ -27,10 +30,11 @@ type LoginResponseDTO struct {
 }
 
 type RegisterUserRequestDTO struct {
-	LoginEmail string `json:"login_email"`
-	Email      string `json:"email"`
-	Username   string `json:"username"`
-	Password   string `json:"password"`
+	LoginEmail    string   `json:"login_email"`
+	Email         string   `json:"email"`
+	Username      string   `json:"username"`
+	Password      string   `json:"password"`
+	CategorySlugs []string `json:"category_slugs"`
 }
 
 type RegisterOrganizationRequestDTO struct {

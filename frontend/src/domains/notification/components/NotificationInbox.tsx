@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 import useAuthStore from "../../auth/store/authStore";
@@ -9,10 +9,16 @@ import type { Notification } from "../types/notification";
 import { userApi } from "../../user/api/user.api";
 
 type Props = {
+  markReadOnHover?: boolean;
   onNotificationOpen?: () => void;
+  openOnClick?: boolean;
 };
 
-export default function NotificationInbox({ onNotificationOpen }: Props) {
+export default function NotificationInbox({
+  markReadOnHover = false,
+  onNotificationOpen,
+  openOnClick = false,
+}: Props) {
   const currentUser = useAuthStore((s) => s.currentUser);
   const notifications = useDataStore((s) => s.notifications);
   const notificationTypes = useDataStore((s) => s.notificationTypes);
@@ -21,6 +27,7 @@ export default function NotificationInbox({ onNotificationOpen }: Props) {
     (s) => s.markUserNotificationsAsRead,
   );
   const navigate = useNavigate();
+  const pendingReadIds = useRef(new Set<number>());
   const userId = currentUser?.user_id;
 
   const inAppNotifications = useMemo(
@@ -52,12 +59,24 @@ export default function NotificationInbox({ onNotificationOpen }: Props) {
     }
   };
 
-  const openNotification = (notification: Notification) => {
+  const markNotificationAsRead = (notification: Notification) => {
+    if (notification.is_read || pendingReadIds.current.has(notification.id)) {
+      return;
+    }
+
+    pendingReadIds.current.add(notification.id);
     void userApi.markNotificationRead(notification.id).then((result) => {
+      pendingReadIds.current.delete(notification.id);
       if (result.ok) {
         upsertNotification(result.data);
       }
     });
+  };
+
+  const openNotification = (notification: Notification) => {
+    markNotificationAsRead(notification);
+
+    if (!openOnClick) return;
 
     const actionPath = getInternalActionPath(notification.action_url);
 
@@ -103,19 +122,21 @@ export default function NotificationInbox({ onNotificationOpen }: Props) {
                 className={notification.is_read ? "" : "is-unread"}
                 key={notification.id}
               >
-                <Button
-                  className="notification-center__item"
-                  type="button"
-                  fullWidth
-                  variant="ghost"
+                <div
+                  className={`notification-center__item${
+                    openOnClick ? " is-clickable" : ""
+                  }`}
                   aria-label={`${notification.title}. ${
                     notification.is_read ? "Lue" : "Non lue"
-                  }. ${
-                    notification.action_url
-                      ? "Ouvrir la notification"
-                      : "Marquer comme lue"
-                  }`}
-                  onClick={() => openNotification(notification)}
+                  }${openOnClick ? ". Ouvrir la notification" : ""}`}
+                  onClick={
+                    openOnClick ? () => openNotification(notification) : undefined
+                  }
+                  onMouseEnter={() => {
+                    if (markReadOnHover) {
+                      markNotificationAsRead(notification);
+                    }
+                  }}
                 >
                   <strong>{notification.title}</strong>
                   <span className="notification-center__message">
@@ -126,7 +147,7 @@ export default function NotificationInbox({ onNotificationOpen }: Props) {
                       (type) => type.id === notification.notification_type_id,
                     )?.name ?? "Notification"}
                   </small>
-                </Button>
+                </div>
               </li>
             ))}
           </ul>

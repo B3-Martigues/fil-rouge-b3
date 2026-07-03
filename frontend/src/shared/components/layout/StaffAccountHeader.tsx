@@ -54,7 +54,9 @@ export default function StaffAccountHeader({
   const roleLabel = currentUser
     ? accountRoleLabels[currentUser.role]
     : "Utilisateur";
-  const memberSince = formatMemberSince(account?.created_at ?? user?.created_at);
+  const memberSince = formatMemberSince(
+    currentUser?.created_at ?? account?.created_at ?? user?.created_at,
+  );
   const handledReportCount = moderationReports.filter(
     (report) =>
       report.handled_by_user_id === currentUser?.user_id &&

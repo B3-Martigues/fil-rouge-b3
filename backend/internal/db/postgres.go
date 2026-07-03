@@ -38,6 +38,7 @@ func postgresDSN(cfg config.DBConfig) string {
 	values := url.Values{}
 	values.Set("sslmode", cfg.SSLMode)
 	values.Set("application_name", "mappening")
+	values.Set("timezone", "UTC")
 
 	u := url.URL{
 		Scheme:   "postgres",

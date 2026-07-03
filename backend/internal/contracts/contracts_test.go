@@ -15,6 +15,7 @@ func TestAuthUserDTO_JSONContract(t *testing.T) {
 		LastName:  "Lovelace",
 		Role:      "admin",
 		IsActive:  true,
+		CreatedAt: "2026-01-15T08:30:00Z",
 	}
 
 	data, err := json.Marshal(dto)
@@ -27,7 +28,7 @@ func TestAuthUserDTO_JSONContract(t *testing.T) {
 		t.Fatalf("unmarshal AuthUserDTO map: %v", err)
 	}
 
-	for _, key := range []string{"id", "account_id", "user_id", "email", "first_name", "last_name", "role", "is_active"} {
+	for _, key := range []string{"id", "account_id", "user_id", "email", "first_name", "last_name", "role", "is_active", "created_at"} {
 		if _, ok := got[key]; !ok {
 			t.Fatalf("expected JSON key %q in %s", key, string(data))
 		}

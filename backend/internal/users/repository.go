@@ -34,6 +34,8 @@ type OrganizationRegistration struct {
 	ContactEmail       string
 	Description        string
 	Website            string
+	Latitude           *float64
+	Longitude          *float64
 	Address            string
 	City               string
 	PostalCode         string
@@ -61,6 +63,8 @@ const userSelect = `
 		r.slug,
 		at.slug,
 		a.is_active,
+		a.suspended_until,
+		a.suspension_reason,
 		a.created_at,
 		GREATEST(a.updated_at, u.updated_at),
 		a.deleted_at
@@ -76,6 +80,8 @@ func scanUser(scanner interface {
 }) (*User, error) {
 	var user User
 	var profileID int64
+	var suspendedUntil sql.NullTime
+	var suspensionReason sql.NullString
 	err := scanner.Scan(
 		&user.ID,
 		&profileID,
@@ -87,6 +93,8 @@ func scanUser(scanner interface {
 		&user.Role,
 		&user.AccountType,
 		&user.IsActive,
+		&suspendedUntil,
+		&suspensionReason,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 		&user.DeletedAt,
@@ -96,6 +104,8 @@ func scanUser(scanner interface {
 	}
 	user.AccountID = user.ID
 	user.ProfileID = profileID
+	user.SuspendedUntil = nullableTime(suspendedUntil)
+	user.SuspensionReason = nullableString(suspensionReason)
 	if user.LastName == "" {
 		user.LastName = ""
 	}
@@ -182,6 +192,9 @@ func (r *Repository) Create(ctx context.Context, user *User) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	if err := replaceEventPreferencesInTx(ctx, tx, profileID, user.PreferenceSlugs); err != nil {
+		return 0, err
+	}
 	if err := createAccountNotification(ctx, tx, id, "welcome_email", "Bienvenue sur Mappening", "Votre compte Mappening est pret.", "/account"); err != nil {
 		return 0, err
 	}
@@ -228,6 +241,8 @@ func (r *Repository) CreateOrganization(ctx context.Context, registration Organi
 			role_id,
 			description,
 			website,
+			latitude,
+			longitude,
 			address,
 			city,
 			postal_code,
@@ -237,7 +252,7 @@ func (r *Repository) CreateOrganization(ctx context.Context, registration Organi
 			is_verified,
 			is_active
 		)
-		SELECT $1, $2, $3, r.id, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+		SELECT $1, $2, $3, r.id, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
 		FROM roles r
 		WHERE r.slug = 'organization'
 		RETURNING id
@@ -247,6 +262,8 @@ func (r *Repository) CreateOrganization(ctx context.Context, registration Organi
 		registration.ContactEmail,
 		nullIfBlank(registration.Description),
 		nullIfBlank(registration.Website),
+		registration.Latitude,
+		registration.Longitude,
 		registration.Address,
 		registration.City,
 		registration.PostalCode,
@@ -499,7 +516,7 @@ func (r *Repository) ListEventPreferences(ctx context.Context, accountID int64) 
 	}
 
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT uep.id, uep.user_id, uep.event_category_id, ec.slug, uep.created_at, uep.updated_at
+		SELECT uep.id, uep.user_id, uep.event_category_id, ec.slug, uep.created_at
 		FROM user_event_preferences uep
 		JOIN event_categories ec ON ec.id = uep.event_category_id
 		WHERE uep.user_id = $1
@@ -513,7 +530,7 @@ func (r *Repository) ListEventPreferences(ctx context.Context, accountID int64) 
 	var preferences []EventPreference
 	for rows.Next() {
 		var preference EventPreference
-		if err := rows.Scan(&preference.ID, &preference.UserID, &preference.EventCategoryID, &preference.CategorySlug, &preference.CreatedAt, &preference.UpdatedAt); err != nil {
+		if err := rows.Scan(&preference.ID, &preference.UserID, &preference.EventCategoryID, &preference.CategorySlug, &preference.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan event preference: %w", err)
 		}
 		preferences = append(preferences, preference)
@@ -535,39 +552,92 @@ func (r *Repository) ReplaceEventPreferences(ctx context.Context, accountID int6
 		_ = tx.Rollback()
 	}()
 
-	if _, err := tx.ExecContext(ctx, `DELETE FROM user_event_preferences WHERE user_id = $1`, userID); err != nil {
-		return nil, fmt.Errorf("clear event preferences: %w", err)
-	}
-
-	seen := map[string]struct{}{}
-	for _, slug := range categorySlugs {
-		slug = strings.TrimSpace(strings.ToLower(slug))
-		if slug == "" {
-			continue
-		}
-		if _, ok := seen[slug]; ok {
-			continue
-		}
-		seen[slug] = struct{}{}
-
-		res, err := tx.ExecContext(ctx, `
-			INSERT INTO user_event_preferences (user_id, event_category_id, updated_at)
-			SELECT $1, ec.id, NOW()
-			FROM event_categories ec
-			WHERE ec.slug = $2
-		`, userID, slug)
-		if err != nil {
-			return nil, fmt.Errorf("insert event preference: %w", err)
-		}
-		if err := requireRows(res, ErrEventCategoryNotFound); err != nil {
-			return nil, err
-		}
+	if err := replaceEventPreferencesInTx(ctx, tx, userID, categorySlugs); err != nil {
+		return nil, err
 	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit replace preferences tx: %w", err)
 	}
 	return r.ListEventPreferences(ctx, accountID)
+}
+
+func replaceEventPreferencesInTx(ctx context.Context, tx *sql.Tx, userID int64, categorySlugs []string) error {
+	normalizedSlugs := normalizeUniqueSlugs(categorySlugs)
+	if len(normalizedSlugs) == 0 {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM user_event_preferences WHERE user_id = $1`, userID); err != nil {
+			return fmt.Errorf("clear event preferences: %w", err)
+		}
+		return nil
+	}
+
+	categoryIDs := make([]int64, 0, len(normalizedSlugs))
+	for _, slug := range normalizedSlugs {
+		var categoryID int64
+		err := tx.QueryRowContext(ctx, `
+			SELECT id
+			FROM event_categories
+			WHERE slug = $1
+		`, slug).Scan(&categoryID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ErrEventCategoryNotFound
+			}
+			return fmt.Errorf("resolve event preference category: %w", err)
+		}
+		categoryIDs = append(categoryIDs, categoryID)
+
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO user_event_preferences (user_id, event_category_id)
+			VALUES ($1, $2)
+			ON CONFLICT (user_id, event_category_id)
+			DO NOTHING
+		`, userID, categoryID); err != nil {
+			return fmt.Errorf("upsert event preference: %w", err)
+		}
+	}
+
+	placeholders := makeSQLPlaceholders(2, len(categoryIDs))
+	args := make([]any, 0, len(categoryIDs)+1)
+	args = append(args, userID)
+	for _, categoryID := range categoryIDs {
+		args = append(args, categoryID)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		DELETE FROM user_event_preferences
+		WHERE user_id = $1
+		  AND event_category_id NOT IN (`+strings.Join(placeholders, ", ")+`)
+	`, args...); err != nil {
+		return fmt.Errorf("delete removed event preferences: %w", err)
+	}
+
+	return nil
+}
+
+func normalizeUniqueSlugs(values []string) []string {
+	out := make([]string, 0, len(values))
+	seen := map[string]struct{}{}
+	for _, value := range values {
+		value = strings.TrimSpace(strings.ToLower(value))
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
+}
+
+func makeSQLPlaceholders(start int, count int) []string {
+	placeholders := make([]string, count)
+	for i := 0; i < count; i++ {
+		placeholders[i] = fmt.Sprintf("$%d", start+i)
+	}
+	return placeholders
 }
 
 func (r *Repository) ListNotifications(ctx context.Context, accountID int64) ([]Notification, error) {
@@ -804,8 +874,11 @@ func createAccountUserInTx(ctx context.Context, tx *sql.Tx, user *User) (int64, 
 		SELECT at.id, $1, $2, $3
 		FROM account_types at
 		WHERE at.slug = $4
-		RETURNING id
-	`, user.Email, user.PasswordHash, user.IsActive, accountType).Scan(&accountID)
+		RETURNING id, created_at
+	`, user.Email, user.PasswordHash, user.IsActive, accountType).Scan(
+		&accountID,
+		&user.CreatedAt,
+	)
 	if err != nil {
 		return 0, 0, mapConstraintError("create account", err)
 	}

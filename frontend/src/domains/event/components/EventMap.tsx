@@ -5,8 +5,7 @@ import EventMarker from "./EventMarker";
 import UserLocationMarker from "./UserLocationMarker";
 import type { UserPosition } from "../hooks/useUserLocation";
 import MapFitBounds from "./MapFitBounds";
-import { hasEventCoordinates } from "../utils/event";
-import useDataStore from "../../../shared/store/dataStore";
+import { getDistanceInKilometers, hasEventCoordinates } from "../utils/event";
 import type { Event } from "../types/event";
 
 type EventMapProps = {
@@ -18,6 +17,7 @@ type EventMapProps = {
   userPosition?: UserPosition | null;
   showPopups?: boolean;
   onEventSelect?: (eventId: number) => void;
+  onEventImageError?: (eventId: number) => void;
 };
 
 type MappableEvent = Event & { latitude: number; longitude: number };
@@ -33,6 +33,12 @@ const SELECTED_EVENT_ZOOM = 16;
 const HOME_MAP_READY_EVENT = "mappening:home-map-ready";
 const DESKTOP_MEDIA_QUERY = "(min-width: 761px)";
 const MOBILE_SHEET_SELECTOR = ".events-list";
+const LOCATION_PRECISION = 6;
+const INITIAL_NEARBY_EVENTS_COUNT = 5;
+const INITIAL_NEARBY_FIT_MAX_ZOOM = 12;
+const INITIAL_NEARBY_FIT_PADDING: [number, number] = [56, 56];
+const PROGRESSIVE_EVENT_BATCH_DELAY_MS = 120;
+const PROGRESSIVE_EVENT_BATCH_SIZE = 12;
 
 const getDesktopSidebarRightEdge = (mapContainer: HTMLElement) => {
   if (!window.matchMedia(DESKTOP_MEDIA_QUERY).matches) return 0;
@@ -117,6 +123,96 @@ const getOffsetFocusCenter = (
   return map.unproject(centerPoint, zoom);
 };
 
+const getLocationKey = (event: MappableEvent) =>
+  `${event.latitude.toFixed(LOCATION_PRECISION)}:${event.longitude.toFixed(
+    LOCATION_PRECISION,
+  )}`;
+
+const getTemporalDistance = (event: Event, now: number) => {
+  const startTime = new Date(event.start_date).getTime();
+
+  return Number.isNaN(startTime) ? Number.POSITIVE_INFINITY : Math.abs(startTime - now);
+};
+
+const isCloserToNow = (
+  candidate: MappableEvent,
+  current: MappableEvent,
+  now: number,
+) => {
+  const candidateDistance = getTemporalDistance(candidate, now);
+  const currentDistance = getTemporalDistance(current, now);
+
+  if (candidateDistance !== currentDistance) {
+    return candidateDistance < currentDistance;
+  }
+
+  return candidate.id < current.id;
+};
+
+const selectClosestEventsByLocation = (
+  events: MappableEvent[],
+  now: number,
+  selectedEventId: number | null,
+) => {
+  const eventByLocation = new Map<string, MappableEvent>();
+
+  events.forEach((event) => {
+    const locationKey = getLocationKey(event);
+    const currentEvent = eventByLocation.get(locationKey);
+
+    if (currentEvent?.id === selectedEventId) {
+      return;
+    }
+
+    if (
+      event.id === selectedEventId ||
+      (!currentEvent || isCloserToNow(event, currentEvent, now))
+    ) {
+      eventByLocation.set(locationKey, event);
+    }
+  });
+
+  return Array.from(eventByLocation.values());
+};
+
+const selectNearestEventsToPoint = (
+  events: MappableEvent[],
+  point: UserPosition,
+  count: number,
+) =>
+  events
+    .map((event) => ({
+      distance: getDistanceInKilometers(point, event),
+      event,
+    }))
+    .sort((firstItem, secondItem) => {
+      if (firstItem.distance !== secondItem.distance) {
+        return firstItem.distance - secondItem.distance;
+      }
+
+      return firstItem.event.id - secondItem.event.id;
+    })
+    .slice(0, count)
+    .map((item) => item.event);
+
+const sortEventsByDistanceToPoint = (
+  events: MappableEvent[],
+  point: UserPosition,
+) =>
+  events
+    .map((event) => ({
+      distance: getDistanceInKilometers(point, event),
+      event,
+    }))
+    .sort((firstItem, secondItem) => {
+      if (firstItem.distance !== secondItem.distance) {
+        return firstItem.distance - secondItem.distance;
+      }
+
+      return firstItem.event.id - secondItem.event.id;
+    })
+    .map((item) => item.event);
+
 function SelectedEventFocus({
   event,
   requestId,
@@ -164,50 +260,34 @@ export default function EventMap({
   userPosition = null,
   showPopups = true,
   onEventSelect,
+  onEventImageError,
 }: EventMapProps) {
-  const organizations = useDataStore((s) => s.organizations);
   const [openPopupEventId, setOpenPopupEventId] = useState<number | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
-  const [areTilesLoaded, setAreTilesLoaded] = useState(false);
   const [shouldFitInitialLocation, setShouldFitInitialLocation] = useState(false);
   const [hasCompletedUserLocationFit, setHasCompletedUserLocationFit] =
     useState(false);
+  const [visibleEventCount, setVisibleEventCount] = useState(
+    PROGRESSIVE_EVENT_BATCH_SIZE,
+  );
+  const [eventDeduplicationReferenceTime] = useState(() => Date.now());
   const hasAnnouncedReady = useRef(false);
   const hasFittedInitialLocation = useRef(false);
-  const activeOrganizationsById = useMemo(
-    () =>
-      new Map(
-        organizations
-          .filter((organization) => organization.is_active && !organization.deleted_at)
-          .map((organization) => [organization.id, organization]),
-      ),
-    [organizations],
-  );
   const mappableEvents = useMemo(
-    () =>
-      events
-        .map((event) => {
-          if (hasEventCoordinates(event)) return event;
+    () => {
+      const eventsWithCoordinates = events.filter(hasEventCoordinates);
 
-          const organization = activeOrganizationsById.get(event.organization_id);
+      const closestEventsByLocation = selectClosestEventsByLocation(
+        eventsWithCoordinates,
+        eventDeduplicationReferenceTime,
+        selectedEventId,
+      );
 
-          if (
-            organization?.latitude == null ||
-            organization.longitude == null
-          ) {
-            return null;
-          }
-
-          return {
-            ...event,
-            latitude: organization.latitude,
-            longitude: organization.longitude,
-          };
-        })
-        .filter(
-          (event): event is MappableEvent => event != null,
-        ),
-    [activeOrganizationsById, events],
+      return userPosition
+        ? sortEventsByDistanceToPoint(closestEventsByLocation, userPosition)
+        : closestEventsByLocation;
+    },
+    [eventDeduplicationReferenceTime, events, selectedEventId, userPosition],
   );
   const selectedEvent = useMemo(
     () =>
@@ -226,6 +306,37 @@ export default function EventMap({
     ],
     [mappableEvents, userPosition],
   );
+  const initialFitPoints = useMemo(() => {
+    if (!userPosition) return mapPoints;
+
+    const nearestEvents = selectNearestEventsToPoint(
+      mappableEvents,
+      userPosition,
+      INITIAL_NEARBY_EVENTS_COUNT,
+    );
+
+    return [
+      userPosition,
+      ...nearestEvents.map((event) => ({
+        latitude: event.latitude,
+        longitude: event.longitude,
+      })),
+    ];
+  }, [mappableEvents, mapPoints, userPosition]);
+  const visibleMappableEvents = useMemo(() => {
+    if (!userPosition) return mappableEvents;
+
+    const visibleEvents = mappableEvents.slice(0, visibleEventCount);
+
+    if (
+      selectedEvent &&
+      !visibleEvents.some((event) => event.id === selectedEvent.id)
+    ) {
+      return [...visibleEvents, selectedEvent];
+    }
+
+    return visibleEvents;
+  }, [mappableEvents, selectedEvent, userPosition, visibleEventCount]);
   const handleFocusStart = useCallback(() => {
     setOpenPopupEventId(null);
   }, []);
@@ -234,14 +345,6 @@ export default function EventMap({
   }, []);
   const handleMapReady = useCallback(() => {
     setIsMapReady(true);
-  }, []);
-  const handleTilesLoading = useCallback(() => {
-    if (!hasAnnouncedReady.current) {
-      setAreTilesLoaded(false);
-    }
-  }, []);
-  const handleTilesLoaded = useCallback(() => {
-    setAreTilesLoaded(true);
   }, []);
   const handleInitialFitDone = useCallback(() => {
     setShouldFitInitialLocation(false);
@@ -263,6 +366,51 @@ export default function EventMap({
     };
   }, [isUserLocationReady, userPosition]);
 
+  useEffect(() => {
+    if (!userPosition) {
+      setVisibleEventCount(mappableEvents.length);
+      return;
+    }
+
+    setVisibleEventCount(
+      Math.min(PROGRESSIVE_EVENT_BATCH_SIZE, mappableEvents.length),
+    );
+
+    if (mappableEvents.length <= PROGRESSIVE_EVENT_BATCH_SIZE) {
+      return;
+    }
+
+    let timeoutId: number | undefined;
+    const revealNextBatch = () => {
+      setVisibleEventCount((currentCount) => {
+        const nextCount = Math.min(
+          currentCount + PROGRESSIVE_EVENT_BATCH_SIZE,
+          mappableEvents.length,
+        );
+
+        if (nextCount < mappableEvents.length) {
+          timeoutId = window.setTimeout(
+            revealNextBatch,
+            PROGRESSIVE_EVENT_BATCH_DELAY_MS,
+          );
+        }
+
+        return nextCount;
+      });
+    };
+
+    timeoutId = window.setTimeout(
+      revealNextBatch,
+      PROGRESSIVE_EVENT_BATCH_DELAY_MS,
+    );
+
+    return () => {
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [mappableEvents, userPosition]);
+
   const hasCompletedInitialLocationFit =
     isUserLocationReady && (!userPosition || hasCompletedUserLocationFit);
 
@@ -272,7 +420,6 @@ export default function EventMap({
       !isUserLocationReady ||
       !hasCompletedInitialLocationFit ||
       !isMapReady ||
-      !areTilesLoaded ||
       hasAnnouncedReady.current
     ) {
       return;
@@ -287,7 +434,6 @@ export default function EventMap({
       window.clearTimeout(readyTimer);
     };
   }, [
-    areTilesLoaded,
     hasCompletedInitialLocationFit,
     isInitialDataReady,
     isMapReady,
@@ -308,12 +454,14 @@ export default function EventMap({
       <ZoomControl position="bottomright" />
       <TileLayer
         attribution="&copy; OpenStreetMap contributors"
-        eventHandlers={{ load: handleTilesLoaded, loading: handleTilesLoading }}
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <MapFitBounds
         enabled={shouldFitInitialLocation && selectedEventId == null}
-        points={mapPoints}
+        maxZoom={INITIAL_NEARBY_FIT_MAX_ZOOM}
+        padding={INITIAL_NEARBY_FIT_PADDING}
+        points={initialFitPoints}
+        singlePointZoom={INITIAL_NEARBY_FIT_MAX_ZOOM}
         onFitDone={handleInitialFitDone}
       />
       <SelectedEventFocus
@@ -322,13 +470,14 @@ export default function EventMap({
         onFocusStart={handleFocusStart}
         onFocusDone={handleFocusDone}
       />
-      {mappableEvents.map((event) => (
+      {visibleMappableEvents.map((event) => (
         <EventMarker
           key={event.id}
           event={event}
           shouldOpenPopup={activeOpenPopupEventId === event.id}
           showPopup={showPopups}
           onSelect={onEventSelect}
+          onImageError={onEventImageError}
         />
       ))}
       {userPosition && (

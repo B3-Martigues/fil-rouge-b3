@@ -84,6 +84,7 @@ export type AuthenticatedUser = {
   is_active: boolean;
   suspended_until?: string | null;
   suspension_reason?: string | null;
+  created_at?: string;
   user_id?: number;
   organization_id?: number;
   is_verified?: boolean;
@@ -113,6 +114,7 @@ export function toAuthenticatedUser(
     is_active: account.is_active,
     suspended_until: account.suspended_until ?? null,
     suspension_reason: account.suspension_reason ?? null,
+    created_at: account.created_at,
     user_id: user.id,
   };
 }
@@ -140,6 +142,7 @@ export function toAuthenticatedOrganization(params: {
     is_active: params.account.is_active && params.organization.is_active,
     suspended_until: params.account.suspended_until ?? null,
     suspension_reason: params.account.suspension_reason ?? null,
+    created_at: params.account.created_at,
     user_id: params.user?.id,
     organization_id: params.organization.id,
     is_verified: params.organization.is_verified,

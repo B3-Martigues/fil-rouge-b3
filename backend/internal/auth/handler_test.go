@@ -134,6 +134,7 @@ func TestAuthHandler_Login_OK_SetsCookies_AndStore(t *testing.T) {
 }
 
 func TestToAuthUserDTO_IncludesAccountAndProfileIDs(t *testing.T) {
+	createdAt := time.Date(2026, time.January, 15, 9, 30, 0, 0, time.FixedZone("CET", 3600))
 	user := &users.User{
 		ID:             42,
 		AccountID:      42,
@@ -144,6 +145,7 @@ func TestToAuthUserDTO_IncludesAccountAndProfileIDs(t *testing.T) {
 		Role:           "organization",
 		AccountType:    "organization",
 		IsActive:       true,
+		CreatedAt:      createdAt,
 	}
 
 	dto := toAuthUserDTO(user)
@@ -153,6 +155,9 @@ func TestToAuthUserDTO_IncludesAccountAndProfileIDs(t *testing.T) {
 	}
 	if dto.OrganizationID == nil || *dto.OrganizationID != 12 {
 		t.Fatalf("expected organization id in auth dto, got %+v", dto)
+	}
+	if dto.CreatedAt != "2026-01-15T08:30:00Z" {
+		t.Fatalf("expected created_at in auth dto, got %+v", dto)
 	}
 }
 
@@ -256,6 +261,49 @@ func TestAuthHandler_Login_InactiveUser_StillReturnsGenericUnauthorized(t *testi
 		FrontendURL:  "http://localhost:5173",
 		Store:        store,
 		UserRepo:     fakeAuthUserRepo{user: inactiveUser},
+	}
+
+	body := map[string]string{"email": "admin@mappening.local", "password": "admin1234"}
+	b, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "http://localhost:5173")
+	rec := httptest.NewRecorder()
+
+	h.Login(rec, req)
+	res := rec.Result()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", res.StatusCode)
+	}
+
+	var payload map[string]string
+	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	if payload["error"] != "invalid credentials" {
+		t.Fatalf("expected generic invalid credentials error, got %+v", payload)
+	}
+}
+
+func TestAuthHandler_Login_SuspendedUser_StillReturnsGenericUnauthorized(t *testing.T) {
+	store := NewRefreshStore()
+	suspendedUser := makeTestAuthUser(t)
+	suspendedUntil := time.Now().Add(time.Hour)
+	suspendedUser.SuspendedUntil = &suspendedUntil
+
+	h := Handler{
+		Secret:       "test-secret",
+		Issuer:       "mappening",
+		AccessTTL:    10 * time.Second,
+		RefreshTTL:   7 * 24 * time.Hour,
+		CookieSecure: false,
+		FrontendURL:  "http://localhost:5173",
+		Store:        store,
+		UserRepo:     fakeAuthUserRepo{user: suspendedUser},
 	}
 
 	body := map[string]string{"email": "admin@mappening.local", "password": "admin1234"}
@@ -468,6 +516,47 @@ func TestAuthHandler_DevLogin_OK_FromLoopback(t *testing.T) {
 	}
 	if _, ok, err := store.Get("admin@mappening.local"); err != nil || !ok {
 		t.Fatalf("expected refresh store to be set for subject")
+	}
+}
+
+func TestAuthHandler_DevLogin_RejectsSuspendedUser(t *testing.T) {
+	store := NewRefreshStore()
+	suspendedUser := makeTestAuthUser(t)
+	suspendedUntil := time.Now().Add(time.Hour)
+	suspendedUser.SuspendedUntil = &suspendedUntil
+
+	h := Handler{
+		Secret:          "test-secret",
+		Issuer:          "mappening",
+		AccessTTL:       10 * time.Second,
+		RefreshTTL:      7 * 24 * time.Hour,
+		CookieSecure:    false,
+		Env:             "dev",
+		FrontendURL:     "http://localhost:5173",
+		DevLoginEnabled: true,
+		DevLoginEmail:   "admin@mappening.local",
+		Store:           store,
+		UserRepo:        fakeAuthUserRepo{user: suspendedUser},
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/login/dev", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
+	req.RemoteAddr = "127.0.0.1:12345"
+	req.Host = "localhost:8080"
+	rec := httptest.NewRecorder()
+
+	h.DevLogin(rec, req)
+	res := rec.Result()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", res.StatusCode)
+	}
+	if findCookie(res.Cookies(), "access_token") != nil {
+		t.Fatalf("did not expect access_token cookie")
+	}
+	if _, ok, err := store.Get("admin@mappening.local"); err != nil || ok {
+		t.Fatalf("did not expect refresh store to be set for suspended user")
 	}
 }
 

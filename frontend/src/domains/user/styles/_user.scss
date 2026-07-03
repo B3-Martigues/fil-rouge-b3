@@ -30,6 +30,7 @@
   width: min(100%, 1040px);
   margin: 0 auto;
   padding: 12px var(--account-gutter) 40px;
+  padding-top: 0;
   text-align: left;
 }
 
@@ -368,7 +369,7 @@
     max-width: 100%;
   }
 
-  span {
+  span:not(.notification-badge) {
     display: block;
     max-width: 100%;
     overflow: hidden;
@@ -406,27 +407,6 @@
   position: absolute;
   top: 5px;
   right: 8px;
-  display: inline-flex;
-  flex: 0 0 20px;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  min-width: 20px;
-  max-width: 20px;
-  height: 20px;
-  min-height: 20px;
-  max-height: 20px;
-  aspect-ratio: 1 / 1;
-  box-sizing: border-box;
-  padding: 0;
-  border: 2px solid var(--bg);
-  border-radius: 50%;
-  color: var(--color-inverse);
-  background: var(--color-favorite);
-  font-size: 10px;
-  font-weight: 900;
-  line-height: 1;
-  box-shadow: 0 4px 10px var(--color-floating-shadow);
 }
 
 .account-shell__content {

@@ -76,8 +76,9 @@ type MemberInput struct {
 }
 
 type ListFilters struct {
-	Query           string
-	IncludeInactive bool
-	IncludeDeleted  bool
-	AccountID       *int64
+	Query                    string
+	IncludeInactive          bool
+	IncludeDeleted           bool
+	IncludeSuspendedAccounts bool
+	AccountID                *int64
 }

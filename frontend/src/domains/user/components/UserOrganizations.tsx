@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { toast } from "react-toastify";
 
 import CategorySelect from "../../event/components/CategorySelect";
@@ -6,6 +6,7 @@ import { eventsApi } from "../../event/api/events.api";
 import type { Organization } from "../../organization/types/organization";
 import type { Event } from "../../event/types/event";
 import type { EventCategory } from "../../event/types/event-categories";
+import { isAccountSuspended } from "../types/user";
 import {
   formatDateTime,
   formatEventDateRange,
@@ -22,6 +23,7 @@ import ActionRow from "../../../shared/components/layout/ActionRow";
 import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import FormModal from "../../../shared/components/forms/FormModal";
+import AddressAutocomplete from "../../../shared/components/forms/AddressAutocomplete";
 import ImageField from "../../../shared/components/forms/ImageField";
 import Button from "../../../shared/components/ui/Button";
 import FormField from "../../../shared/components/ui/FormField";
@@ -39,8 +41,6 @@ type EventForm = {
   address: string;
   city: string;
   postal_code: string;
-  latitude: string;
-  longitude: string;
   categories: EventCategory[];
   image: string;
   price: string;
@@ -62,8 +62,6 @@ const toEventForm = (event: Event): EventForm => ({
   address: event.address,
   city: event.city,
   postal_code: event.postal_code,
-  latitude: event.latitude?.toString() ?? "",
-  longitude: event.longitude?.toString() ?? "",
   categories: event.category_slugs,
   image: event.image,
   price: event.price.toString(),
@@ -79,26 +77,12 @@ const emptyEventForm = (): EventForm => ({
   address: "",
   city: "",
   postal_code: "",
-  latitude: "",
-  longitude: "",
   categories: [],
   image: "",
   price: "0",
   ticketing_link: "",
   source: "",
 });
-
-const isValidOptionalCoordinate = (value: string, min: number, max: number) => {
-  if (value.trim() === "") return true;
-
-  const numberValue = Number(value);
-  return !Number.isNaN(numberValue) && numberValue >= min && numberValue <= max;
-};
-
-const parseOptionalCoordinate = (value: string) => {
-  const trimmedValue = value.trim();
-  return trimmedValue ? Number(trimmedValue) : null;
-};
 
 const validateEventForm = (form: EventForm): EventFormErrors => {
   const errors: EventFormErrors = {};
@@ -143,14 +127,6 @@ const validateEventForm = (form: EventForm): EventFormErrors => {
     errors.postal_code = "Le code postal doit contenir 5 chiffres";
   }
 
-  if (!isValidOptionalCoordinate(form.latitude, -90, 90)) {
-    errors.latitude = "La latitude doit être comprise entre -90 et 90";
-  }
-
-  if (!isValidOptionalCoordinate(form.longitude, -180, 180)) {
-    errors.longitude = "La longitude doit être comprise entre -180 et 180";
-  }
-
   if (!isValidUploadedImageValue(form.image)) {
     errors.image = "Ajoutez une image PNG, JPG ou WebP de 1 Mo maximum";
   }
@@ -183,10 +159,12 @@ const getEventStatus = (event: Event) => {
 export default function UserOrganizations() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const organizers = useDataStore((s) => s.organizers);
+  const accounts = useDataStore((s) => s.accounts);
   const allOrganizations = useDataStore((s) => s.organizations);
   const events = useDataStore((s) => s.events);
   const addEvent = useDataStore((s) => s.addEvent);
   const updateEvent = useDataStore((s) => s.updateEvent);
+  const upsertEvents = useDataStore((s) => s.upsertEvents);
   const deleteEvent = useDataStore((s) => s.deleteEvent);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const [eventOrganizationId, setEventOrganizationId] = useState<number | null>(null);
@@ -203,11 +181,25 @@ export default function UserOrganizations() {
       currentUser,
       organizers,
       allOrganizations,
-    ).map(({ organization }) => ({ organization }));
-  }, [allOrganizations, organizers, currentUser]);
+    )
+      .filter(({ organization }) => {
+        if (!organization.is_active || organization.deleted_at) return false;
+
+        const account = accounts.find(
+          (item) => item.id === organization.account_id && !item.deleted_at,
+        );
+
+        return !account || (account.is_active && !isAccountSuspended(account));
+      })
+      .map(({ organization }) => ({ organization }));
+  }, [accounts, allOrganizations, organizers, currentUser]);
 
   const userOrganizationIds = useMemo(
     () => new Set(userOrganizations.map(({ organization }) => organization.id)),
+    [userOrganizations],
+  );
+  const userOrganizationIdList = useMemo(
+    () => userOrganizations.map(({ organization }) => organization.id),
     [userOrganizations],
   );
 
@@ -243,6 +235,37 @@ export default function UserOrganizations() {
         ),
     [events, userOrganizationIds],
   );
+
+  useEffect(() => {
+    if (userOrganizationIdList.length === 0) return;
+
+    let ignore = false;
+
+    const refreshOrganizationEvents = async () => {
+      const results = await Promise.all(
+        userOrganizationIdList.map((organizationId) =>
+          eventsApi.listByOrganization(organizationId, { includeInactive: true }),
+        ),
+      );
+
+      if (ignore) return;
+
+      upsertEvents(results.flatMap((result) => (result.ok ? result.data : [])));
+    };
+
+    void refreshOrganizationEvents();
+
+    const refreshOnFocus = () => {
+      void refreshOrganizationEvents();
+    };
+
+    window.addEventListener("focus", refreshOnFocus);
+
+    return () => {
+      ignore = true;
+      window.removeEventListener("focus", refreshOnFocus);
+    };
+  }, [upsertEvents, userOrganizationIdList]);
 
   const closeEventModal = () => {
     setEditingEventId(null);
@@ -330,8 +353,6 @@ export default function UserOrganizations() {
       description: eventForm.description.trim(),
       start_date: new Date(eventForm.start_date).toISOString(),
       end_date: new Date(eventForm.end_date).toISOString(),
-      latitude: parseOptionalCoordinate(eventForm.latitude),
-      longitude: parseOptionalCoordinate(eventForm.longitude),
       address: eventForm.address.trim(),
       city: eventForm.city.trim(),
       postal_code: eventForm.postal_code.trim(),
@@ -468,10 +489,6 @@ export default function UserOrganizations() {
                   </div>
                   <p>{event.description}</p>
                   <dl>
-                    <div>
-                      <dt>Organisation</dt>
-                      <dd>{organization?.name ?? "Organisation inconnue"}</dd>
-                    </div>
                     <div>
                       <dt>Dates</dt>
                       <dd>{formatEventDateRange(event)}</dd>
@@ -660,70 +677,25 @@ function EventEditor({
             onChange={(event) => onFieldChange("end_date", event.target.value)}
           />
         </FormField>
-        <FormField
-          label="Adresse"
-          htmlFor="member-event-address"
-          className="admin-form-grid__wide"
-          error={errors.address}
-        >
-          <Input
-            id="member-event-address"
-            value={form.address}
-            hasError={!!errors.address}
-            onChange={(event) => onFieldChange("address", event.target.value)}
-          />
-        </FormField>
-        <FormField label="Ville" htmlFor="member-event-city" error={errors.city}>
-          <Input
-            id="member-event-city"
-            value={form.city}
-            hasError={!!errors.city}
-            onChange={(event) => onFieldChange("city", event.target.value)}
-          />
-        </FormField>
-        <FormField
-          label="Code postal"
-          htmlFor="member-event-postal-code"
-          error={errors.postal_code}
-        >
-          <Input
-            id="member-event-postal-code"
-            inputMode="numeric"
-            value={form.postal_code}
-            hasError={!!errors.postal_code}
-            onChange={(event) =>
-              onFieldChange("postal_code", event.target.value)
-            }
-          />
-        </FormField>
-        <FormField
-          label="Latitude"
-          htmlFor="member-event-latitude"
-          error={errors.latitude}
-        >
-          <Input
-            id="member-event-latitude"
-            type="number"
-            step="any"
-            value={form.latitude}
-            hasError={!!errors.latitude}
-            onChange={(event) => onFieldChange("latitude", event.target.value)}
-          />
-        </FormField>
-        <FormField
-          label="Longitude"
-          htmlFor="member-event-longitude"
-          error={errors.longitude}
-        >
-          <Input
-            id="member-event-longitude"
-            type="number"
-            step="any"
-            value={form.longitude}
-            hasError={!!errors.longitude}
-            onChange={(event) => onFieldChange("longitude", event.target.value)}
-          />
-        </FormField>
+        <AddressAutocomplete
+          addressClassName="admin-form-grid__wide"
+          errors={{
+            address: errors.address,
+            city: errors.city,
+            postal_code: errors.postal_code,
+          }}
+          ids={{
+            address: "member-event-address",
+            city: "member-event-city",
+            postalCode: "member-event-postal-code",
+          }}
+          value={{
+            address: form.address,
+            city: form.city,
+            postal_code: form.postal_code,
+          }}
+          onChange={onFieldChange}
+        />
         <ImageField
           className="admin-form-grid__wide"
           id="member-event-image"

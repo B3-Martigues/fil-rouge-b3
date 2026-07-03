@@ -4,6 +4,7 @@ import { Bell } from "lucide-react";
 import useAuthStore from "../../auth/store/authStore";
 import Button from "../../../shared/components/ui/Button";
 import useDataStore from "../../../shared/store/dataStore";
+import NotificationBadge from "./NotificationBadge";
 import NotificationInbox from "./NotificationInbox";
 
 export default function NotificationCenter() {
@@ -103,11 +104,11 @@ export default function NotificationCenter() {
         variant="secondary"
         onClick={() => setIsOpen((value) => !value)}
       >
-        {unreadCount > 0 && (
-          <span className="notification-center__count" aria-hidden="true">
-            {unreadCount}
-          </span>
-        )}
+        <NotificationBadge
+          aria-hidden="true"
+          className="notification-center__count"
+          count={unreadCount}
+        />
       </Button>
 
       {isOpen && (
@@ -119,7 +120,10 @@ export default function NotificationCenter() {
           aria-label="Notifications"
           aria-modal="false"
         >
-          <NotificationInbox onNotificationOpen={() => setIsOpen(false)} />
+          <NotificationInbox
+            onNotificationOpen={() => setIsOpen(false)}
+            openOnClick
+          />
         </div>
       )}
     </div>

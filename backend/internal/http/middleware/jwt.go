@@ -137,7 +137,7 @@ func hasCurrentUserState(ctx context.Context, userRepo authUserStateReader, clai
 	if err != nil || user == nil {
 		return false
 	}
-	if !user.IsActive {
+	if !user.IsActive || user.IsSuspended(time.Now().UTC()) {
 		return false
 	}
 	if user.ID != claims.UserID {

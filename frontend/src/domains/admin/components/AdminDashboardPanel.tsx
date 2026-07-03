@@ -13,6 +13,7 @@ import CategorySelect from "../../event/components/CategorySelect";
 import EmptyState from "../../../shared/components/feedback/EmptyState";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import Loader from "../../../shared/components/feedback/Loader";
+import AddressAutocomplete from "../../../shared/components/forms/AddressAutocomplete";
 import DecisionReasonModal from "../../../shared/components/forms/DecisionReasonModal";
 import FormModal from "../../../shared/components/forms/FormModal";
 import ImageField from "../../../shared/components/forms/ImageField";
@@ -56,10 +57,15 @@ import {
 import useDataStore, {
   buildAccountSummaries,
 } from "../../../shared/store/dataStore";
-import { isValidUploadedImageValue } from "../../../shared/utils/imageUpload";
+import {
+  isDataImageValue,
+  isValidEventImageValue,
+  isValidImageReferenceValue,
+} from "../../../shared/utils/imageUpload";
 import {
   formatEventPrice,
   formatEventDateRange,
+  getEventImageUrl,
   getTicketingHref,
   isValidOptionalUrl,
   isEventSuspended,
@@ -79,8 +85,6 @@ type OrganizationDraft = {
   contact_email: string;
   description: string;
   website: string;
-  latitude: string;
-  longitude: string;
   address: string;
   city: string;
   postal_code: string;
@@ -104,8 +108,6 @@ type EventDraft = Omit<
   | "updated_at"
   | "category_slugs"
 > & {
-  latitude: string;
-  longitude: string;
   organization_id: string;
   postal_code: string;
   price: string;
@@ -129,6 +131,7 @@ type AdminDecisionRequest = {
   targetType: ModerationTargetType;
   action: ModerationAction;
   variant?: "primary" | "secondary" | "danger";
+  successMessage?: string;
   onConfirm: (reason: string) => boolean | void | Promise<boolean | void>;
 };
 
@@ -190,18 +193,6 @@ const isValidEmail = (value: string) => emailPattern.test(value.trim());
 
 const isStrongPassword = (value: string) => passwordPattern.test(value);
 
-const isValidOptionalCoordinate = (value: string, min: number, max: number) => {
-  if (value.trim() === "") return true;
-
-  const numberValue = Number(value);
-  return !Number.isNaN(numberValue) && numberValue >= min && numberValue <= max;
-};
-
-const parseOptionalCoordinate = (value: string) => {
-  const trimmedValue = value.trim();
-  return trimmedValue === "" ? null : Number(trimmedValue);
-};
-
 const toUserDraft = (account: AccountSummary): UserDraft => ({
   display_name: account.display_name,
   login_email: account.login_email,
@@ -223,8 +214,6 @@ const toOrganizationDraft = (organization: Organization): OrganizationDraft => (
   contact_email: organization.contact_email,
   description: organization.description ?? "",
   website: organization.website ?? "",
-  latitude: organization.latitude?.toString() ?? "",
-  longitude: organization.longitude?.toString() ?? "",
   address: organization.address,
   city: organization.city,
   postal_code: organization.postal_code,
@@ -239,22 +228,23 @@ const toOrganizationDraft = (organization: Organization): OrganizationDraft => (
 });
 
 const toEventDraft = (event: Event): EventDraft => ({
-  title: event.title,
-  description: event.description,
+  title: event.title ?? "",
+  description: event.description ?? "",
   start_date: toDateTimeLocalValue(event.start_date),
   end_date: toDateTimeLocalValue(event.end_date),
-  latitude: event.latitude?.toString() ?? "",
-  longitude: event.longitude?.toString() ?? "",
-  address: event.address,
-  category_slugs: event.category_slugs,
-  city: event.city,
-  postal_code: event.postal_code,
-  image: event.image,
-  price: event.price.toString(),
-  ticketing_link: event.ticketing_link,
+  address: event.address ?? "",
+  category_slugs: Array.isArray(event.category_slugs) ? event.category_slugs : [],
+  city: event.city ?? "",
+  postal_code: event.postal_code ?? "",
+  image: getEventImageUrl(event),
+  external_image_url: event.external_image_url ?? null,
+  image_optimized_url: event.image_optimized_url ?? null,
+  image_thumbnail_url: event.image_thumbnail_url ?? null,
+  price: String(event.price ?? 0),
+  ticketing_link: event.ticketing_link ?? "",
   source: event.source ?? "",
-  organization_id: event.organization_id.toString(),
-  is_active: event.is_active,
+  organization_id: event.organization_id ? String(event.organization_id) : "",
+  is_active: event.is_active ?? true,
 });
 
 const emptyEventDraft = (organizationId?: number): EventDraft => ({
@@ -262,8 +252,6 @@ const emptyEventDraft = (organizationId?: number): EventDraft => ({
   description: "",
   start_date: "",
   end_date: "",
-  latitude: "",
-  longitude: "",
   address: "",
   category_slugs: [],
   city: "",
@@ -381,7 +369,6 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const moderationReports = useDataStore((s) => s.moderationReports);
   const addEvent = useDataStore((s) => s.addEvent);
   const updateEvent = useDataStore((s) => s.updateEvent);
-  const deleteEventFromStore = useDataStore((s) => s.deleteEvent);
   const accountSummaries = useMemo(
     () => buildAccountSummaries(accountsData, usersData, organizationsData),
     [accountsData, usersData, organizationsData],
@@ -417,11 +404,6 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
 
   const activeOrganizationsData = organizationsData.filter((organization) => !organization.deleted_at);
   const activeEventsData = eventsData.filter((event) => !event.deleted_at);
-  const firstOrganizationId = useMemo(
-    () => organizationsData.find((organization) => !organization.deleted_at)?.id,
-    [organizationsData],
-  );
-
   const hasDuplicateAccountEmail = (email: string, currentAccountId?: number) =>
     accountsData.some(
       (account) =>
@@ -518,6 +500,9 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       reason,
     );
     if (recorded === false) return;
+    if (decisionRequest.successMessage) {
+      toast.success(decisionRequest.successMessage);
+    }
     closeDecisionModal();
   };
 
@@ -705,14 +690,14 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       return false;
     }
 
-    if (!isStrongPassword(userDraft.password_hash)) {
-      toast.error(
-        "Le mot de passe doit contenir au moins 8 caracteres, une majuscule, une minuscule, un chiffre et un caractere special",
-      );
-      return false;
-    }
-
     if (isCreatingUser) {
+      if (!isStrongPassword(userDraft.password_hash)) {
+        toast.error(
+          "Le mot de passe doit contenir au moins 8 caracteres, une majuscule, une minuscule, un chiffre et un caractere special",
+        );
+        return false;
+      }
+
       if (userDraft.role === "organization") {
         toast.error("Utilisez le formulaire organisateur pour creer une organization");
         return false;
@@ -780,18 +765,11 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         return false;
       }
 
-      if (organizationDraft.logo.trim() && !URL.canParse(organizationDraft.logo.trim())) {
-        toast.error("URL du logo invalide");
-        return false;
-      }
-
-      if (!isValidOptionalCoordinate(organizationDraft.latitude, -90, 90)) {
-        toast.error("La latitude doit etre comprise entre -90 et 90");
-        return false;
-      }
-
-      if (!isValidOptionalCoordinate(organizationDraft.longitude, -180, 180)) {
-        toast.error("La longitude doit etre comprise entre -180 et 180");
+      if (
+        organizationDraft.logo.trim() &&
+        !isValidImageReferenceValue(organizationDraft.logo)
+      ) {
+        toast.error("Logo invalide");
         return false;
       }
 
@@ -863,15 +841,13 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       const result = await organizationsApi.update(editedAccount.organization_id, {
         account_id: editedAccount.account_id,
         name: displayName,
-        contact_email: organizationDraft.contact_email.trim(),
-        description: organizationDraft.description.trim(),
-        website: organizationDraft.website.trim() || null,
-        latitude: parseOptionalCoordinate(organizationDraft.latitude),
-        longitude: parseOptionalCoordinate(organizationDraft.longitude),
-        address: organizationDraft.address.trim(),
-        city: organizationDraft.city.trim(),
-        postal_code: organizationDraft.postal_code.trim(),
-        logo: organizationDraft.logo.trim() || null,
+        contact_email: organizationDraft?.contact_email.trim() ?? "",
+        description: organizationDraft?.description.trim() ?? "",
+        website: organizationDraft?.website.trim() || null,
+        address: organizationDraft?.address.trim() ?? "",
+        city: organizationDraft?.city.trim() ?? "",
+        postal_code: organizationDraft?.postal_code.trim() ?? "",
+        logo: organizationDraft?.logo.trim() || null,
         contact_phone_number:
           organizationDraft.contact_phone_number.trim() || null,
         siret: organizationDraft.siret.trim() || null,
@@ -935,20 +911,6 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     return false;
   };
 
-  const liftAccountSuspension = (account: AccountSummary, _reason: string) => {
-    if (currentUser?.auth_source === "api") return true;
-
-    toast.error(`Session API requise pour lever la suspension de ${account.display_name}`);
-    return false;
-  };
-
-  const liftEventSuspension = (event: Event, _reason: string) => {
-    if (currentUser?.auth_source === "api") return true;
-
-    toast.error(`Session API requise pour lever la suspension de ${event.title}`);
-    return false;
-  };
-
   const startEventEdit = (event: Event) => {
     setIsCreatingEvent(false);
     setEditingEventId(event.id);
@@ -958,8 +920,8 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const startEventCreate = useCallback(() => {
     setEditingEventId(null);
     setIsCreatingEvent(true);
-    setEventDraft(emptyEventDraft(firstOrganizationId));
-  }, [firstOrganizationId]);
+    setEventDraft(emptyEventDraft());
+  }, []);
 
   const closeEventForm = () => {
     setEditingEventId(null);
@@ -970,22 +932,22 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const saveEvent = async (_reason?: string) => {
     if (!eventDraft) return false;
 
-    if (!eventDraft.organization_id) {
-      toast.error("L'organization est obligatoire");
-      return false;
-    }
+    const selectedOrganizationId = eventDraft.organization_id
+      ? Number(eventDraft.organization_id)
+      : null;
+    const selectedOrganization =
+      selectedOrganizationId === null
+        ? null
+        : activeOrganizationsData.find(
+            (organization) => organization.id === selectedOrganizationId,
+          );
 
-    const selectedOrganizationId = Number(eventDraft.organization_id);
-    const selectedOrganization = activeOrganizationsData.find(
-      (organization) => organization.id === selectedOrganizationId,
-    );
-
-    if (!selectedOrganization) {
+    if (selectedOrganizationId !== null && !selectedOrganization) {
       toast.error("Organization introuvable");
       return false;
     }
 
-    if (eventDraft.is_active && !selectedOrganization.is_active) {
+    if (eventDraft.is_active && selectedOrganization && !selectedOrganization.is_active) {
       toast.error("Impossible de publier un evenement d'une organization inactive");
       return false;
     }
@@ -1030,17 +992,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       return false;
     }
 
-    if (!isValidOptionalCoordinate(eventDraft.latitude, -90, 90)) {
-      toast.error("La latitude doit etre comprise entre -90 et 90");
-      return false;
-    }
-
-    if (!isValidOptionalCoordinate(eventDraft.longitude, -180, 180)) {
-      toast.error("La longitude doit etre comprise entre -180 et 180");
-      return false;
-    }
-
-    if (!isValidUploadedImageValue(eventDraft.image)) {
+    if (!isValidEventImageValue(eventDraft.image)) {
       toast.error("Ajoutez une image PNG, JPG ou WebP de 1 Mo maximum");
       return false;
     }
@@ -1062,26 +1014,31 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       return false;
     }
 
-    const now = new Date().toISOString();
-    const payload: Omit<Event, "id"> = {
+    const isReplacingEventImage = isDataImageValue(eventDraft.image);
+    const payload = {
       title: eventDraft.title.trim(),
       description: eventDraft.description.trim(),
       start_date: new Date(eventDraft.start_date).toISOString(),
       end_date: new Date(eventDraft.end_date).toISOString(),
-      latitude: parseOptionalCoordinate(eventDraft.latitude),
-      longitude: parseOptionalCoordinate(eventDraft.longitude),
       address: eventDraft.address.trim(),
       category_slugs: eventDraft.category_slugs,
       city: eventDraft.city.trim(),
       postal_code: eventDraft.postal_code.trim(),
       image: eventDraft.image.trim(),
+      external_image_url: isReplacingEventImage
+        ? null
+        : (eventDraft.external_image_url?.trim() || null),
+      image_optimized_url: isReplacingEventImage
+        ? null
+        : (eventDraft.image_optimized_url?.trim() || null),
+      image_thumbnail_url: isReplacingEventImage
+        ? null
+        : (eventDraft.image_thumbnail_url?.trim() || null),
       price,
       ticketing_link: eventDraft.ticketing_link.trim(),
       source: eventDraft.source?.trim() || null,
       organization_id: selectedOrganizationId,
       is_active: eventDraft.is_active,
-      created_at: now,
-      updated_at: now,
     };
 
     if (isCreatingEvent) {
@@ -1123,7 +1080,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         return true;
       }
 
-      toast.error("Session API requise pour modifier un evenement");
+      toast.error(`Session API requise pour modifier ${event.title}`);
       return false;
     }
 
@@ -1137,23 +1094,13 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     const deletedEvent = eventsData.find((event) => event.id === eventId);
     if (!deletedEvent) return false;
 
-    if (currentUser?.auth_source === "api") {
-      const result = await eventsApi.remove(eventId);
-
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return false;
-      }
-    }
-
     if (currentUser?.auth_source !== "api") {
       toast.error("Session API requise pour supprimer un evenement");
       return false;
     }
 
-    deleteEventFromStore(eventId);
     setEditingEventId(null);
-    toast.success(`${deletedEvent.title} supprime`);
+    return true;
   };
 
   const requestSaveUser = () => {
@@ -1392,34 +1339,9 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                             {accountStatus.label}
                           </StatusBadge>
                         </div>
-                        {accountStatus.value === "suspended" &&
-                          user.suspension_reason && (
-                            <small
-                              className="admin-suspension-reason admin-suspension-reason--inline"
-                              role="cell"
-                            >
-                              Motif: {user.suspension_reason}
-                            </small>
-                          )}
+                        
                         <div className="admin-actions" role="cell">
-                          {accountStatus.value === "suspended" && (
-                            <Button
-                              type="button"
-                              onClick={() =>
-                                openDecisionModal({
-                                  action: "account_restored",
-                                  targetId: user.account_id,
-                                  targetType: "account",
-                                  title: `Justifier la levee de suspension de ${user.display_name}`,
-                                  variant: "primary",
-                                  onConfirm: (reason) =>
-                                    liftAccountSuspension(user, reason),
-                                })
-                              }
-                            >
-                              Lever suspension
-                            </Button>
-                          )}
+  
                           <Button
                             variant="secondary"
                             type="button"
@@ -1555,9 +1477,21 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                         <span className="admin-event-image-cell" role="cell">
                           <img src={event.image} alt={`Visuel ${event.title}`} />
                         </span>
-                        <span role="cell">{event.title}</span>
-                        <span role="cell">{getEventCategories(event).join(", ")}</span>
-                        <span role="cell">{event.city}</span>
+                        <span className="admin-event-title-cell" role="cell">
+                          {event.title}
+                        </span>
+                        <span
+                          className="admin-event-meta-cell admin-event-categories-cell"
+                          role="cell"
+                        >
+                          {getEventCategories(event).join(", ")}
+                        </span>
+                        <span
+                          className="admin-event-meta-cell admin-event-city-cell"
+                          role="cell"
+                        >
+                          {event.city}
+                        </span>
                         <span className="admin-event-price-cell" role="cell">
                           {formatEventPrice(event.price)}
                           {ticketingHref && (
@@ -1570,37 +1504,18 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                             </a>
                           )}
                         </span>
-                        <span role="cell">{formatEventDateRange(event)}</span>
+                        <span
+                          className="admin-event-meta-cell admin-event-date-cell"
+                          role="cell"
+                        >
+                          {formatEventDateRange(event)}
+                        </span>
                         <div className="admin-status-cell" role="cell">
                           <StatusBadge variant={eventStatus.variant}>
                             {eventStatus.label}
                           </StatusBadge>
-                          {eventStatus.value === "suspended" &&
-                            event.suspension_reason && (
-                              <small className="admin-suspension-reason">
-                                Motif: {event.suspension_reason}
-                              </small>
-                            )}
                         </div>
                         <div className="admin-actions" role="cell">
-                          {eventStatus.value === "suspended" && (
-                            <Button
-                              type="button"
-                              onClick={() =>
-                                openDecisionModal({
-                                  action: "event_restored",
-                                  targetId: event.id,
-                                  targetType: "event",
-                                  title: `Justifier la levee de suspension de ${event.title}`,
-                                  variant: "primary",
-                                  onConfirm: (reason) =>
-                                    liftEventSuspension(event, reason),
-                                })
-                              }
-                            >
-                              Lever suspension
-                            </Button>
-                          )}
                           {eventStatus.value !== "deleted" && (
                             <>
                               <Button
@@ -1619,6 +1534,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                                     targetId: event.id,
                                     targetType: "event",
                                     title: `Justifier la suppression de ${event.title}`,
+                                    successMessage: `${event.title} supprime`,
                                     onConfirm: (reason) =>
                                       deleteEvent(event.id, reason),
                                   })
@@ -1788,15 +1704,6 @@ function UserEditor({
           }
         />
       </FormField>
-      <FormField label="Mot de passe / hash" htmlFor="admin-user-password">
-        <Input
-          id="admin-user-password"
-          value={draft.password_hash}
-          onChange={(event) =>
-            setDraft({ ...draft, password_hash: event.target.value })
-          }
-        />
-      </FormField>
       {showRoleSelect && (
         <FormField label="Type d'utilisateur" htmlFor="admin-user-role">
           <Select
@@ -1897,58 +1804,27 @@ function OrganizationEditor({
           onChange={(event) => updateField("website", event.target.value)}
         />
       </FormField>
-      <FormField label="Logo" htmlFor="admin-organization-logo">
-        <Input
-          id="admin-organization-logo"
-          type="url"
-          value={draft.logo}
-          onChange={(event) => updateField("logo", event.target.value)}
-        />
-      </FormField>
-      <FormField
-        label="Adresse"
-        htmlFor="admin-organization-address"
+      <ImageField
         className="admin-form-grid__wide"
-      >
-        <Input
-          id="admin-organization-address"
-          value={draft.address}
-          onChange={(event) => updateField("address", event.target.value)}
-        />
-      </FormField>
-      <FormField label="Ville" htmlFor="admin-organization-city">
-        <Input
-          id="admin-organization-city"
-          value={draft.city}
-          onChange={(event) => updateField("city", event.target.value)}
-        />
-      </FormField>
-      <FormField label="Code postal" htmlFor="admin-organization-postal-code">
-        <Input
-          id="admin-organization-postal-code"
-          inputMode="numeric"
-          value={draft.postal_code}
-          onChange={(event) => updateField("postal_code", event.target.value)}
-        />
-      </FormField>
-      <FormField label="Latitude" htmlFor="admin-organization-latitude">
-        <Input
-          id="admin-organization-latitude"
-          step="any"
-          type="number"
-          value={draft.latitude}
-          onChange={(event) => updateField("latitude", event.target.value)}
-        />
-      </FormField>
-      <FormField label="Longitude" htmlFor="admin-organization-longitude">
-        <Input
-          id="admin-organization-longitude"
-          step="any"
-          type="number"
-          value={draft.longitude}
-          onChange={(event) => updateField("longitude", event.target.value)}
-        />
-      </FormField>
+        id="admin-organization-logo"
+        label="Logo"
+        value={draft.logo}
+        onChange={(value) => updateField("logo", value)}
+      />
+      <AddressAutocomplete
+        addressClassName="admin-form-grid__wide"
+        ids={{
+          address: "admin-organization-address",
+          city: "admin-organization-city",
+          postalCode: "admin-organization-postal-code",
+        }}
+        value={{
+          address: draft.address,
+          city: draft.city,
+          postal_code: draft.postal_code,
+        }}
+        onChange={updateField}
+      />
       <FormField label="Telephone" htmlFor="admin-organization-phone">
         <Input
           id="admin-organization-phone"
@@ -2011,7 +1887,7 @@ function EventEditor({
           onChange={(event) => setDraft({ ...draft, title: event.target.value })}
         />
       </FormField>
-      <FormField label="Organization" htmlFor="admin-event-organization">
+      <FormField label="Organisation" htmlFor="admin-event-organization">
         <Select
           id="admin-event-organization"
           value={draft.organization_id}
@@ -2019,7 +1895,7 @@ function EventEditor({
             setDraft({ ...draft, organization_id: event.target.value })
           }
         >
-          <option value="">Selectionner</option>
+          <option value="">Aucune organisation</option>
           {organizations.map((organization) => (
             <option key={organization.id} value={organization.id}>
               {organization.name}
@@ -2070,52 +1946,22 @@ function EventEditor({
           }
         />
       </FormField>
-      <FormField
-        label="Adresse"
-        htmlFor="admin-event-address"
-        className="admin-form-grid__wide"
-      >
-        <Input
-          id="admin-event-address"
-          value={draft.address}
-          onChange={(event) => setDraft({ ...draft, address: event.target.value })}
-        />
-      </FormField>
-      <FormField label="Ville" htmlFor="admin-event-city">
-        <Input
-          id="admin-event-city"
-          value={draft.city}
-          onChange={(event) => setDraft({ ...draft, city: event.target.value })}
-        />
-      </FormField>
-      <FormField label="Code postal" htmlFor="admin-event-postal-code">
-        <Input
-          id="admin-event-postal-code"
-          inputMode="numeric"
-          value={draft.postal_code}
-          onChange={(event) =>
-            setDraft({ ...draft, postal_code: event.target.value })
-          }
-        />
-      </FormField>
-      <FormField label="Latitude" htmlFor="admin-event-latitude">
-        <Input
-          id="admin-event-latitude"
-          value={draft.latitude}
-          onChange={(event) =>
-            setDraft({ ...draft, latitude: event.target.value })
-          }
-        />
-      </FormField>
-      <FormField label="Longitude" htmlFor="admin-event-longitude">
-        <Input
-          id="admin-event-longitude"
-          value={draft.longitude}
-          onChange={(event) =>
-            setDraft({ ...draft, longitude: event.target.value })
-          }
-        />
-      </FormField>
+      <AddressAutocomplete
+        addressClassName="admin-form-grid__wide"
+        ids={{
+          address: "admin-event-address",
+          city: "admin-event-city",
+          postalCode: "admin-event-postal-code",
+        }}
+        value={{
+          address: draft.address,
+          city: draft.city,
+          postal_code: draft.postal_code,
+        }}
+        onChange={(field, fieldValue) =>
+          setDraft({ ...draft, [field]: fieldValue })
+        }
+      />
       <ImageField
         className="admin-form-grid__wide"
         id="admin-event-image"

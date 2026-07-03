@@ -1,6 +1,5 @@
 import { useState, type ChangeEvent } from "react";
 
-import Button from "../ui/Button";
 import FormField from "../ui/FormField";
 import {
   getImageUploadError,
@@ -60,6 +59,13 @@ export default function ImageField({
   return (
     <div className={["image-field", className].filter(Boolean).join(" ")}>
       <FormField label={label} htmlFor={fileInputId} error={fieldError}>
+        <div className="image-field__preview">
+          {canPreview ? (
+          <img src={previewUrl} alt="" loading="lazy" />
+        ) : (
+          <span>Aucune image selectionnee</span>
+        )}
+        </div>
         <input
           className="image-field__file"
           id={fileInputId}
@@ -70,42 +76,13 @@ export default function ImageField({
         />
         <label className="image-field__dropzone" htmlFor={fileInputId}>
           <span className="image-field__dropzone-title">
-            {previewUrl ? "Remplacer l'image" : "Televerser une image"}
+            {previewUrl ? "Remplacer l'image" : "Ajouter une image"}
           </span>
           <span id={`${id}-help`} className="image-field__help">
             {IMAGE_UPLOAD_HELPER_TEXT}
           </span>
         </label>
       </FormField>
-
-      <div className="image-field__preview">
-        {canPreview ? (
-          <img src={previewUrl} alt="" loading="lazy" />
-        ) : (
-          <span>Aucune image selectionnee</span>
-        )}
-      </div>
-
-      <div className="image-field__actions">
-        <label className="btn btn--secondary btn--sm" htmlFor={fileInputId}>
-          <span className="btn__content">
-            {previewUrl ? "Remplacer" : "Televerser"}
-          </span>
-        </label>
-        {previewUrl ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            type="button"
-            onClick={() => {
-              setLocalError(null);
-              onChange("");
-            }}
-          >
-            Supprimer
-          </Button>
-        ) : null}
-      </div>
     </div>
   );
 }

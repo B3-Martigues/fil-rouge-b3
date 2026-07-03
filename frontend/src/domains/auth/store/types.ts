@@ -14,7 +14,7 @@ export type AuthState = {
   currentUser: AuthenticatedUser | null;
   role: Role | null;
 
-  login: (user: AuthenticatedUser) => void;
+  login: (user: AuthenticatedUser) => boolean;
   logout: () => void;
 
 

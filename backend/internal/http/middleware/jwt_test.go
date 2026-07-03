@@ -109,6 +109,48 @@ func TestAuthJWTWithUserLookup_RejectsChangedRoleImmediately(t *testing.T) {
 	}
 }
 
+func TestAuthJWTWithUserLookup_RejectsSuspendedUserImmediately(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	suspendedUntil := now.Add(time.Hour)
+	user := &users.User{
+		ID:             7,
+		Email:          "user@mappening.local",
+		Role:           "admin",
+		IsActive:       true,
+		SuspendedUntil: &suspendedUntil,
+		UpdatedAt:      now,
+	}
+
+	protected := AuthJWTWithUserLookup("test-secret", "mappening", "prod", fakeJWTUserRepo{user: user})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
+	req.AddCookie(&http.Cookie{
+		Name: "access_token",
+		Value: signedJWTClaims(t, "test-secret", UserClaims{
+			UserID:          user.ID,
+			Email:           user.Email,
+			Role:            user.Role,
+			SessionRevision: user.UpdatedAt.UTC().UnixMicro(),
+			RegisteredClaims: jwt.RegisteredClaims{
+				Issuer:    "mappening",
+				Subject:   user.Email,
+				Audience:  []string{"access"},
+				IssuedAt:  jwt.NewNumericDate(now.Add(time.Second)),
+				ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour)),
+			},
+		}),
+	})
+	rec := httptest.NewRecorder()
+
+	protected.ServeHTTP(rec, req)
+
+	if rec.Result().StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", rec.Result().StatusCode)
+	}
+}
+
 func TestAuthJWTWithUserLookup_RejectsOutdatedSessionRevision(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	user := &users.User{

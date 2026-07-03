@@ -92,11 +92,11 @@ CREATE TABLE accounts (
     account_type_id INT NOT NULL REFERENCES account_types(id),
     login_email VARCHAR(150) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    password_changed_at TIMESTAMP,
+    password_changed_at TIMESTAMPTZ,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ
 );
 
 -- Users
@@ -105,9 +105,9 @@ CREATE TABLE users (
     account_id INT NOT NULL UNIQUE REFERENCES accounts(id) ON DELETE CASCADE,
     username VARCHAR(50) NOT NULL UNIQUE,
     role_id INT NOT NULL REFERENCES roles(id),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ
 );
 
 -- Organizations
@@ -129,9 +129,9 @@ CREATE TABLE organizations (
     siret VARCHAR(50) UNIQUE,
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ
 );
 
 -- Organization Members
@@ -140,9 +140,9 @@ CREATE TABLE organizers (
     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     organization_id INT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     job_role VARCHAR(50),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
     UNIQUE (user_id, organization_id)
 );
 
@@ -172,9 +172,9 @@ CREATE TABLE events (
     ticketing_link TEXT NOT NULL DEFAULT '',
     source TEXT,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
     CHECK (price >= 0),
     CHECK (end_date >= start_date)
 );
@@ -192,6 +192,7 @@ CREATE TABLE user_event_preferences (
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     event_category_id INT NOT NULL REFERENCES event_categories(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (user_id, event_category_id)
 );
 
@@ -200,8 +201,8 @@ CREATE TABLE favorites (
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     event_id INT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
     UNIQUE (user_id, event_id)
 );
 
@@ -210,8 +211,8 @@ CREATE TABLE histories (
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     event_id INT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-    visited_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
+    visited_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ
 );
 
 -- Notifications
@@ -224,7 +225,7 @@ CREATE TABLE notifications (
     title VARCHAR(150) NOT NULL,
     message TEXT NOT NULL,
     is_read BOOLEAN NOT NULL DEFAULT FALSE,
-    read_at TIMESTAMP,
+    read_at TIMESTAMPTZ,
     action_url VARCHAR(255),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

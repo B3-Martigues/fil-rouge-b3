@@ -6,6 +6,7 @@ import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import EmptyState from "../../../shared/components/feedback/EmptyState";
 import ConfirmDialog from "../../../shared/components/forms/ConfirmDialog";
 import FormModal from "../../../shared/components/forms/FormModal";
+import AddressAutocomplete from "../../../shared/components/forms/AddressAutocomplete";
 import ImageField from "../../../shared/components/forms/ImageField";
 import ActionRow from "../../../shared/components/layout/ActionRow";
 import Button from "../../../shared/components/ui/Button";
@@ -32,7 +33,6 @@ import {
   emptyEventForm,
   getManagedEventStatus,
   getOrganizationStatus,
-  parseOptionalCoordinate,
   toEventForm,
   toOrganizationForm,
   validateEventForm,
@@ -181,8 +181,6 @@ export default function OrganizationDetailPage() {
       contact_email: organizationForm.contact_email.trim(),
       description: organizationForm.description.trim(),
       website: organizationForm.website.trim() || null,
-      latitude: parseOptionalCoordinate(organizationForm.latitude),
-      longitude: parseOptionalCoordinate(organizationForm.longitude),
       address: organizationForm.address.trim(),
       city: organizationForm.city.trim(),
       postal_code: organizationForm.postal_code.trim(),
@@ -251,8 +249,6 @@ export default function OrganizationDetailPage() {
       description: eventForm.description.trim(),
       start_date: new Date(eventForm.start_date).toISOString(),
       end_date: new Date(eventForm.end_date).toISOString(),
-      latitude: parseOptionalCoordinate(eventForm.latitude),
-      longitude: parseOptionalCoordinate(eventForm.longitude),
       address: eventForm.address.trim(),
       city: eventForm.city.trim(),
       postal_code: eventForm.postal_code.trim(),
@@ -649,60 +645,25 @@ function EventEditor({
           />
         </FormField>
 
-        <FormField
-          className="organization-form__wide"
-          label="Adresse"
-          htmlFor="event-address"
-          error={errors.address}
-        >
-          <Input
-            id="event-address"
-            hasError={!!errors.address}
-            value={form.address}
-            onChange={(event) => onFieldChange("address", event.target.value)}
-          />
-        </FormField>
-
-        <FormField label="Ville" htmlFor="event-city" error={errors.city}>
-          <Input
-            id="event-city"
-            hasError={!!errors.city}
-            value={form.city}
-            onChange={(event) => onFieldChange("city", event.target.value)}
-          />
-        </FormField>
-
-        <FormField label="Code postal" htmlFor="event-postal-code" error={errors.postal_code}>
-          <Input
-            id="event-postal-code"
-            hasError={!!errors.postal_code}
-            inputMode="numeric"
-            value={form.postal_code}
-            onChange={(event) => onFieldChange("postal_code", event.target.value)}
-          />
-        </FormField>
-
-        <FormField label="Latitude" htmlFor="event-latitude" error={errors.latitude}>
-          <Input
-            id="event-latitude"
-            hasError={!!errors.latitude}
-            step="any"
-            type="number"
-            value={form.latitude}
-            onChange={(event) => onFieldChange("latitude", event.target.value)}
-          />
-        </FormField>
-
-        <FormField label="Longitude" htmlFor="event-longitude" error={errors.longitude}>
-          <Input
-            id="event-longitude"
-            hasError={!!errors.longitude}
-            step="any"
-            type="number"
-            value={form.longitude}
-            onChange={(event) => onFieldChange("longitude", event.target.value)}
-          />
-        </FormField>
+        <AddressAutocomplete
+          addressClassName="organization-form__wide"
+          errors={{
+            address: errors.address,
+            city: errors.city,
+            postal_code: errors.postal_code,
+          }}
+          ids={{
+            address: "event-address",
+            city: "event-city",
+            postalCode: "event-postal-code",
+          }}
+          value={{
+            address: form.address,
+            city: form.city,
+            postal_code: form.postal_code,
+          }}
+          onChange={onFieldChange}
+        />
 
         <ImageField
           className="organization-form__wide"

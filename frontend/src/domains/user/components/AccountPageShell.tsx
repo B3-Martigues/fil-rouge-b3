@@ -31,6 +31,7 @@ import {
 } from "../../../shared/utils/account";
 import useAuthStore from "../../auth/store/authStore";
 import { authHttpApi } from "../../auth/api/authHttp.api";
+import NotificationBadge from "../../notification/components/NotificationBadge";
 import { getCurrentUserOrganizationMemberships } from "../../organization/utils/organizerAccess";
 
 type AccountSection =
@@ -132,7 +133,9 @@ export default function AccountPageShell() {
     (event) => userOrganizationIds.has(event.organization_id) && !event.deleted_at,
   ).length;
   const hasOrganizations = organizationCount > 0;
-  const memberSince = formatMemberSince(account?.created_at ?? user?.created_at);
+  const memberSince = formatMemberSince(
+    currentUser?.created_at ?? account?.created_at ?? user?.created_at,
+  );
   const displayName = currentUser?.username ?? "Utilisateur";
   const email = currentUser?.login_email ?? "Compte utilisateur";
   const roleLabel = currentUser
@@ -261,7 +264,7 @@ export default function AccountPageShell() {
                 </span>
                 <span>
                   {createdEventCount} événement
-                  {createdEventCount > 1 ? "s" : ""} créé
+                  {createdEventCount > 1 ? "s" : ""}
                   {createdEventCount > 1 ? "s" : ""}
                 </span>
               </>
@@ -291,15 +294,11 @@ export default function AccountPageShell() {
               to={route}
             >
               <Icon size={18} aria-hidden="true" />
-              {key === "notifications" && unreadNotificationCount > 0 && (
-                <span
+              {key === "notifications" && (
+                <NotificationBadge
                   className="account-tabs__badge"
-                  aria-label={`${unreadNotificationCount} notification non lue${
-                    unreadNotificationCount > 1 ? "s" : ""
-                  }`}
-                >
-                  {unreadNotificationCount}
-                </span>
+                  count={unreadNotificationCount}
+                />
               )}
               <span>{label}</span>
             </NavLink>

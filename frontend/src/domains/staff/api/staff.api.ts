@@ -1,4 +1,4 @@
-import type { ApiResult } from "../../../shared/api/api.types";
+import { createApiSuccess, type ApiResult } from "../../../shared/api/api.types";
 import { apiRequest } from "../../../shared/api/httpClient";
 import { toBackendId } from "../../../shared/api/idMapping";
 import type { Event } from "../../event/types/event";
@@ -8,7 +8,7 @@ import type { Organization } from "../../organization/types/organization";
 import type { Organizer } from "../../organization/types/organizer";
 import type { Account, User } from "../../user/types/user";
 
-export type StaffSnapshot = {
+export type StaffDataSet = {
   accounts: Account[];
   users: User[];
   organizations: Organization[];
@@ -18,17 +18,6 @@ export type StaffSnapshot = {
   notifications: Notification[];
   moderationReports: ModerationReport[];
   moderationDecisions: ModerationDecision[];
-};
-
-type BackendStaffSnapshot = Omit<
-  StaffSnapshot,
-  | "notificationTypes"
-  | "moderationReports"
-  | "moderationDecisions"
-> & {
-  notification_types: NotificationType[];
-  moderation_reports: ModerationReport[];
-  moderation_decisions: ModerationDecision[];
 };
 
 export type StaffActionPayload = {
@@ -50,44 +39,65 @@ export type CreateModerationReportPayload = {
   priority?: ModerationReport["priority"];
 };
 
-const normalizeSnapshot = (snapshot: BackendStaffSnapshot): StaffSnapshot => ({
-  accounts: snapshot.accounts ?? [],
-  users: snapshot.users ?? [],
-  organizations: snapshot.organizations ?? [],
-  organizers: snapshot.organizers ?? [],
-  events: snapshot.events ?? [],
-  notificationTypes: snapshot.notification_types ?? [],
-  notifications: snapshot.notifications ?? [],
-  moderationReports: snapshot.moderation_reports ?? [],
-  moderationDecisions: snapshot.moderation_decisions ?? [],
-});
-
-const mapSnapshotResult = (
-  result: ApiResult<BackendStaffSnapshot>,
-): ApiResult<StaffSnapshot> =>
-  result.ok ? { ok: true, data: normalizeSnapshot(result.data) } : result;
-
 export const staffApi = {
-  async snapshot(): Promise<ApiResult<StaffSnapshot>> {
-    return mapSnapshotResult(
-      await apiRequest<BackendStaffSnapshot>("/api/staff/snapshot"),
-    );
+  async loadData(): Promise<ApiResult<StaffDataSet>> {
+    const [
+      accounts,
+      users,
+      organizations,
+      organizers,
+      events,
+      notificationTypes,
+      notifications,
+      moderationReports,
+      moderationDecisions,
+    ] = await Promise.all([
+      apiRequest<Account[]>("/api/staff/accounts"),
+      apiRequest<User[]>("/api/staff/users"),
+      apiRequest<Organization[]>("/api/staff/organizations"),
+      apiRequest<Organizer[]>("/api/staff/organizers"),
+      apiRequest<Event[]>("/api/staff/events"),
+      apiRequest<NotificationType[]>("/api/staff/notification-types"),
+      apiRequest<Notification[]>("/api/staff/notifications"),
+      apiRequest<ModerationReport[]>("/api/staff/moderation-reports"),
+      apiRequest<ModerationDecision[]>("/api/staff/moderation-decisions"),
+    ]);
+
+    if (!accounts.ok) return accounts;
+    if (!users.ok) return users;
+    if (!organizations.ok) return organizations;
+    if (!organizers.ok) return organizers;
+    if (!events.ok) return events;
+    if (!notificationTypes.ok) return notificationTypes;
+    if (!notifications.ok) return notifications;
+    if (!moderationReports.ok) return moderationReports;
+    if (!moderationDecisions.ok) return moderationDecisions;
+
+    return createApiSuccess({
+      accounts: accounts.data ?? [],
+      users: users.data ?? [],
+      organizations: organizations.data ?? [],
+      organizers: organizers.data ?? [],
+      events: events.data ?? [],
+      notificationTypes: notificationTypes.data ?? [],
+      notifications: notifications.data ?? [],
+      moderationReports: moderationReports.data ?? [],
+      moderationDecisions: moderationDecisions.data ?? [],
+    });
   },
 
   async applyAction(
     payload: StaffActionPayload,
-  ): Promise<ApiResult<StaffSnapshot>> {
-    return mapSnapshotResult(
-      await apiRequest<BackendStaffSnapshot>("/api/staff/actions", {
-        body: {
-          ...payload,
-          target_id: toBackendId(payload.target_id),
-          report_id:
-            payload.report_id != null ? toBackendId(payload.report_id) : payload.report_id,
-        },
-        method: "POST",
-      }),
-    );
+  ): Promise<ApiResult<null>> {
+    return apiRequest<null>("/api/staff/actions", {
+      body: {
+        ...payload,
+        target_id: toBackendId(payload.target_id),
+        report_id:
+          payload.report_id != null ? toBackendId(payload.report_id) : payload.report_id,
+      },
+      method: "POST",
+    });
   },
 
   createReport(

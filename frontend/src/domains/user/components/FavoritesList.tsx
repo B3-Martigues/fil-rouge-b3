@@ -1,34 +1,51 @@
 import { Trash2 } from "lucide-react";
 
 import Button from "../../../shared/components/ui/Button";
-import useEventDistance from "../../event/hooks/useEventDistance";
-import { formatDateTimeWithAt } from "../../event/utils/event";
 import useDataStore from "../../../shared/store/dataStore";
+import useEventDistance from "../../event/hooks/useEventDistance";
+import type { Event } from "../../event/types/event";
+import { formatDateTimeWithAt } from "../../event/utils/event";
+import type { Organization } from "../../organization/types/organization";
 import useFavorites from "../hooks/useFavorites";
 import EventListingCard from "./EventListingCard";
 
+const isDisplayableAccountEvent = (
+  event: Event | undefined,
+  organizations: Organization[],
+) => {
+  if (!event || !event.is_active || event.deleted_at) return false;
+
+  const organization =
+    organizations.find((item) => item.id === event.organization_id) ??
+    event.organization;
+
+  if (!organization) return true;
+
+  return (
+    organization.is_active &&
+    !("deleted_at" in organization && organization.deleted_at)
+  );
+};
+
 export default function Favorites() {
-  const { favoriteEntries, favorites, toggleFavorite } = useFavorites();
+  const { favoriteEntries, toggleFavorite } = useFavorites();
   const events = useDataStore((s) => s.events);
   const organizations = useDataStore((s) => s.organizations);
   const { getEventDistance } = useEventDistance();
-  const activeOrganizationIds = new Set(
-    organizations
-      .filter((organization) => organization.is_active && !organization.deleted_at)
-      .map((organization) => organization.id),
-  );
-  const favoriteEvents = events.filter(
-    (event) =>
-      favorites.includes(event.id) &&
-      event.is_active &&
-      !event.deleted_at &&
-      activeOrganizationIds.has(event.organization_id),
-  );
-  const favoriteEntryByEventId = new Map(
-    favoriteEntries.map((favorite) => [favorite.event_id, favorite]),
-  );
+  const eventsById = new Map(events.map((event) => [event.id, event]));
+  const favoriteItems = favoriteEntries
+    .map((favorite) => ({
+      favorite,
+      event: favorite.event ?? eventsById.get(favorite.event_id),
+    }))
+    .filter(({ event }) => isDisplayableAccountEvent(event, organizations))
+    .sort(
+      (firstItem, secondItem) =>
+        new Date(secondItem.favorite.created_at ?? 0).getTime() -
+        new Date(firstItem.favorite.created_at ?? 0).getTime(),
+    );
 
-  if (favoriteEvents.length === 0) {
+  if (favoriteItems.length === 0) {
     return (
       <p className="feedback-message feedback-message--empty">
         Aucun événement en favoris
@@ -39,18 +56,18 @@ export default function Favorites() {
   return (
     <div className="user-favorites">
       <div className="user-events-list__grid">
-        {favoriteEvents.map((event) => {
-          const favoriteCreatedAt = favoriteEntryByEventId.get(event.id)?.created_at;
+        {favoriteItems.map(({ favorite, event }) => {
+          if (!event) return null;
 
           return (
             <EventListingCard
-              key={event.id}
+              key={favorite.id}
               event={event}
               distanceInKilometers={getEventDistance(event)}
               meta={
-                favoriteCreatedAt ? (
-                  <time dateTime={favoriteCreatedAt}>
-                    Ajouté le {formatDateTimeWithAt(favoriteCreatedAt)}
+                favorite.created_at ? (
+                  <time dateTime={favorite.created_at}>
+                    Ajouté le {formatDateTimeWithAt(favorite.created_at)}
                   </time>
                 ) : undefined
               }

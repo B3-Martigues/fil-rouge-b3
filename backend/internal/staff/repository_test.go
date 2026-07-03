@@ -2,10 +2,31 @@ package staff
 
 import "testing"
 
+func TestReportAllowedRoles_IncludesStaff(t *testing.T) {
+	allowed := make(map[string]bool, len(reportAllowedRoles))
+	for _, role := range reportAllowedRoles {
+		allowed[role] = true
+	}
+
+	for _, role := range []string{"user", "admin", "moderator"} {
+		t.Run(role, func(t *testing.T) {
+			if !allowed[role] {
+				t.Fatalf("expected %s to be allowed to create reports", role)
+			}
+		})
+	}
+
+	if allowed["organization"] {
+		t.Fatalf("expected organization not to be allowed to create reports")
+	}
+}
+
 func TestCanApplyAction_ModeratorReviewActions(t *testing.T) {
 	for _, action := range []string{
 		"event_approved",
 		"event_rejected",
+		"event_hidden",
+		"event_deleted",
 		"organization_approved",
 		"organization_rejected",
 	} {
@@ -23,5 +44,19 @@ func TestOrganizationDecisionLabelsKeepApproveAndRejectDistinct(t *testing.T) {
 	}
 	if got := notificationTitle("organization_rejected"); got != "Organisation refusee" {
 		t.Fatalf("expected rejection title, got %q", got)
+	}
+}
+
+func TestStaffEventListFiltersExcludeDeletedEvents(t *testing.T) {
+	filters := staffEventListFilters()
+
+	if !filters.IncludeInactive {
+		t.Fatalf("expected staff event list to include inactive events")
+	}
+	if filters.IncludeDeleted {
+		t.Fatalf("expected staff event list to exclude deleted events")
+	}
+	if filters.Sort != "date-asc" {
+		t.Fatalf("expected staff event list to sort by date-asc, got %q", filters.Sort)
 	}
 }

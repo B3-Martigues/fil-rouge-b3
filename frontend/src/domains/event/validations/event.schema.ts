@@ -1,19 +1,8 @@
 import { z } from "zod";
 
-import { isValidUploadedImageValue } from "../../../shared/utils/imageUpload";
+import { isValidEventImageValue } from "../../../shared/utils/imageUpload";
 import { EVENT_CATEGORIES } from "../types/event-categories";
 import { isValidOptionalUrl } from "../utils/event";
-
-const optionalCoordinateSchema = (min: number, max: number, label: string) =>
-  z
-    .string()
-    .trim()
-    .refine((value) => {
-      if (value === "") return true;
-
-      const numberValue = Number(value);
-      return !Number.isNaN(numberValue) && numberValue >= min && numberValue <= max;
-    }, `${label} doit etre comprise entre ${min} et ${max}`);
 
 export const eventFormSchema = z
   .object({
@@ -30,8 +19,6 @@ export const eventFormSchema = z
       .string()
       .trim()
       .regex(/^\d{5}$/, "Le code postal doit contenir 5 chiffres"),
-    latitude: optionalCoordinateSchema(-90, 90, "La latitude"),
-    longitude: optionalCoordinateSchema(-180, 180, "La longitude"),
     categories: z
       .array(z.enum(EVENT_CATEGORIES))
       .min(1, "Selectionnez au moins une categorie"),
@@ -40,7 +27,7 @@ export const eventFormSchema = z
       .trim()
       .min(1, "L'image est requise")
       .refine(
-        isValidUploadedImageValue,
+        isValidEventImageValue,
         "Ajoutez une image PNG, JPG ou WebP de 1 Mo maximum",
       ),
     price: z

@@ -148,6 +148,7 @@ export default function RegistrationWorkflow() {
         login_email: userDraft.login_email.trim(),
         username: userDraft.username.trim(),
         password: userDraft.password,
+        category_slugs: preferences,
       });
 
       if (!result.ok) {
@@ -156,15 +157,14 @@ export default function RegistrationWorkflow() {
         return;
       }
 
-      if (result.data.user_id) {
-        const preferencesResult = await userApi.replacePreferences(preferences);
-        if (!preferencesResult.ok) {
-          setServerError(preferencesResult.error.message);
-          return;
-        }
-        setUserEventPreferences(result.data.user_id, preferencesResult.data);
-      }
       login(result.data);
+
+      if (result.data.user_id) {
+        const preferencesResult = await userApi.listPreferences();
+        if (preferencesResult.ok) {
+          setUserEventPreferences(result.data.user_id, preferencesResult.data);
+        }
+      }
       toast.success("Compte cree avec succes");
       navigate(ROUTES.PUBLIC.HOME, { replace: true });
     } finally {

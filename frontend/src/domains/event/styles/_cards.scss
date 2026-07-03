@@ -2,8 +2,13 @@
 @use "../../../shared/styles/mixins" as *;
 
 .event-card {
+  --event-card-description-line: 1.4em;
+  --event-card-description-lines: 3;
+  --event-card-description-height: 4.2em;
+
   display: grid;
   grid-template-rows: auto 1fr;
+  height: var(--event-card-height, var(--event-card-min-height, auto));
   min-height: var(--event-card-min-height, 100%);
   overflow: hidden;
 
@@ -32,28 +37,42 @@
   }
 
   &__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    object-fit: cover;
+  }
+
+  &__image-frame {
     width: 100%;
     aspect-ratio: 16 / 9;
-    object-fit: cover;
+    overflow: hidden;
     background: var(--social-bg);
   }
 
   &__content {
     display: grid;
-    grid-template-rows: auto auto minmax(4.2em, auto) 1fr auto auto;
     gap: 12px;
-    min-height: 0;
     padding: 16px;
   }
 
   &__meta {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
     gap: 8px;
-    align-items: center;
-    justify-content: space-between;
+    min-width: 0;
     color: var(--text-p);
     font-size: 14px;
+
+    time {
+      display: block;
+      min-width: 0;
+      overflow: hidden;
+      color: var(--text-p);
+      font-weight: 650;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
     span,
     .event-card__tag {
@@ -67,13 +86,22 @@
 
   &__tags {
     display: flex;
-    flex: 1 1 auto;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 6px;
     min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+    }
   }
 
   &__tag {
+    flex: 0 0 auto;
     line-height: 1.25;
     max-width: 100%;
     overflow: hidden;
@@ -81,21 +109,40 @@
     white-space: nowrap;
   }
 
+  &__date {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-p);
+    font-size: 14px;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__title,
   h3 {
+    display: block;
     margin: 0;
+    min-width: 0;
+    overflow: hidden;
     color: var(--text-h);
     font-size: 20px;
     line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   p {
     display: -webkit-box;
-    min-height: 4.2em;
+    min-height: var(--event-card-description-height);
+    max-height: var(--event-card-description-height);
     overflow: hidden;
     color: var(--text-p);
     line-height: 1.4;
+    text-overflow: ellipsis;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: var(--event-card-description-lines);
   }
 
   &__details {
@@ -116,11 +163,62 @@
     }
   }
 
-  &__ticketing-link {
-    justify-self: start;
+  &__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-start;
+    justify-self: stretch;
+    width: 100%;
+  }
+
+  &__ticketing-link,
+  &__directions-link {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+    min-height: 38px;
+  }
+
+  &__directions-link {
+    display: inline-flex;
+  }
+
+  &__link--icon-only {
+    flex: 0 0 38px;
+    width: 38px;
+    min-width: 38px;
+    padding: 0;
+  }
+
+  &__ticketing-link#{&}__link--icon-only,
+  &__directions-link#{&}__link--icon-only {
+    width: 38px;
+    min-width: 38px;
+    max-width: 38px;
+    padding-inline: 0;
   }
 
   &__actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
     align-self: end;
+    justify-content: flex-end;
+    justify-self: end;
+    width: 100%;
+  }
+
+  &__share {
+    width: 38px;
+    height: 38px;
+    min-height: 38px;
+    padding: 0;
+    border-radius: 999px;
+    justify-content: center;
   }
 }

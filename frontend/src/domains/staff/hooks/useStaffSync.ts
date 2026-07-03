@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
 import useAuthStore from "../../auth/store/authStore";
-import { staffApi, type StaffActionPayload, type StaffSnapshot } from "../api/staff.api";
+import { staffApi, type StaffActionPayload, type StaffDataSet } from "../api/staff.api";
 import useDataStore from "../../../shared/store/dataStore";
 
 const canUseStaffApi = (role?: string | null) =>
@@ -10,46 +10,47 @@ const canUseStaffApi = (role?: string | null) =>
 
 export default function useStaffSync() {
   const currentUser = useAuthStore((state) => state.currentUser);
-  const clearStaffSnapshot = useDataStore((state) => state.clearStaffSnapshot);
-  const hydrateStaffSnapshot = useDataStore((state) => state.hydrateStaffSnapshot);
+  const clearStaffData = useDataStore((state) => state.clearStaffData);
+  const hydrateStaffData = useDataStore((state) => state.hydrateStaffData);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const hydrate = useCallback(
-    (snapshot: StaffSnapshot) => {
-      hydrateStaffSnapshot(snapshot);
+    (data: StaffDataSet) => {
+      hydrateStaffData(data);
     },
-    [hydrateStaffSnapshot],
+    [hydrateStaffData],
   );
 
   const refresh = useCallback(async () => {
     if (!canUseStaffApi(currentUser?.role)) {
-      clearStaffSnapshot();
+      clearStaffData();
       setIsLoaded(false);
       setError(null);
-      return;
+      return false;
     }
 
-    clearStaffSnapshot();
+    clearStaffData();
     setError(null);
     setIsLoaded(false);
     setIsLoading(true);
-    const result = await staffApi.snapshot();
+    const result = await staffApi.loadData();
     setIsLoading(false);
 
     if (result.ok) {
       hydrate(result.data);
       setIsLoaded(true);
-      return;
+      return true;
     }
 
-    clearStaffSnapshot();
+    clearStaffData();
     setError(result.error.message);
     if (result.error.code !== "unauthorized" && result.error.code !== "forbidden") {
       toast.error(result.error.message);
     }
-  }, [clearStaffSnapshot, currentUser?.role, hydrate]);
+    return false;
+  }, [clearStaffData, currentUser?.role, hydrate]);
 
   const applyAction = useCallback(
     async (payload: StaffActionPayload) => {
@@ -57,17 +58,14 @@ export default function useStaffSync() {
 
       const result = await staffApi.applyAction(payload);
       if (result.ok) {
-        hydrate(result.data);
-        setIsLoaded(true);
-        setError(null);
-        return true;
+        return refresh();
       }
 
       setError(result.error.message);
       toast.error(result.error.message);
       return false;
     },
-    [currentUser?.role, hydrate],
+    [currentUser?.role, refresh],
   );
 
   useEffect(() => {

@@ -1,13 +1,33 @@
 import { Trash2 } from "lucide-react";
 
 import Button from "../../../shared/components/ui/Button";
-import useAuthStore from "../../auth/store/authStore";
-import useEventDistance from "../../event/hooks/useEventDistance";
-import { eventsApi } from "../../event/api/events.api";
-import { formatDateTimeWithAt } from "../../event/utils/event";
 import useDataStore from "../../../shared/store/dataStore";
+import useAuthStore from "../../auth/store/authStore";
+import { eventsApi } from "../../event/api/events.api";
+import useEventDistance from "../../event/hooks/useEventDistance";
+import type { Event } from "../../event/types/event";
+import { formatDateTimeWithAt } from "../../event/utils/event";
+import type { Organization } from "../../organization/types/organization";
 import type { History as HistoryEntry } from "../types/history";
 import EventListingCard from "./EventListingCard";
+
+const isDisplayableAccountEvent = (
+  event: Event | undefined,
+  organizations: Organization[],
+) => {
+  if (!event || !event.is_active || event.deleted_at) return false;
+
+  const organization =
+    organizations.find((item) => item.id === event.organization_id) ??
+    event.organization;
+
+  if (!organization) return true;
+
+  return (
+    organization.is_active &&
+    !("deleted_at" in organization && organization.deleted_at)
+  );
+};
 
 export default function History() {
   const user = useAuthStore((s) => s.currentUser);
@@ -16,11 +36,7 @@ export default function History() {
   const organizations = useDataStore((s) => s.organizations);
   const removeHistoryById = useDataStore((s) => s.removeHistoryById);
   const { getEventDistance } = useEventDistance();
-  const activeOrganizationIds = new Set(
-    organizations
-      .filter((organization) => organization.is_active && !organization.deleted_at)
-      .map((organization) => organization.id),
-  );
+  const eventsById = new Map(events.map((event) => [event.id, event]));
 
   const latestHistoryByEvent = histories
     .filter((history) => history.user_id === user?.user_id && !history.deleted_at)
@@ -41,14 +57,9 @@ export default function History() {
   const userHistory = Array.from(latestHistoryByEvent.values())
     .map((history) => ({
       history,
-      event: events.find((event) => event.id === history.event_id),
+      event: history.event ?? eventsById.get(history.event_id),
     }))
-    .filter(
-      (item) =>
-        item.event?.is_active &&
-        !item.event.deleted_at &&
-        activeOrganizationIds.has(item.event.organization_id),
-    )
+    .filter(({ event }) => isDisplayableAccountEvent(event, organizations))
     .sort(
       (firstItem, secondItem) =>
         new Date(secondItem.history.visited_at).getTime() -
@@ -68,7 +79,7 @@ export default function History() {
 
             return (
               <EventListingCard
-                key={event.id}
+                key={history.id}
                 event={event}
                 distanceInKilometers={getEventDistance(event)}
                 meta={

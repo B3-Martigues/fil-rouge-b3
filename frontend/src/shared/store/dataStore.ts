@@ -3,6 +3,7 @@ import { create } from "zustand";
 import type { Organization } from "../../domains/organization/types/organization";
 import type { Organizer } from "../../domains/organization/types/organizer";
 import type { Event } from "../../domains/event/types/event";
+import { normalizeEventDateTimes } from "../../domains/event/utils/event";
 import type {
   ModerationDecision,
   ModerationReport,
@@ -21,7 +22,7 @@ import type {
 } from "../../domains/user/types/user";
 import { ROLE_IDS } from "../../domains/user/types/user";
 
-type StaffDataSnapshot = {
+type StaffDataSet = {
   accounts: Account[];
   users: User[];
   organizations: Organization[];
@@ -47,8 +48,8 @@ type DataState = {
   moderationReports: ModerationReport[];
   moderationDecisions: ModerationDecision[];
 
-  clearStaffSnapshot: () => void;
-  hydrateStaffSnapshot: (snapshot: StaffDataSnapshot) => void;
+  clearStaffData: () => void;
+  hydrateStaffData: (data: StaffDataSet) => void;
   getAccountSummaries: () => AccountSummary[];
 
   setUserNotifications: (userId: number, notifications: Notification[]) => void;
@@ -75,6 +76,7 @@ type DataState = {
   upsertOrganizers: (organizers: Organizer[]) => void;
 
   setEvents: (events: Event[]) => void;
+  upsertEvents: (events: Event[]) => void;
   addEvent: (event: Event) => void;
   updateEvent: (
     eventId: number,
@@ -125,13 +127,33 @@ const createSoftDeletePatch = () => ({
 
 const normalizeEvent = (event: Event): Event => {
   const legacyEvent = event as Event & {
+    category_slugs?: unknown;
+    external_image_url?: unknown;
+    image?: unknown;
+    image_optimized_url?: unknown;
+    image_thumbnail_url?: unknown;
+    organization_id?: unknown;
     price?: unknown;
     ticketing_link?: unknown;
   };
   const price = Number(legacyEvent.price ?? 0);
+  const organizationId = Number(legacyEvent.organization_id ?? 0);
+  const image =
+    (typeof legacyEvent.image_optimized_url === "string" &&
+      legacyEvent.image_optimized_url.trim()) ||
+    (typeof legacyEvent.image === "string" && legacyEvent.image.trim()) ||
+    (typeof legacyEvent.external_image_url === "string" &&
+      legacyEvent.external_image_url.trim()) ||
+    "";
 
   return {
     ...event,
+    ...normalizeEventDateTimes(event),
+    organization_id: Number.isFinite(organizationId) ? organizationId : 0,
+    category_slugs: Array.isArray(legacyEvent.category_slugs)
+      ? legacyEvent.category_slugs
+      : [],
+    image,
     price: Number.isFinite(price) && price >= 0 ? price : 0,
     ticketing_link:
       typeof legacyEvent.ticketing_link === "string"
@@ -178,16 +200,17 @@ export const buildAccountSummaries = (
     const accountRole = user?.role === "organization"
       ? "user"
       : (user?.role ?? accountType);
+    const roleId =
+      user?.role === "organization"
+        ? ROLE_IDS.user
+        : (user?.role_id ?? ROLE_IDS[accountRole] ?? ROLE_IDS.user);
 
     return {
       account_id: account.id,
       login_email: account.login_email,
       password_hash: account.password_hash,
       role: accountRole,
-      role_id:
-        user?.role === "organization"
-          ? ROLE_IDS.user
-          : (user?.role_id ?? ROLE_IDS[accountRole]),
+      role_id: roleId,
       display_name: user?.username ?? account.login_email,
       is_active: account.is_active,
       suspended_until: account.suspended_until ?? null,
@@ -211,7 +234,7 @@ const useDataStore = create<DataState>()(
       moderationReports: [],
       moderationDecisions: [],
 
-      clearStaffSnapshot: () =>
+      clearStaffData: () =>
         set(() => ({
           accounts: [],
           users: [],
@@ -224,17 +247,17 @@ const useDataStore = create<DataState>()(
           moderationDecisions: [],
         })),
 
-      hydrateStaffSnapshot: (snapshot) =>
+      hydrateStaffData: (data) =>
         set(() => ({
-          accounts: snapshot.accounts,
-          users: snapshot.users,
-          organizations: snapshot.organizations,
-          organizers: snapshot.organizers,
-          events: snapshot.events.map(normalizeEvent),
-          notificationTypes: snapshot.notificationTypes,
-          notifications: snapshot.notifications,
-          moderationReports: snapshot.moderationReports,
-          moderationDecisions: snapshot.moderationDecisions,
+          accounts: data.accounts,
+          users: data.users,
+          organizations: data.organizations,
+          organizers: data.organizers,
+          events: data.events.map(normalizeEvent),
+          notificationTypes: data.notificationTypes,
+          notifications: data.notifications,
+          moderationReports: data.moderationReports,
+          moderationDecisions: data.moderationDecisions,
         })),
 
       getAccountSummaries: () =>
@@ -525,21 +548,34 @@ const useDataStore = create<DataState>()(
           events: events.map(normalizeEvent),
         })),
 
+      upsertEvents: (events) =>
+        set((state) => {
+          const incomingEvents = events.map(normalizeEvent);
+          const incomingIds = new Set(incomingEvents.map((event) => event.id));
+
+          return {
+            events: [
+              ...state.events.filter((event) => !incomingIds.has(event.id)),
+              ...incomingEvents,
+            ],
+          };
+        }),
+
       addEvent: (event) =>
         set((state) => ({
-          events: [...state.events, event],
+          events: [...state.events, normalizeEvent(event)],
         })),
 
       updateEvent: (eventId, data) =>
         set((state) => ({
           events: state.events.map((event) =>
             event.id === eventId
-              ? {
+              ? normalizeEvent({
                   ...event,
                   ...data,
                   created_at: event.created_at,
                   updated_at: now(),
-                }
+                })
               : event,
           ),
         })),

@@ -8,7 +8,7 @@ Ce projet consiste à développer une application web permettant aux utilisateur
 
 L'application centralise des événements locaux, les affiche sur une carte interactive et les présente dans une interface de consultation filtrable. L'objectif est de faciliter l'accès à l'information locale, souvent dispersée sur plusieurs plateformes, tout en proposant des espaces dédiés aux utilisateurs, aux organisations, aux modérateurs et aux administrateurs.
 
-**État actuel :** le frontend fonctionne avec des données mockées et une persistance locale. Le backend REST, la base de données et les intégrations serveur restent prévus pour la suite du projet.
+**État actuel :** le frontend est connecté au backend Go via `/api/*` et consomme des données métier depuis l'API. Le backend expose une API REST, utilise PostgreSQL pour la persistance et prend en charge l'authentification, la gestion des événements, des organisations et de la modération.
 
 La documentation détaillée du frontend est disponible dans [`frontend/README.md`](frontend/README.md).
 
@@ -162,13 +162,13 @@ Voir la documentation frontend : [`frontend/README.md`](frontend/README.md).
 
 ### Backend
 
-- Go pour l'API REST prévue
-- Architecture en couches prévue : Controller / Service / Repository
+- Go pour l'API REST
+- Architecture en couches : Controller / Service / Repository
 
 ### Bases de données
 
-- PostgreSQL pour les données principales prévues
-- Redis pour le cache, les sessions et la performance prévue
+- PostgreSQL pour les données principales
+- Redis pour le cache, les sessions et la performance (planifié)
 
 ## Architecture
 
@@ -182,8 +182,8 @@ Le projet est séparé en plusieurs espaces :
 
 | Espace | Rôle |
 | --- | --- |
-| `frontend` | Application web React, routes, interfaces, états locaux et mocks |
-| `backend` | API REST Go prévue pour exposer les données métier |
+| `frontend` | Application web React, routes, interfaces et intégration API |
+| `backend` | API REST Go exposant les données métier |
 | `docs` | Documents projet, architecture, cahier des charges et supports de suivi |
 | `tests` | Espace prévu pour les tests complémentaires |
 
@@ -216,14 +216,14 @@ Compte disposant d'un accès à la validation des événements, au suivi des sig
 
 ## Sécurité
 
-- Authentification JWT prévue côté backend
+- Authentification JWT côté backend
 - Gestion des rôles : utilisateur, administrateur, modérateur, organisation
 - Routes privées et guards de rôles côté frontend
-- Validation des données côté frontend et côté backend prévu
+- Validation des données côté frontend et côté backend
 - Validation administrateur des comptes organisation
 - Validation administrateur ou modérateur des événements avant publication
 - Gestion des comptes supprimés, désactivés ou suspendus
-- Protection contre les abus prévue côté backend avec rate limiting
+- Protection contre les abus côté backend avec rate limiting
 
 ## Planning
 
@@ -231,7 +231,7 @@ Le projet est organisé en plusieurs étapes :
 
 1. Conception & cadrage
 2. Développement frontend
-3. Intégration des données mockées et des parcours utilisateurs
+3. Intégration backend / API et parcours utilisateurs
 4. Développement backend & données
 5. Connexion frontend / API REST
 6. Déploiement & tests

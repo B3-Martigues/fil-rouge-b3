@@ -108,18 +108,6 @@ type ModerationDecision struct {
 	CreatedAt       time.Time `json:"created_at"`
 }
 
-type Snapshot struct {
-	Accounts            []Account            `json:"accounts"`
-	Users               []User               `json:"users"`
-	Organizations       []Organization       `json:"organizations"`
-	Organizers          []Organizer          `json:"organizers"`
-	Events              any                  `json:"events"`
-	NotificationTypes   []NotificationType   `json:"notification_types"`
-	Notifications       []Notification       `json:"notifications"`
-	ModerationReports   []ModerationReport   `json:"moderation_reports"`
-	ModerationDecisions []ModerationDecision `json:"moderation_decisions"`
-}
-
 type ActionRequest struct {
 	Action         string  `json:"action"`
 	TargetType     string  `json:"target_type"`

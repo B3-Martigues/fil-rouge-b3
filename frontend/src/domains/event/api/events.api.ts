@@ -15,6 +15,7 @@ import type {
   EventCategoryName,
   EventCategoryOption,
 } from "../types/event-categories";
+import { normalizeEventDateTimes } from "../utils/event";
 
 export const EVENTS_API_MODE = "http";
 
@@ -87,8 +88,19 @@ export type EventListFilters = {
 
 export type EventCreatePayload = Omit<
   Event,
-  "id" | "created_at" | "updated_at" | "deleted_at" | "organization"
->;
+  | "organization_id"
+  | "id"
+  | "time_start"
+  | "time_end"
+  | "latitude"
+  | "longitude"
+  | "created_at"
+  | "updated_at"
+  | "deleted_at"
+  | "organization"
+> & {
+  organization_id: number | null;
+};
 
 export type EventUpdatePayload = EventCreatePayload;
 
@@ -106,10 +118,18 @@ const appendIfDefined = (
   }
 };
 
+const getNormalizedEventImage = (event: Event) =>
+  event.image_optimized_url?.trim() ||
+  event.image?.trim() ||
+  event.external_image_url?.trim() ||
+  "";
+
 const normalizeEventFromApi = (event: Event): Event => ({
   ...event,
+  ...normalizeEventDateTimes(event),
   id: toLocalApiId(event.id) ?? event.id,
-  organization_id: toLocalApiId(event.organization_id) ?? event.organization_id,
+  organization_id: toLocalApiId(event.organization_id) ?? event.organization_id ?? 0,
+  image: getNormalizedEventImage(event),
   organization: event.organization
     ? {
         ...event.organization,
@@ -181,7 +201,9 @@ const normalizePayload = async (
 ): Promise<ApiResult<EventCreatePayload>> => {
   const normalizedPayload: EventCreatePayload = {
     ...payload,
-    organization_id: toBackendId(payload.organization_id),
+    organization_id: payload.organization_id
+      ? toBackendId(payload.organization_id)
+      : null,
     category_slugs: Array.from(new Set(payload.category_slugs)),
     image: payload.image.trim(),
     title: payload.title.trim(),
@@ -200,7 +222,7 @@ const normalizePayload = async (
 
   const uploadResult = await mediaApi.uploadImageValue(normalizedPayload.image, {
     entityType: "event",
-    organizationId: normalizedPayload.organization_id,
+    organizationId: normalizedPayload.organization_id ?? undefined,
   });
   if (!uploadResult.ok) {
     return createApiError(uploadResult.error.code, uploadResult.error.message);

@@ -7,24 +7,32 @@ import WeatherBadge from "./WeatherBadge";
 import {
   formatEventDateRange,
   formatEventPrice,
+  getEventImageUrl,
   getTicketingHref,
 } from "../utils/event";
 
 type Props = {
   event: Event & { latitude: number; longitude: number };
+  onImageError?: (eventId: number) => void;
 };
 
-export default function EventPopup({ event }: Props) {
+export default function EventPopup({ event, onImageError }: Props) {
   const ticketingHref = getTicketingHref(event.ticketing_link);
+  const imageUrl = getEventImageUrl(event);
 
   return (
     <Popup>
       <div className="event-popup">
-        <img
-          src={event.image}
-          alt={event.title}
-          className="event-popup__image"
-        />
+        <div className="event-popup__image-frame event-image-skeleton">
+          <img
+            src={imageUrl}
+            alt={event.title}
+            className="event-popup__image"
+            decoding="async"
+            loading="lazy"
+            onError={() => onImageError?.(event.id)}
+          />
+        </div>
         <FavoriteButton event={event} />
         <ReportEventButton event={event} />
 

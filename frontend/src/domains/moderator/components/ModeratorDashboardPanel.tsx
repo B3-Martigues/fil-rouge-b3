@@ -182,6 +182,17 @@ const normalizeText = (value: string) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
+const getInitials = (value: string, fallback = "??") => {
+  const initials = value
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+
+  return initials || fallback;
+};
+
 const getReportTime = (report: ModerationReport) =>
   new Date(report.resolved_at ?? report.created_at).getTime();
 
@@ -300,11 +311,34 @@ export default function ModeratorDashboard({
   const moderationAccounts = accountSummaries.filter(
     (account) => account.role === "user" || account.role === "organization",
   );
-  const userAccounts = moderationAccounts.filter(
-    (account) => account.role === "user",
-  );
+  const userAccounts = useMemo<AccountSummary[]>(() => {
+    const accountById = new Map(accounts.map((account) => [account.id, account]));
+    return users
+      .filter(
+        (user) =>
+          !user.deleted_at &&
+          user.role !== "admin" &&
+          user.role !== "moderator",
+      )
+      .map((user) => {
+        const account = accountById.get(user.account_id);
+
+        return {
+          account_id: user.account_id,
+          login_email: account?.login_email ?? user.username,
+          password_hash: account?.password_hash ?? "",
+          role: user.role === "organization" ? "user" : user.role,
+          role_id: user.role_id,
+          display_name: user.username,
+          is_active: account?.is_active ?? true,
+          suspended_until: account?.suspended_until ?? null,
+          suspension_reason: account?.suspension_reason ?? null,
+          user_id: user.id,
+        };
+      });
+  }, [accounts, users]);
   const organizationAccounts = moderationAccounts.filter(
-    (account) => account.role === "organization",
+    (account) => !!account.organization_id,
   );
   const organizerRows = useMemo<OrganizerRow[]>(() => {
     const organizationById = new Map(
@@ -399,10 +433,6 @@ export default function ModeratorDashboard({
     closeDecisionModal();
   };
 
-  const getOrganizationName = (organizationId: number) =>
-    activeOrganizations.find((organization) => organization.id === organizationId)?.name ??
-    "Organization introuvable";
-
   const suspendReportedEvent = async (
     report: ModerationReport,
     moderatorMessage: string,
@@ -480,15 +510,9 @@ export default function ModeratorDashboard({
 
   const handleSuspendEvent = async (event: Event, reason: string) => {
     const daysValue = Number(eventSuspensionDays[event.id] ?? 7);
-    const organization = activeOrganizations.find((item) => item.id === event.organization_id);
 
     if (!Number.isFinite(daysValue) || daysValue < 1 || daysValue > 90) {
       toast.error("La duree doit etre comprise entre 1 et 90 jours");
-      return false;
-    }
-
-    if (!organization) {
-      toast.error("Organization rattachee introuvable");
       return false;
     }
 
@@ -513,13 +537,6 @@ export default function ModeratorDashboard({
   };
 
   const handleDeleteEvent = async (event: Event, reason: string) => {
-    const organization = activeOrganizations.find((item) => item.id === event.organization_id);
-
-    if (!organization) {
-      toast.error("Organization rattachee introuvable");
-      return false;
-    }
-
     const ok = await recordDecision("event_deleted", "event", event.id, reason);
     if (!ok) return false;
     toast.success(`${event.title} est supprime`);
@@ -1090,7 +1107,6 @@ export default function ModeratorDashboard({
               {filteredPendingEvents.map((event) => (
                 <EventModerationCard
                   event={event}
-                  organizationName={getOrganizationName(event.organization_id)}
                   key={event.id}
                   approveLabel="Valider"
                   rejectLabel="Refuser"
@@ -1122,7 +1138,6 @@ export default function ModeratorDashboard({
               {filteredPublishedEvents.map((event) => (
                 <PublishedEventModerationCard
                   event={event}
-                  organizationName={getOrganizationName(event.organization_id)}
                   suspensionDays={eventSuspensionDays[event.id] ?? "7"}
                   key={event.id}
                   onSuspensionDaysChange={(value) =>
@@ -1162,7 +1177,6 @@ export default function ModeratorDashboard({
               {filteredSuspendedEvents.map((event) => (
                 <SuspendedEventModerationCard
                   event={event}
-                  organizationName={getOrganizationName(event.organization_id)}
                   key={event.id}
                   onLift={() =>
                     openDecisionModal({
@@ -1239,6 +1253,7 @@ export default function ModeratorDashboard({
         <>
           <AccountSuspensionSection
             accounts={filteredActiveOrganizationAccounts}
+            organizations={organizations}
             onDaysChange={updateSuspensionDays}
             onSuspend={(account) =>
               openDecisionModal({
@@ -1512,14 +1527,12 @@ export default function ModeratorDashboard({
 
 function EventModerationCard({
   event,
-  organizationName,
   approveLabel,
   rejectLabel,
   onApprove,
   onReject,
 }: {
   event: Event;
-  organizationName: string;
   approveLabel: string;
   rejectLabel: string;
   onApprove: () => void;
@@ -1543,10 +1556,6 @@ function EventModerationCard({
           </div>
         </div>
         <dl className="organization-review__details">
-          <div>
-            <dt>Organization</dt>
-            <dd>{organizationName}</dd>
-          </div>
           <div>
             <dt>Horaires de l'evenement</dt>
             <dd>{formatEventDateRange(event)}</dd>
@@ -1591,14 +1600,12 @@ function EventModerationCard({
 
 function PublishedEventModerationCard({
   event,
-  organizationName,
   suspensionDays,
   onSuspensionDaysChange,
   onSuspend,
   onDelete,
 }: {
   event: Event;
-  organizationName: string;
   suspensionDays: string;
   onSuspensionDaysChange: (value: string) => void;
   onSuspend: () => void;
@@ -1622,10 +1629,6 @@ function PublishedEventModerationCard({
           </div>
         </div>
         <dl className="organization-review__details">
-          <div>
-            <dt>Organization</dt>
-            <dd>{organizationName}</dd>
-          </div>
           <div>
             <dt>Horaires de l'evenement</dt>
             <dd>{formatEventDateRange(event)}</dd>
@@ -1678,11 +1681,9 @@ function PublishedEventModerationCard({
 
 function SuspendedEventModerationCard({
   event,
-  organizationName,
   onLift,
 }: {
   event: Event;
-  organizationName: string;
   onLift: () => void;
 }) {
   const ticketingHref = getTicketingHref(event.ticketing_link);
@@ -1703,10 +1704,6 @@ function SuspendedEventModerationCard({
           </div>
         </div>
         <dl className="organization-review__details">
-          <div>
-            <dt>Organization</dt>
-            <dd>{organizationName}</dd>
-          </div>
           <div>
             <dt>Fin de suspension</dt>
             <dd>Jusqu'au {formatDate(event.suspended_until)}</dd>
@@ -1754,12 +1751,16 @@ function OrganizationModerationCard({
   onReject: () => void;
 }) {
   return (
-    <article className="organization-review">
+    <article className="organization-review moderator-organization-card">
       <StatusBadge className="organization-review__status" variant="pending">
         En attente
       </StatusBadge>
       <div className="organization-review__media">
-        <img src={organization.logo ?? ""} alt={`Logo ${organization.name}`} />
+        {organization.logo ? (
+          <img src={organization.logo} alt={`Logo ${organization.name}`} />
+        ) : (
+          <span aria-hidden="true">{getInitials(organization.name, "ORG")}</span>
+        )}
       </div>
       <div className="organization-review__content">
         <div className="organization-review__header">
@@ -2009,10 +2010,6 @@ function ReportCard({
                           <dd>{targetEvent.title}</dd>
                         </div>
                         <div>
-                          <dt>Organisation</dt>
-                          <dd>{targetOrganization?.name ?? "Non renseigne"}</dd>
-                        </div>
-                        <div>
                           <dt>Horaires</dt>
                           <dd>{formatEventDateRange(targetEvent)}</dd>
                         </div>
@@ -2117,12 +2114,14 @@ function ReportCard({
 function AccountSuspensionSection({
   title,
   accounts,
+  organizations = [],
   suspensionDays,
   onDaysChange,
   onSuspend,
 }: {
   title: string;
   accounts: AccountSummary[];
+  organizations?: Organization[];
   suspensionDays: Record<number, string>;
   onDaysChange: (accountId: number, value: string) => void;
   onSuspend: (account: AccountSummary) => void;
@@ -2144,6 +2143,11 @@ function AccountSuspensionSection({
         >
           <div role="rowgroup">
             {accounts.map((account) => {
+              const organization = account.organization_id
+                ? organizations.find((item) => item.id === account.organization_id)
+                : null;
+              const displayName = organization?.name ?? account.display_name;
+              const displayEmail = organization?.contact_email ?? account.login_email;
               const isSuspended = isAccountSuspended(account);
               const canSuspend = account.is_active && !isSuspended;
               const status = isSuspended
@@ -2168,11 +2172,22 @@ function AccountSuspensionSection({
                   key={account.account_id}
                 >
                   <div className="moderator-account-identity" role="cell">
-                    <span>{account.display_name}</span>
-                    <small>{account.login_email}</small>
+                    {organization ? (
+                      <div className="moderator-organization-thumb" aria-hidden="true">
+                        {organization.logo ? (
+                          <img src={organization.logo} alt="" />
+                        ) : (
+                          <span>{getInitials(organization.name, "ORG")}</span>
+                        )}
+                      </div>
+                    ) : null}
+                    <div>
+                      <span>{displayName}</span>
+                      <small>{displayEmail}</small>
+                    </div>
                   </div>
                   <StatusBadge className="moderator-account-role" role="cell">
-                    {accountRoleLabels[account.role]}
+                    {organization ? "Organisation" : accountRoleLabels[account.role]}
                   </StatusBadge>
                   <StatusBadge variant={status.variant} role="cell">
                     {status.label}

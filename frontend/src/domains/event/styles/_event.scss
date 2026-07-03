@@ -111,6 +111,36 @@ body.events-home-route {
   box-shadow: var(--shadow);
 }
 
+.event-image-skeleton {
+  position: relative;
+  background:
+    linear-gradient(
+      100deg,
+      transparent 30%,
+      color-mix(in srgb, var(--bg) 42%, transparent) 48%,
+      transparent 66%
+    ),
+    var(--social-bg);
+  background-size: 240% 100%;
+  animation: event-image-skeleton 1.45s ease-in-out infinite;
+}
+
+@keyframes event-image-skeleton {
+  from {
+    background-position: 120% 0;
+  }
+
+  to {
+    background-position: -120% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .event-image-skeleton {
+    animation: none;
+  }
+}
+
 .events-list {
   position: fixed;
   top: 0;
@@ -159,7 +189,7 @@ body.events-home-route {
     display: grid;
     grid-auto-columns: minmax(320px, 92%);
     grid-auto-flow: column;
-    grid-auto-rows: minmax(var(--event-card-min-height, 420px), 1fr);
+    grid-auto-rows: var(--event-card-height, var(--event-card-min-height, 460px));
     grid-template-columns: none;
     gap: 12px;
     align-items: stretch;
@@ -171,7 +201,7 @@ body.events-home-route {
     scroll-snap-type: x proximity;
 
     > .event-card {
-      height: 100%;
+      height: var(--event-card-height, var(--event-card-min-height, 460px));
       scroll-snap-align: start;
     }
 
@@ -204,10 +234,12 @@ body.events-home-route {
 
 @media (min-width: ($bp-sm + 1px)) {
   .events-list .event-card {
+    --event-card-description-lines: 4;
+
     grid-template-columns: none;
     grid-template-rows: auto 1fr;
 
-    &__image {
+    &__image-frame {
       height: auto;
       min-height: 0;
       aspect-ratio: 16 / 9;
@@ -215,13 +247,16 @@ body.events-home-route {
 
     &__content {
       grid-template-columns: minmax(0, 1fr) auto auto;
-      grid-template-rows: auto auto auto auto auto auto;
-      gap: 10px;
+      grid-template-rows: auto auto auto auto auto auto auto;
+      gap: 8px;
       min-width: 0;
       padding: 14px;
     }
 
     &__meta,
+    &__tags,
+    &__date,
+    &__title,
     h3,
     p,
     &__details {
@@ -229,8 +264,7 @@ body.events-home-route {
     }
 
     &__meta {
-      gap: 8px;
-      align-items: center;
+      gap: 7px;
       font-size: 13px;
       line-height: 1.25;
 
@@ -240,26 +274,25 @@ body.events-home-route {
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-
-      time {
-        flex: 0 0 auto;
-      }
     }
 
+    &__date {
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    &__title,
     h3 {
-      display: -webkit-box;
       overflow: hidden;
       font-size: 18px;
       line-height: 1.18;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     p {
-      min-height: 0;
       font-size: 14px;
       line-height: 1.4;
-      -webkit-line-clamp: 3;
     }
 
     &__details {
@@ -277,6 +310,10 @@ body.events-home-route {
       align-self: end;
       min-height: 38px;
       padding-inline: 12px;
+
+      &.event-card__link--icon-only {
+        padding-inline: 0;
+      }
     }
 
     .event-favorite-button {
@@ -343,7 +380,7 @@ body.events-home-route {
       }
     }
 
-    &__image {
+    &__image-frame {
       max-height: min(22dvh, 180px);
     }
 
@@ -360,10 +397,10 @@ body.events-home-route {
     }
 
     &__description {
-      display: -webkit-box;
-      overflow: hidden;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 4;
+      display: block;
+      max-height: min(24dvh, 220px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
     }
 
     &__link,
@@ -910,13 +947,18 @@ body.events-home-route {
   width: min(300px, 72vw);
   color: var(--text);
 
-  &__image {
-    display: block;
+  &__image-frame {
     width: 100%;
     height: 220px;
     border-radius: 8px;
+    overflow: hidden;
+  }
+
+  &__image {
+    display: block;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
-    background: var(--social-bg);
   }
 
   h3 {
@@ -1082,23 +1124,6 @@ body.events-home-route {
     position: absolute;
     top: -6px;
     right: -6px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    min-width: 20px;
-    height: 20px;
-    min-height: 20px;
-    box-sizing: border-box;
-    padding: 0;
-    border: 2px solid var(--color-mobile-floating-surface);
-    border-radius: 999px;
-    color: var(--color-inverse);
-    background: var(--color-favorite);
-    font-size: 10px;
-    font-weight: 900;
-    line-height: 1;
-    box-shadow: 0 4px 10px var(--color-floating-shadow);
   }
 
   &__filter,
@@ -1245,12 +1270,18 @@ body.events-home-route {
     }
   }
 
-  &__image {
+  &__image-frame {
     width: 100%;
     max-height: 260px;
     border-radius: 8px;
+    overflow: hidden;
+  }
+
+  &__image {
+    display: block;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
-    background: var(--social-bg);
   }
 
   &__info-grid {
@@ -1295,6 +1326,29 @@ body.events-home-route {
     color: var(--text);
     font-size: 14px;
     line-height: 1.45;
+  }
+
+  &__description {
+    max-height: min(28dvh, 260px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 6px;
+    white-space: pre-line;
+    scrollbar-color: color-mix(in srgb, var(--text-p) 35%, transparent) transparent;
+    scrollbar-width: thin;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--text-p) 35%, transparent);
+    }
   }
 
   &__link,
@@ -1484,23 +1538,7 @@ body.events-home-route {
       position: absolute;
       top: -6px;
       right: -6px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 20px;
-      min-width: 20px;
-      height: 20px;
-      min-height: 20px;
-      box-sizing: border-box;
-      padding: 0;
       border: 2px solid var(--color-mobile-floating-surface);
-      border-radius: 50%;
-      color: var(--color-inverse);
-      background: var(--color-favorite);
-      font-size: 10px;
-      font-weight: 900;
-      line-height: 1;
-      box-shadow: 0 4px 10px var(--color-floating-shadow);
     }
 
     &__filter,
@@ -1813,7 +1851,7 @@ body.events-home-route {
     border-radius: 8px;
     box-shadow: none;
 
-    &__image {
+    &__image-frame {
       aspect-ratio: 1.35;
     }
 
@@ -1823,27 +1861,30 @@ body.events-home-route {
     }
 
     &__meta {
-      display: block;
+      display: grid;
+      gap: 6px;
       font-size: 11px;
-
-      span {
-        display: none;
-      }
     }
 
+    &__date {
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    &__title,
     h3 {
-      display: -webkit-box;
       overflow: hidden;
       color: var(--text-h);
       font-size: 13px;
       font-weight: 800;
       line-height: 1.15;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     p,
-    .event-card__ticketing-link,
+    .event-card__links,
+    .event-card__actions,
     .event-favorite-button,
     .event-report {
       display: none;
@@ -1938,12 +1979,11 @@ body.events-home-route {
       }
     }
 
-    &__image {
+    &__image-frame {
       width: 100%;
       height: min(28svh, 220px);
       border-radius: 8px;
-      object-fit: cover;
-      background: var(--social-bg);
+      overflow: hidden;
     }
 
     &__info-grid {
@@ -1988,6 +2028,16 @@ body.events-home-route {
       color: var(--text);
       font-size: 14px;
       line-height: 1.45;
+    }
+
+    &__description {
+      max-height: min(18svh, 180px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding-right: 6px;
+      white-space: pre-line;
+      scrollbar-color: color-mix(in srgb, var(--text-p) 35%, transparent) transparent;
+      scrollbar-width: thin;
     }
 
     &__link,

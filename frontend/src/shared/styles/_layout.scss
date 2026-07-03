@@ -123,13 +123,14 @@
   justify-self: start;
   gap: 6px;
   min-height: 26px;
-  padding: 4px 8px;
+  padding: 4px 15px;
   border: 1px solid transparent;
   border-radius: 999px;
   color: var(--text-h);
   background: var(--accent-bg);
   font-size: 13px;
   line-height: 1.2;
+  text-align: center;
 
   &--active,
   &--success {

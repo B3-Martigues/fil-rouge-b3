@@ -23,6 +23,7 @@ type BackendAuthUser = {
   role: string;
   account_type?: string;
   is_active: boolean;
+  created_at?: string;
   organization_id?: number;
 };
 
@@ -92,6 +93,7 @@ const normalizeAuthUser = (user: BackendAuthUser): AuthenticatedUser => {
     role_id: ROLE_IDS[role],
     username: user.username || displayName || loginEmail.split("@")[0] || loginEmail,
     is_active: user.is_active,
+    created_at: user.created_at,
     user_id: toLocalApiId(user.user_id ?? user.id),
     organization_id: toLocalApiId(user.organization_id),
     auth_source: "api",

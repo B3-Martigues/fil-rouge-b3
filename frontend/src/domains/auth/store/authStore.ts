@@ -7,6 +7,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { isAccountSuspended } from "../../user/types/user";
 import type { AuthState } from "./types";
 
 const useAuthStore = create<AuthState>()(
@@ -23,11 +24,21 @@ const useAuthStore = create<AuthState>()(
 
       /**Authentifie un utilisateur et met à jour le store global */
       login: (user) => {
+        if (!user.is_active || isAccountSuspended(user)) {
+          set({
+            isAuthenticated: false,
+            currentUser: null,
+            role: null,
+          });
+          return false;
+        }
+
         set({
           isAuthenticated: true,
           currentUser: user,
           role: user.role,
         });
+        return true;
       },
 
       /**Déconnecte l'utilisateur et réinitialise l'état global */

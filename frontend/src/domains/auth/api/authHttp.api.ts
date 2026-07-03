@@ -19,6 +19,9 @@ type BackendAuthUser = {
   role: string;
   account_type?: string;
   is_active: boolean;
+  suspended_until?: string | null;
+  suspension_reason?: string | null;
+  created_at?: string;
   organization_id?: number;
 };
 
@@ -42,6 +45,7 @@ export type RegisterUserPayload = {
   login_email: string;
   username: string;
   password: string;
+  category_slugs?: string[];
 };
 
 export type RegisterOrganizationPayload = {
@@ -99,6 +103,9 @@ const toAuthenticatedUser = (user: BackendAuthUser): AuthenticatedUser => {
     role_id: ROLE_IDS[role],
     username: user.username || displayName || loginEmail.split("@")[0] || loginEmail,
     is_active: user.is_active,
+    suspended_until: user.suspended_until ?? null,
+    suspension_reason: user.suspension_reason ?? null,
+    created_at: user.created_at,
     user_id: userId,
     organization_id: toLocalApiId(user.organization_id),
     auth_source: "api",
@@ -110,6 +117,21 @@ const mapAuthUserResult = (
 ): ApiResult<AuthenticatedUser> =>
   result.ok ? { ok: true, data: toAuthenticatedUser(result.data) } : result;
 
+const INVALID_LOGIN_MESSAGE = "Email ou mot de passe incorrect.";
+
+type ApiFailure = Extract<ApiResult<unknown>, { ok: false }>;
+
+const mapLoginError = (result: ApiFailure): ApiResult<AuthenticatedUser> =>
+  result.error.code !== "unauthorized"
+    ? result
+    : {
+        ok: false,
+        error: {
+          ...result.error,
+          message: INVALID_LOGIN_MESSAGE,
+        },
+      };
+
 export const authHttpApi = {
   async login(payload: LoginPayload): Promise<ApiResult<AuthenticatedUser>> {
     const result = await apiRequest<LoginResponse>("/api/auth/login", {
@@ -117,7 +139,9 @@ export const authHttpApi = {
       method: "POST",
     });
 
-    return result.ok ? { ok: true, data: toAuthenticatedUser(result.data.user) } : result;
+    return result.ok
+      ? { ok: true, data: toAuthenticatedUser(result.data.user) }
+      : mapLoginError(result);
   },
 
   async registerUser(

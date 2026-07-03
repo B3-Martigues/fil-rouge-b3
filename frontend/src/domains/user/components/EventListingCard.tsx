@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { MapPinned } from "lucide-react";
 
@@ -7,6 +7,8 @@ import {
   formatDistance,
   formatEventDateRange,
   formatEventPrice,
+  getEventThumbnailUrl,
+  hasDisplayableEventImage,
 } from "../../event/utils/event";
 import type { Event } from "../../event/types/event";
 
@@ -26,19 +28,31 @@ export default function EventListingCard({
   meta,
   distanceInKilometers,
 }: EventListingCardProps) {
+  const [hasImageError, setHasImageError] = useState(false);
+  const imageUrl = getEventThumbnailUrl(event);
   const distanceLabel =
     distanceInKilometers == null ? null : formatDistance(distanceInKilometers);
 
+  useEffect(() => {
+    setHasImageError(false);
+  }, [imageUrl]);
+
+  if (!hasDisplayableEventImage(event) || hasImageError) {
+    return null;
+  }
+
   return (
     <article className="event-card" key={event.id}>
-      {event.image && (
+      <div className="event-card__image-frame event-image-skeleton">
         <img
           className="event-card__image"
-          src={event.image}
+          src={imageUrl}
           alt=""
           loading="lazy"
+          decoding="async"
+          onError={() => setHasImageError(true)}
         />
-      )}
+      </div>
       <div className="event-card__content">
         <div className="event-card__meta">
           <div className="event-card__tags" aria-label="Tags de l'evenement">

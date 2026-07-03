@@ -50,7 +50,10 @@ export default function LoginForm() {
         return;
       }
 
-      login(result.data);
+      if (!login(result.data)) {
+        setServerError("Ce compte est suspendu ou desactive.");
+        return;
+      }
 
       navigate(ROUTES.PUBLIC.HOME, { replace: true });
       toast.success("Connexion reussie");

@@ -8,14 +8,22 @@ type Coordinate = {
 
 type Props = {
   enabled?: boolean;
+  maxZoom?: number;
   onFitDone?: () => void;
+  padding?: [number, number];
   points: Coordinate[];
+  singlePointZoom?: number;
 };
+
+const DEFAULT_PADDING: [number, number] = [32, 32];
 
 export default function MapFitBounds({
   enabled = true,
+  maxZoom = 13,
   onFitDone,
+  padding = DEFAULT_PADDING,
   points,
+  singlePointZoom = 13,
 }: Props) {
   const map = useMap();
 
@@ -35,11 +43,11 @@ export default function MapFitBounds({
     map.once("moveend", finish);
 
     if (points.length === 1) {
-      map.setView([points[0].latitude, points[0].longitude], 13);
+      map.setView([points[0].latitude, points[0].longitude], singlePointZoom);
     } else {
       map.fitBounds(
         points.map((point) => [point.latitude, point.longitude]),
-        { padding: [32, 32], maxZoom: 13 },
+        { padding, maxZoom },
       );
     }
 
@@ -47,7 +55,7 @@ export default function MapFitBounds({
       map.off("moveend", finish);
       window.clearTimeout(fallbackId);
     };
-  }, [enabled, map, onFitDone, points]);
+  }, [enabled, map, maxZoom, onFitDone, padding, points, singlePointZoom]);
 
   return null;
 }

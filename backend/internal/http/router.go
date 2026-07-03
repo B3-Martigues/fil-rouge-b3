@@ -14,6 +14,7 @@ import (
 	"mappening/internal/auth"
 	"mappening/internal/config"
 	"mappening/internal/events"
+	"mappening/internal/geocoding"
 	"mappening/internal/http/middleware"
 	"mappening/internal/mailer"
 	"mappening/internal/media"
@@ -48,11 +49,19 @@ func NewRouter(cfg config.Config, db *sql.DB) nethttp.Handler {
 		SessionStore: store,
 	}
 
-	return newRouter(cfg, db, store, authUserRepo, adminUsersHandler)
+	return newRouter(cfg, db, store, authUserRepo, adminUsersHandler, geocoding.NewClient())
 }
 
 type authUserReader interface {
 	GetByEmail(ctx context.Context, email string) (*users.User, error)
+}
+
+func cachedUploadsHandler() nethttp.Handler {
+	fileServer := nethttp.StripPrefix("/uploads/", nethttp.FileServer(nethttp.Dir("uploads")))
+	return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		fileServer.ServeHTTP(w, r)
+	})
 }
 
 func newRouter(
@@ -61,6 +70,7 @@ func newRouter(
 	store auth.RefreshTokenStore,
 	authUserRepo authUserReader,
 	adminUsers users.AdminHandler,
+	geocoder geocoding.Normalizer,
 ) nethttp.Handler {
 	r := chi.NewRouter()
 
@@ -107,7 +117,7 @@ func newRouter(
 		FrontendURL: cfg.FrontendURL,
 	}))
 
-	r.Handle("/uploads/*", nethttp.StripPrefix("/uploads/", nethttp.FileServer(nethttp.Dir("uploads"))))
+	r.Handle("/uploads/*", cachedUploadsHandler())
 
 	authHandler := auth.Handler{
 		Secret:           cfg.JWTSecret,
@@ -122,8 +132,14 @@ func newRouter(
 		DevLoginEmail:    cfg.DevLoginEmail,
 		Store:            store,
 		UserRepo:         authUserRepo,
+		Geocoder:         geocoder,
 		Mailer:           mailer.NewSender(cfg.Mail),
 	}
+
+	geocodingSuggester, _ := geocoder.(geocoding.Suggester)
+	geocoding.RegisterRoutes(r, geocoding.Handler{
+		Suggester: geocodingSuggester,
+	})
 
 	if db != nil {
 		organizations.RegisterRoutes(
@@ -132,6 +148,7 @@ func newRouter(
 				Service: organizations.Service{
 					Repo: organizations.NewRepository(db),
 				},
+				Geocoder: geocoder,
 			},
 			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo),
 		)
@@ -139,7 +156,8 @@ func newRouter(
 		events.RegisterRoutes(
 			r,
 			events.Handler{
-				Repo: events.NewRepository(db),
+				Repo:     events.NewRepository(db),
+				Geocoder: geocoder,
 			},
 			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo),
 		)

@@ -22,6 +22,7 @@ import (
 
 	"mappening/internal/config"
 	"mappening/internal/contracts"
+	"mappening/internal/geocoding"
 	"mappening/internal/http/middleware"
 	"mappening/internal/httpx"
 	"mappening/internal/mailer"
@@ -43,6 +44,7 @@ type Handler struct {
 
 	Store    RefreshTokenStore
 	UserRepo authUserReader
+	Geocoder geocoding.Normalizer
 	Mailer   mailer.Sender
 }
 
@@ -149,7 +151,7 @@ func (h Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !user.IsActive {
+	if !isUserAllowedToAuthenticate(user) {
 		_ = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
 		log.Warn().
 			Str("email", user.Email).
@@ -218,12 +220,13 @@ func (h Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := &users.User{
-		Email:        email,
-		PasswordHash: string(hash),
-		FirstName:    username,
-		Role:         "user",
-		AccountType:  "user",
-		IsActive:     true,
+		Email:           email,
+		PasswordHash:    string(hash),
+		FirstName:       username,
+		Role:            "user",
+		AccountType:     "user",
+		IsActive:        true,
+		PreferenceSlugs: normalizeSlugs(req.CategorySlugs),
 	}
 	id, err := creator.Create(r.Context(), user)
 	if err != nil {
@@ -288,6 +291,12 @@ func (h Handler) RegisterOrganization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	normalizedAddress, err := h.normalizeOrganizationAddress(r, req)
+	if err != nil {
+		writeGeocodingError(w, err)
+		return
+	}
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Error().Err(err).Msg("register organization: hash password failed")
@@ -304,9 +313,11 @@ func (h Handler) RegisterOrganization(w http.ResponseWriter, r *http.Request) {
 		ContactEmail:       normalizeEmail(req.ContactEmail),
 		Description:        strings.TrimSpace(req.Description),
 		Website:            strings.TrimSpace(req.Website),
-		Address:            strings.TrimSpace(req.Address),
-		City:               strings.TrimSpace(req.City),
-		PostalCode:         strings.TrimSpace(req.PostalCode),
+		Latitude:           normalizedAddress.latitude,
+		Longitude:          normalizedAddress.longitude,
+		Address:            normalizedAddress.address,
+		City:               normalizedAddress.city,
+		PostalCode:         normalizedAddress.postalCode,
 		Logo:               strings.TrimSpace(req.Logo),
 		ContactPhoneNumber: strings.TrimSpace(req.ContactPhoneNumber),
 		SIRET:              strings.TrimSpace(req.SIRET),
@@ -332,6 +343,45 @@ func (h Handler) RegisterOrganization(w http.ResponseWriter, r *http.Request) {
 		CSRFToken: csrf,
 	})
 	h.sendWelcomeEmail(r.Context(), user.Email, user.FirstName, true)
+}
+
+type normalizedOrganizationAddress struct {
+	address    string
+	city       string
+	postalCode string
+	latitude   *float64
+	longitude  *float64
+}
+
+func (h Handler) normalizeOrganizationAddress(
+	r *http.Request,
+	req contracts.RegisterOrganizationRequestDTO,
+) (normalizedOrganizationAddress, error) {
+	fallback := normalizedOrganizationAddress{
+		address:    strings.TrimSpace(req.Address),
+		city:       strings.TrimSpace(req.City),
+		postalCode: strings.TrimSpace(req.PostalCode),
+	}
+	if h.Geocoder == nil {
+		return fallback, nil
+	}
+
+	normalized, err := h.Geocoder.Normalize(r.Context(), geocoding.Address{
+		Street:     req.Address,
+		City:       req.City,
+		PostalCode: req.PostalCode,
+	})
+	if err != nil {
+		return fallback, err
+	}
+
+	return normalizedOrganizationAddress{
+		address:    normalized.Address,
+		city:       normalized.City,
+		postalCode: normalized.PostalCode,
+		latitude:   &normalized.Latitude,
+		longitude:  &normalized.Longitude,
+	}, nil
 }
 
 func (h Handler) DevLogin(w http.ResponseWriter, r *http.Request) {
@@ -381,7 +431,7 @@ func (h Handler) DevLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !user.IsActive {
+	if !isUserAllowedToAuthenticate(user) {
 		httpx.WriteJSONError(w, http.StatusForbidden, "user inactive")
 		return
 	}
@@ -488,7 +538,7 @@ func (h Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !user.IsActive {
+	if !isUserAllowedToAuthenticate(user) {
 		log.Warn().
 			Str("email", user.Email).
 			Msg("refresh failed: user inactive")
@@ -619,7 +669,7 @@ func (h Handler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !user.IsActive {
+	if !isUserAllowedToAuthenticate(user) {
 		log.Warn().
 			Str("email", user.Email).
 			Msg("me failed: user inactive")
@@ -710,7 +760,7 @@ func (h Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	exists, err := resetter.CreatePasswordResetToken(r.Context(), email, token, time.Now().Add(30*time.Minute))
+	exists, err := resetter.CreatePasswordResetToken(r.Context(), email, token, time.Now().UTC().Add(30*time.Minute))
 	if err != nil {
 		log.Error().Err(err).Msg("forgot password: create token failed")
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
@@ -1247,20 +1297,42 @@ func toAuthUserDTO(user *users.User) contracts.AuthUserDTO {
 	if accountType == "" {
 		accountType = user.Role
 	}
-	return contracts.AuthUserDTO{
-		ID:             user.ID,
-		AccountID:      accountID,
-		UserID:         user.ProfileID,
-		Email:          user.Email,
-		LoginEmail:     user.Email,
-		FirstName:      user.FirstName,
-		LastName:       user.LastName,
-		Username:       username,
-		Role:           user.Role,
-		AccountType:    accountType,
-		IsActive:       user.IsActive,
-		OrganizationID: organizationID,
+	createdAt := ""
+	if !user.CreatedAt.IsZero() {
+		createdAt = user.CreatedAt.UTC().Format(time.RFC3339Nano)
 	}
+	return contracts.AuthUserDTO{
+		ID:               user.ID,
+		AccountID:        accountID,
+		UserID:           user.ProfileID,
+		Email:            user.Email,
+		LoginEmail:       user.Email,
+		FirstName:        user.FirstName,
+		LastName:         user.LastName,
+		Username:         username,
+		Role:             user.Role,
+		AccountType:      accountType,
+		IsActive:         user.IsActive,
+		SuspendedUntil:   nullableTimeString(user.SuspendedUntil),
+		SuspensionReason: nullableStringValue(user.SuspensionReason),
+		CreatedAt:        createdAt,
+		OrganizationID:   organizationID,
+	}
+}
+
+func nullableTimeString(value *time.Time) *string {
+	if value == nil {
+		return nil
+	}
+	formatted := value.UTC().Format(time.RFC3339Nano)
+	return &formatted
+}
+
+func nullableStringValue(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	return value
 }
 
 func writeLoginResponse(w http.ResponseWriter, user *users.User, csrf string) {
@@ -1512,6 +1584,16 @@ func writeAuthMutationError(w http.ResponseWriter, err error) {
 
 	log.Error().Err(err).Msg("auth mutation failed")
 	httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
+}
+
+func writeGeocodingError(w http.ResponseWriter, err error) {
+	if errors.Is(err, geocoding.ErrNoMatch) {
+		httpx.WriteJSONError(w, http.StatusBadRequest, "address could not be geocoded")
+		return
+	}
+
+	log.Error().Err(err).Msg("auth organization geocoding failed")
+	httpx.WriteJSONError(w, http.StatusBadGateway, "address geocoding service unavailable")
 }
 
 func normalizeSlugs(values []string) []string {

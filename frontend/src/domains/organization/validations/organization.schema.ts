@@ -9,17 +9,6 @@ const optionalUrlSchema = (message: string) =>
     .trim()
     .refine((value) => value === "" || URL.canParse(value), message);
 
-const optionalCoordinateSchema = (min: number, max: number, label: string) =>
-  z
-    .string()
-    .trim()
-    .refine((value) => {
-      if (value === "") return true;
-
-      const numberValue = Number(value);
-      return !Number.isNaN(numberValue) && numberValue >= min && numberValue <= max;
-    }, `${label} doit etre comprise entre ${min} et ${max}`);
-
 export const organizationFormSchema = z.object({
   name: z.string().trim().min(2, "Le nom de l'organisation est requis"),
   contact_email: z.email("Email de contact invalide"),
@@ -28,8 +17,6 @@ export const organizationFormSchema = z.object({
     .trim()
     .min(10, "La description doit contenir au moins 10 caracteres"),
   website: optionalUrlSchema("URL du site invalide"),
-  latitude: optionalCoordinateSchema(-90, 90, "La latitude"),
-  longitude: optionalCoordinateSchema(-180, 180, "La longitude"),
   address: z.string().trim().min(5, "Adresse requise"),
   city: z.string().trim().min(2, "Ville requise"),
   postal_code: z

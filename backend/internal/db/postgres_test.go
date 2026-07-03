@@ -51,4 +51,7 @@ func TestPostgresDSN_EncodesConnectionSettings(t *testing.T) {
 	if got := parsed.Query().Get("application_name"); got != "mappening" {
 		t.Fatalf("expected application_name mappening, got %q", got)
 	}
+	if got := parsed.Query().Get("timezone"); got != "UTC" {
+		t.Fatalf("expected timezone UTC, got %q", got)
+	}
 }

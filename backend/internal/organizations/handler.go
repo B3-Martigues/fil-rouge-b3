@@ -11,12 +11,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 
+	"mappening/internal/geocoding"
 	"mappening/internal/http/middleware"
 	"mappening/internal/httpx"
 )
 
 type Handler struct {
-	Service Service
+	Service  Service
+	Geocoder geocoding.Normalizer
 }
 
 func (h Handler) List(w http.ResponseWriter, r *http.Request) {
@@ -102,6 +104,10 @@ func (h Handler) Create(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	if err := h.normalizeAddress(r, &input); err != nil {
+		writeGeocodingError(w, err)
+		return
+	}
 	accountID, role, ok := authContext(r)
 	if !ok {
 		httpx.WriteJSONError(w, http.StatusUnauthorized, "missing authenticated user")
@@ -125,6 +131,10 @@ func (h Handler) Update(w http.ResponseWriter, r *http.Request) {
 	input, err := decodeAndValidateOrganizationInput(w, r)
 	if err != nil {
 		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := h.normalizeAddress(r, &input); err != nil {
+		writeGeocodingError(w, err)
 		return
 	}
 	accountID, role, ok := authContext(r)
@@ -373,6 +383,27 @@ func (h Handler) service() Service {
 	return h.Service
 }
 
+func (h Handler) normalizeAddress(r *http.Request, input *OrganizationInput) error {
+	if h.Geocoder == nil {
+		return nil
+	}
+	normalized, err := h.Geocoder.Normalize(r.Context(), geocoding.Address{
+		Street:     input.Address,
+		City:       input.City,
+		PostalCode: input.PostalCode,
+	})
+	if err != nil {
+		return err
+	}
+
+	input.Address = normalized.Address
+	input.City = normalized.City
+	input.PostalCode = normalized.PostalCode
+	input.Latitude = &normalized.Latitude
+	input.Longitude = &normalized.Longitude
+	return nil
+}
+
 func decodeAndValidateOrganizationInput(w http.ResponseWriter, r *http.Request) (OrganizationInput, error) {
 	var input OrganizationInput
 	if err := httpx.DecodeStrictJSON(w, r, &input); err != nil {
@@ -518,6 +549,16 @@ func writeDomainError(w http.ResponseWriter, err error) {
 		log.Error().Err(err).Msg("organizations handler failed")
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
 	}
+}
+
+func writeGeocodingError(w http.ResponseWriter, err error) {
+	if errors.Is(err, geocoding.ErrNoMatch) {
+		httpx.WriteJSONError(w, http.StatusBadRequest, "address could not be geocoded")
+		return
+	}
+
+	log.Error().Err(err).Msg("organization geocoding failed")
+	httpx.WriteJSONError(w, http.StatusBadGateway, "address geocoding service unavailable")
 }
 
 func RegisterRoutes(r chi.Router, handler Handler, authMiddleware func(http.Handler) http.Handler) {

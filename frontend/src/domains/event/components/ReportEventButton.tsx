@@ -7,11 +7,14 @@ import FormModal from "../../../shared/components/forms/FormModal";
 import Button from "../../../shared/components/ui/Button";
 import Textarea from "../../../shared/components/ui/Textarea";
 import { staffApi } from "../../staff/api/staff.api";
+import type { Role } from "../../user/types/user";
 import type { Event } from "../types/event";
 
 type Props = {
   event: Event;
 };
+
+const reportAllowedRoles = new Set<Role>(["user", "admin", "moderator"]);
 
 export default function ReportEventButton({ event }: Props) {
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -22,14 +25,14 @@ export default function ReportEventButton({ event }: Props) {
 
   if (!currentUser) return null;
 
-  const userId =
-    currentUser?.role === "user" && currentUser.is_active
-      ? currentUser.user_id
-      : undefined;
-  const unavailableMessage = currentUser.role !== "user"
-      ? "Seuls les comptes utilisateur peuvent signaler un evenement."
+  const canReportRole = reportAllowedRoles.has(currentUser.role);
+  const userId = canReportRole && currentUser.is_active ? currentUser.user_id : undefined;
+  const unavailableMessage = !canReportRole
+      ? "Seuls les comptes utilisateur et staff peuvent signaler un evenement."
       : !currentUser.is_active
         ? "Votre compte doit etre actif pour signaler un evenement."
+        : !currentUser.user_id
+          ? "Profil utilisateur introuvable pour ce compte."
         : null;
   const isReportUnavailable = !!unavailableMessage;
 

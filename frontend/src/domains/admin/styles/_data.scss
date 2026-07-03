@@ -98,7 +98,7 @@
     width: 100%;
     max-width: 100%;
     min-height: 48px;
-    padding: 10px 12px;
+    padding: 15px;
     border: 1px solid var(--border);
     border-radius: 8px;
     overflow-wrap: anywhere;
@@ -139,6 +139,92 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+}
+
+.admin-table__row--event-card {
+  grid-template-columns: minmax(88px, 112px) minmax(0, 1fr) minmax(170px, 220px);
+  grid-template-areas:
+    "image title status"
+    "image categories categories"
+    "image city city"
+    "image price price"
+    "image date date"
+    "actions actions actions";
+  align-items: start;
+  gap: 8px 12px;
+  padding: 12px;
+  overflow: hidden;
+
+  > [role="cell"] {
+    max-width: 100%;
+  }
+
+  .admin-event-image-cell {
+    grid-area: image;
+    align-self: stretch;
+    min-width: 0;
+    max-width: 128px;
+    height: 100%;
+    min-height: 112px;
+  }
+
+  .admin-event-title-cell {
+    grid-area: title;
+    align-self: start;
+    color: var(--text-h);
+    font-weight: 700;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .admin-event-meta-cell {
+    overflow-wrap: anywhere;
+  }
+
+  .admin-event-categories-cell {
+    grid-area: categories;
+  }
+
+  .admin-event-city-cell {
+    grid-area: city;
+  }
+
+  .admin-event-price-cell {
+    grid-area: price;
+    min-width: 0;
+  }
+
+  .admin-event-date-cell {
+    grid-area: date;
+  }
+
+  .admin-status-cell {
+    grid-area: status;
+    position: static;
+    min-width: 0;
+    max-width: 100%;
+    justify-self: stretch;
+    text-align: left;
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      max-width: calc(100% - 8px);
+      min-height: 34px;
+      padding-block: 6px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+  }
+
+  > .admin-actions {
+    grid-area: actions;
+    justify-self: stretch;
+    width: 100%;
+    height: auto;
+    min-width: 0;
   }
 }
 
@@ -233,6 +319,8 @@
   align-items: stretch;
   align-self: stretch;
   justify-content: center;
+  width: max-content;
+  height: 8svh;
 
   .btn {
     width: 100%;
@@ -304,6 +392,18 @@
       minmax(88px, 0.5fr) minmax(116px, 0.6fr) minmax(160px, 0.92fr)
       minmax(130px, 0.75fr) minmax(280px, 1.25fr);
     gap: 12px;
+  }
+
+  .admin-table--events .admin-table__row--event-card {
+    grid-template-columns:
+      128px minmax(160px, 1.2fr) minmax(120px, 0.8fr)
+      minmax(88px, 0.6fr) minmax(120px, 0.7fr) minmax(150px, 0.9fr)
+      minmax(170px, 220px);
+    grid-template-areas:
+      "image title title title title status ."
+      "image categories categories city price date date"
+      "image actions actions actions actions actions actions";
+    align-items: start;
   }
 
   .admin-table--events .admin-actions .btn__content {
@@ -397,6 +497,31 @@
   .admin-event-image-cell {
     max-width: none;
     aspect-ratio: 16 / 9;
+  }
+
+  .admin-table--events .admin-table__row--event-card {
+    grid-template-columns: minmax(88px, 112px) minmax(0, 1fr) minmax(170px, 220px);
+    grid-template-areas:
+      "image title status"
+      "image categories categories"
+      "image city city"
+      "image price price"
+      "image date date"
+      "actions actions actions";
+    padding: 12px;
+  }
+
+  .admin-table__row--event-card .admin-event-image-cell {
+    max-width: 112px;
+    min-height: 112px;
+    aspect-ratio: 1 / 1;
+  }
+
+  .admin-table__row--event-card .admin-status-cell {
+    position: static;
+    max-width: 100%;
+    justify-self: end;
+    text-align: right;
   }
 
   .admin-form-grid,

@@ -35,78 +35,27 @@ func NewRepositoryWithMailer(db *sql.DB, sender mailer.Sender, frontendURL strin
 	return &Repository{db: db, eventRepo: events.NewRepository(db), mailSender: sender, frontendURL: strings.TrimRight(frontendURL, "/")}
 }
 
-func (r *Repository) Snapshot(ctx context.Context) (*Snapshot, error) {
-	accounts, err := r.listAccounts(ctx)
-	if err != nil {
-		return nil, err
-	}
-	users, err := r.listUsers(ctx)
-	if err != nil {
-		return nil, err
-	}
-	organizations, err := r.listOrganizations(ctx)
-	if err != nil {
-		return nil, err
-	}
-	organizers, err := r.listOrganizers(ctx)
-	if err != nil {
-		return nil, err
-	}
-	eventList, err := r.eventRepo.List(ctx, events.ListFilters{IncludeInactive: true, IncludeDeleted: true, Sort: "date-asc"})
-	if err != nil {
-		return nil, fmt.Errorf("list staff events: %w", err)
-	}
-	notificationTypes, err := r.listNotificationTypes(ctx)
-	if err != nil {
-		return nil, err
-	}
-	notifications, err := r.listNotifications(ctx)
-	if err != nil {
-		return nil, err
-	}
-	reports, err := r.listReports(ctx)
-	if err != nil {
-		return nil, err
-	}
-	decisions, err := r.listDecisions(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Snapshot{
-		Accounts:            accounts,
-		Users:               users,
-		Organizations:       organizations,
-		Organizers:          organizers,
-		Events:              eventList,
-		NotificationTypes:   notificationTypes,
-		Notifications:       notifications,
-		ModerationReports:   reports,
-		ModerationDecisions: decisions,
-	}, nil
-}
-
-func (r *Repository) ApplyAction(ctx context.Context, req ActionRequest, moderatorUserID int64, role string) (*Snapshot, error) {
+func (r *Repository) ApplyAction(ctx context.Context, req ActionRequest, moderatorUserID int64, role string) error {
 	req.Action = strings.TrimSpace(strings.ToLower(req.Action))
 	req.TargetType = strings.TrimSpace(strings.ToLower(req.TargetType))
 	req.Reason = strings.TrimSpace(req.Reason)
 	if req.Action == "" || req.TargetType == "" || req.TargetID <= 0 || len(req.Reason) < 5 {
-		return nil, ErrValidation
+		return ErrValidation
 	}
 	if !canApplyAction(role, req.Action) {
-		return nil, ErrForbidden
+		return ErrForbidden
 	}
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("begin staff action tx: %w", err)
+		return fmt.Errorf("begin staff action tx: %w", err)
 	}
 	defer func() {
 		_ = tx.Rollback()
 	}()
 
 	if err := r.applyTargetMutation(ctx, tx, req); err != nil {
-		return nil, err
+		return err
 	}
 	if req.ReportID != nil {
 		status := "reviewing"
@@ -114,26 +63,26 @@ func (r *Repository) ApplyAction(ctx context.Context, req ActionRequest, moderat
 			status = strings.TrimSpace(strings.ToLower(*req.ReportStatus))
 		}
 		if err := updateReportInTx(ctx, tx, *req.ReportID, status, moderatorUserID, req.Reason); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO moderation_decisions (action, target_type, target_id, moderator_user_id, reason)
 		VALUES ($1, $2, $3, $4, $5)
 	`, req.Action, req.TargetType, req.TargetID, moderatorUserID, req.Reason); err != nil {
-		return nil, fmt.Errorf("record moderation decision: %w", err)
+		return fmt.Errorf("record moderation decision: %w", err)
 	}
 	emailMessages, err := r.createActionNotification(ctx, tx, req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("commit staff action tx: %w", err)
+		return fmt.Errorf("commit staff action tx: %w", err)
 	}
 	r.sendActionEmails(emailMessages)
 
-	return r.Snapshot(ctx)
+	return nil
 }
 
 func (r *Repository) CreateReport(ctx context.Context, req CreateReportRequest, authenticatedUserID int64) (*ModerationReport, error) {
@@ -289,7 +238,70 @@ func (r *Repository) applyTargetMutation(ctx context.Context, tx *sql.Tx, req Ac
 	if n == 0 {
 		return ErrNotFound
 	}
+	if req.Action == "account_suspended" || req.Action == "account_deleted" {
+		if err := deleteRefreshTokensForAccount(ctx, tx, req.TargetID); err != nil {
+			return err
+		}
+	}
+	switch req.Action {
+	case "organization_approved":
+		if err := syncOrganizationAccountActive(ctx, tx, req.TargetID, true); err != nil {
+			return err
+		}
+	case "organization_rejected", "organization_deleted":
+		if err := syncOrganizationAccountActive(ctx, tx, req.TargetID, false); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func deleteRefreshTokensForAccount(ctx context.Context, tx *sql.Tx, accountID int64) error {
+	_, err := tx.ExecContext(ctx, `
+		DELETE FROM auth_refresh_tokens
+		WHERE subject IN (
+			SELECT login_email
+			FROM accounts
+			WHERE id = $1
+		)
+	`, accountID)
+	if err != nil {
+		return fmt.Errorf("delete account refresh tokens: %w", err)
+	}
+	return nil
+}
+
+func syncOrganizationAccountActive(ctx context.Context, tx *sql.Tx, organizationID int64, active bool) error {
+	var accountID int64
+	if err := tx.QueryRowContext(ctx, `
+		SELECT account_id
+		FROM organizations
+		WHERE id = $1
+	`, organizationID).Scan(&accountID); err != nil {
+		return fmt.Errorf("find organization account: %w", err)
+	}
+
+	res, err := tx.ExecContext(ctx, `
+		UPDATE accounts
+		SET is_active = $1,
+		    updated_at = NOW()
+		WHERE id = $2
+		  AND deleted_at IS NULL
+	`, active, accountID)
+	if err != nil {
+		return fmt.Errorf("sync organization account active: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("sync organization account rows affected: %w", err)
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	if active {
+		return nil
+	}
+	return deleteRefreshTokensForAccount(ctx, tx, accountID)
 }
 
 func (r *Repository) createActionNotification(ctx context.Context, tx *sql.Tx, req ActionRequest) ([]mailer.Message, error) {
@@ -486,6 +498,18 @@ func (r *Repository) listOrganizers(ctx context.Context) ([]Organizer, error) {
 	return organizers, rows.Err()
 }
 
+func (r *Repository) listEvents(ctx context.Context) ([]events.Event, error) {
+	eventList, err := r.eventRepo.List(ctx, staffEventListFilters())
+	if err != nil {
+		return nil, fmt.Errorf("list staff events: %w", err)
+	}
+	return eventList, nil
+}
+
+func staffEventListFilters() events.ListFilters {
+	return events.ListFilters{IncludeInactive: true, Sort: "date-asc"}
+}
+
 func (r *Repository) listNotificationTypes(ctx context.Context) ([]NotificationType, error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT id, name, slug FROM notification_types ORDER BY id ASC`)
 	if err != nil {
@@ -647,12 +671,15 @@ func recipientUsersForAction(ctx context.Context, tx *sql.Tx, targetType string,
 	switch targetType {
 	case "event":
 		var eventID = targetID
-		var organizationID int64
+		var organizationID sql.NullInt64
 		if err := tx.QueryRowContext(ctx, `SELECT organization_id FROM events WHERE id = $1`, targetID).Scan(&organizationID); err != nil {
 			return nil, nil, nil, fmt.Errorf("find event organization: %w", err)
 		}
-		users, err := organizationRecipientUsers(ctx, tx, organizationID)
-		return users, &organizationID, &eventID, err
+		if !organizationID.Valid {
+			return nil, nil, &eventID, nil
+		}
+		users, err := organizationRecipientUsers(ctx, tx, organizationID.Int64)
+		return users, &organizationID.Int64, &eventID, err
 	case "organization":
 		users, err := organizationRecipientUsers(ctx, tx, targetID)
 		organizationID := targetID
@@ -738,7 +765,7 @@ func canApplyAction(role string, action string) bool {
 		return true
 	}
 	switch action {
-	case "event_approved", "event_rejected", "event_hidden", "event_restored",
+	case "event_approved", "event_rejected", "event_hidden", "event_deleted", "event_restored",
 		"organization_approved", "organization_rejected",
 		"account_suspended", "account_restored",
 		"report_reviewing", "report_resolved", "report_dismissed":
@@ -750,14 +777,14 @@ func canApplyAction(role string, action string) bool {
 
 func parseOptionalActionTime(raw *string) sql.NullTime {
 	if raw == nil || strings.TrimSpace(*raw) == "" {
-		return sql.NullTime{Time: time.Now().Add(30 * 24 * time.Hour), Valid: true}
+		return sql.NullTime{Time: time.Now().UTC().Add(30 * 24 * time.Hour), Valid: true}
 	}
 	for _, layout := range []string{time.RFC3339, "2006-01-02T15:04", "2006-01-02"} {
 		if parsed, err := time.Parse(layout, strings.TrimSpace(*raw)); err == nil {
 			return sql.NullTime{Time: parsed, Valid: true}
 		}
 	}
-	return sql.NullTime{Time: time.Now().Add(30 * 24 * time.Hour), Valid: true}
+	return sql.NullTime{Time: time.Now().UTC().Add(30 * 24 * time.Hour), Valid: true}
 }
 
 func notificationTitle(action string) string {

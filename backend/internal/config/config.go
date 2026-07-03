@@ -39,18 +39,19 @@ type SMTPConfig struct {
 }
 
 type Config struct {
-	Addr              string
-	JWTSecret         string
-	JWTIssuer         string
-	JWTTTL            time.Duration
-	RefreshTTL        time.Duration
-	FrontendURL       string
-	CookieSecure      bool
-	CSRFCookieDomain  string
-	Env               string
-	DevLoginEnabled   bool
-	DevLoginEmail     string
-	TrustedProxyCIDRs []string
+	Addr                     string
+	JWTSecret                string
+	JWTIssuer                string
+	JWTTTL                   time.Duration
+	RefreshTTL               time.Duration
+	FrontendURL              string
+	CookieSecure             bool
+	CSRFCookieDomain         string
+	Env                      string
+	DevLoginEnabled          bool
+	DevLoginEmail            string
+	TrustedProxyCIDRs        []string
+	TarpinBienScraperEnabled bool
 
 	EnableTestAuthFallback bool
 
@@ -81,18 +82,19 @@ func Load() Config {
 	}
 
 	return Config{
-		Addr:              getEnv("ADDR", addrDefault),
-		JWTSecret:         getEnv("JWT_SECRET", ""),
-		JWTIssuer:         getEnv("JWT_ISSUER", "mappening"),
-		JWTTTL:            getDuration("JWT_TTL", 15*time.Minute),
-		RefreshTTL:        getDuration("REFRESH_TTL", 168*time.Hour),
-		FrontendURL:       getEnv("FRONTEND_URL", frontendURLDefault),
-		CookieSecure:      getBool("COOKIE_SECURE", cookieSecureDefault),
-		CSRFCookieDomain:  normalizeCookieDomain(getEnv("CSRF_COOKIE_DOMAIN", "")),
-		Env:               env,
-		DevLoginEnabled:   getBool("DEV_LOGIN_ENABLED", false),
-		DevLoginEmail:     strings.TrimSpace(strings.ToLower(getEnv("DEV_LOGIN_EMAIL", ""))),
-		TrustedProxyCIDRs: getCSV("TRUSTED_PROXY_CIDRS"),
+		Addr:                     getEnv("ADDR", addrDefault),
+		JWTSecret:                getEnv("JWT_SECRET", ""),
+		JWTIssuer:                getEnv("JWT_ISSUER", "mappening"),
+		JWTTTL:                   getDuration("JWT_TTL", 15*time.Minute),
+		RefreshTTL:               getDuration("REFRESH_TTL", 168*time.Hour),
+		FrontendURL:              getEnv("FRONTEND_URL", frontendURLDefault),
+		CookieSecure:             getBool("COOKIE_SECURE", cookieSecureDefault),
+		CSRFCookieDomain:         normalizeCookieDomain(getEnv("CSRF_COOKIE_DOMAIN", "")),
+		Env:                      env,
+		DevLoginEnabled:          getBool("DEV_LOGIN_ENABLED", false),
+		DevLoginEmail:            strings.TrimSpace(strings.ToLower(getEnv("DEV_LOGIN_EMAIL", ""))),
+		TrustedProxyCIDRs:        getCSV("TRUSTED_PROXY_CIDRS"),
+		TarpinBienScraperEnabled: getBool("TARPIN_BIEN_SCRAPER_ENABLED", true),
 
 		AppDB: DBConfig{
 			Host:        getEnv("APP_DB_HOST", "127.0.0.1"),
@@ -282,6 +284,11 @@ func (c Config) ValidateMigrations() error {
 	}
 
 	return nil
+}
+
+// Valide la configuration minimale requise pour les jobs applicatifs hors HTTP.
+func (c Config) ValidateJobs() error {
+	return validateDBConfig("APP_DB", c.AppDB)
 }
 
 // Expose la normalisation d'environnement aux autres packages.

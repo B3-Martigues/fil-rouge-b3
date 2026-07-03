@@ -18,7 +18,6 @@ import { getCurrentUserOrganizationMemberships } from "../utils/organizerAccess"
 import { OrganizationFields } from "./OrganizationSetupFlow";
 import {
   getOrganizationStatus,
-  parseOptionalCoordinate,
   toOrganizationForm,
   validateOrganizationForm,
   type OrganizationForm,
@@ -109,8 +108,6 @@ export default function OrganizationsPage() {
       contact_email: organizationForm.contact_email.trim(),
       description: organizationForm.description.trim(),
       website: organizationForm.website.trim() || null,
-      latitude: parseOptionalCoordinate(organizationForm.latitude),
-      longitude: parseOptionalCoordinate(organizationForm.longitude),
       address: organizationForm.address.trim(),
       city: organizationForm.city.trim(),
       postal_code: organizationForm.postal_code.trim(),

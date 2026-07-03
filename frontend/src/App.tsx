@@ -2,8 +2,6 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -16,6 +14,7 @@ import useAuthStore from "./domains/auth/store/authStore";
 import { EVENTS_API_MODE, eventsApi } from "./domains/event/api/events.api";
 import { organizationsApi } from "./domains/organization/api/organizations.api";
 import { userApi } from "./domains/user/api/user.api";
+import { isAccountSuspended } from "./domains/user/types/user";
 import AppSplash from "./shared/components/layout/AppSplash";
 import { ROUTES } from "./shared/constants/routes";
 import useDataStore from "./shared/store/dataStore";
@@ -28,6 +27,10 @@ const hasCookie = (name: string) =>
 
 function App() {
   const location = useLocation();
+  const isHomeRoute = location.pathname === ROUTES.PUBLIC.HOME;
+  const hasHomeEventRequest =
+    isHomeRoute && new URLSearchParams(location.search).has("event");
+  const homeSplashKey = isHomeRoute && !hasHomeEventRequest ? location.key : null;
   const login = useAuthStore((s) => s.login);
   const logout = useAuthStore((s) => s.logout);
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -39,13 +42,9 @@ function App() {
   const setNotificationTypes = useDataStore((s) => s.setNotificationTypes);
   const upsertOrganizations = useDataStore((s) => s.upsertOrganizations);
   const upsertOrganizers = useDataStore((s) => s.upsertOrganizers);
-  const events = useDataStore((s) => s.events);
-  const organizations = useDataStore((s) => s.organizations);
-  const [showSplash, setShowSplash] = useState(
-    () => location.pathname === ROUTES.PUBLIC.HOME,
-  );
-  const [hasHomeMapReady, setHasHomeMapReady] = useState(false);
-  const [areHomeImagesReady, setAreHomeImagesReady] = useState(false);
+  const [finishedSplashKey, setFinishedSplashKey] = useState<string | null>(null);
+  const [homeImagesReadyKey, setHomeImagesReadyKey] = useState<string | null>(null);
+  const [homeMapReadyKey, setHomeMapReadyKey] = useState<string | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const [initialSessionUser] = useState(() => useAuthStore.getState().currentUser);
   const sessionRestorePromiseRef = useRef<ReturnType<
@@ -61,7 +60,12 @@ function App() {
     () => EVENTS_API_MODE !== "http",
   );
   const isHomeDataReady = areEventsHydrated && areOrganizationsHydrated;
-  const isHomeReady = isHomeDataReady && hasHomeMapReady && areHomeImagesReady;
+  const isHomeReady =
+    isHomeDataReady &&
+    !!homeSplashKey &&
+    homeMapReadyKey === homeSplashKey &&
+    homeImagesReadyKey === homeSplashKey;
+  const showSplash = !!homeSplashKey && finishedSplashKey !== homeSplashKey;
   const userDataHydrationKey =
     EVENTS_API_MODE === "http" &&
     sessionReady &&
@@ -72,24 +76,10 @@ function App() {
   const isUserDataReady =
     !userDataHydrationKey || hydratedUserDataKey === userDataHydrationKey;
   const hideSplash = useCallback(() => {
-    setShowSplash(false);
-  }, []);
-  const homeImageSources = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          [
-            ...events
-              .filter((event) => event.is_active && !event.deleted_at)
-              .map((event) => event.image),
-            ...organizations
-              .filter((organization) => !organization.deleted_at)
-              .map((organization) => organization.logo ?? ""),
-          ].filter((source) => source.trim() !== ""),
-        ),
-      ),
-    [events, organizations],
-  );
+    if (homeSplashKey) {
+      setFinishedSplashKey(homeSplashKey);
+    }
+  }, [homeSplashKey]);
 
   useEffect(() => {
     let ignore = false;
@@ -126,6 +116,12 @@ function App() {
       ignore = true;
     };
   }, [initialSessionUser, login, logout]);
+
+  useEffect(() => {
+    if (currentUser && (!currentUser.is_active || isAccountSuspended(currentUser))) {
+      logout();
+    }
+  }, [currentUser, logout]);
 
   useEffect(() => {
     if (EVENTS_API_MODE !== "http") return;
@@ -278,92 +274,31 @@ function App() {
 
   useEffect(() => {
     const markHomeReady = () => {
-      setHasHomeMapReady(true);
+      if (homeSplashKey) {
+        setHomeMapReadyKey(homeSplashKey);
+      }
+    };
+    const markHomeImagesReady = () => {
+      if (homeSplashKey) {
+        setHomeImagesReadyKey(homeSplashKey);
+      }
     };
 
     window.addEventListener("mappening:home-map-ready", markHomeReady);
+    window.addEventListener(
+      "mappening:home-visible-images-ready",
+      markHomeImagesReady,
+    );
 
     return () => {
       window.removeEventListener("mappening:home-map-ready", markHomeReady);
+      window.removeEventListener(
+        "mappening:home-visible-images-ready",
+        markHomeImagesReady,
+      );
     };
-  }, []);
+  }, [homeSplashKey]);
 
-  useLayoutEffect(() => {
-    if (location.pathname !== ROUTES.PUBLIC.HOME) {
-      setShowSplash(false);
-      setHasHomeMapReady(false);
-      setAreHomeImagesReady(false);
-      return;
-    }
-
-    setShowSplash(true);
-    setHasHomeMapReady(false);
-    setAreHomeImagesReady(false);
-  }, [location.pathname]);
-
-  useEffect(() => {
-    if (location.pathname !== ROUTES.PUBLIC.HOME) {
-      const resetTimer = window.setTimeout(() => {
-        setAreHomeImagesReady(false);
-      }, 0);
-
-      return () => {
-        window.clearTimeout(resetTimer);
-      };
-    }
-
-    if (!isHomeDataReady) {
-      const resetTimer = window.setTimeout(() => {
-        setAreHomeImagesReady(false);
-      }, 0);
-
-      return () => {
-        window.clearTimeout(resetTimer);
-      };
-    }
-
-    if (homeImageSources.length === 0) {
-      const readyTimer = window.setTimeout(() => {
-        setAreHomeImagesReady(true);
-      }, 0);
-
-      return () => {
-        window.clearTimeout(readyTimer);
-      };
-    }
-
-    if (typeof Image === "undefined") {
-      const readyTimer = window.setTimeout(() => {
-        setAreHomeImagesReady(true);
-      }, 0);
-
-      return () => {
-        window.clearTimeout(readyTimer);
-      };
-    }
-
-    let ignore = false;
-
-    const preloadImage = (source: string) =>
-      new Promise<void>((resolve) => {
-        const image = new Image();
-        const done = () => resolve();
-
-        image.addEventListener("load", done, { once: true });
-        image.addEventListener("error", done, { once: true });
-        image.src = source;
-      });
-
-    Promise.all(homeImageSources.map(preloadImage)).then(() => {
-      if (!ignore) {
-        setAreHomeImagesReady(true);
-      }
-    });
-
-    return () => {
-      ignore = true;
-    };
-  }, [homeImageSources, isHomeDataReady, location.pathname]);
   return (
     <>
       {sessionReady ? (

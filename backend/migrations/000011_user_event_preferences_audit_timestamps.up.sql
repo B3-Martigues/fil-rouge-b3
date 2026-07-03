@@ -1,0 +1,9 @@
+BEGIN;
+
+ALTER TABLE user_event_preferences
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT NOW();
+
+ALTER TABLE user_event_preferences
+    ALTER COLUMN created_at SET DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Paris');
+
+COMMIT;

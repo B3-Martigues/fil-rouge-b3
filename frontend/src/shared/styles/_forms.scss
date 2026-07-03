@@ -235,6 +235,105 @@ textarea.input {
   border-color: var(--color-error-border);
 }
 
+.address-autocomplete {
+  position: relative;
+  min-width: 0;
+
+  &__panel {
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 6px);
+    right: 0;
+    left: 0;
+    display: grid;
+    max-height: 236px;
+    overflow-y: auto;
+    padding: 6px;
+    border: 1px solid var(--accent-border);
+    border-radius: 8px;
+    background: var(--bg);
+    box-shadow: var(--shadow);
+  }
+
+  &__option {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+    min-height: 50px;
+    padding: 8px;
+    border: 0;
+    border-radius: 6px;
+    color: var(--text-h);
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    svg {
+      color: var(--secondary);
+    }
+
+    span {
+      display: grid;
+      min-width: 0;
+      gap: 1px;
+    }
+
+    strong,
+    small {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    strong {
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1.25;
+    }
+
+    small {
+      color: var(--text-p);
+      font-size: 12px;
+      font-weight: 650;
+      line-height: 1.25;
+    }
+
+    &:hover,
+    &.is-active {
+      background: var(--accent-bg);
+    }
+  }
+
+  &__loading {
+    display: grid;
+    min-height: 44px;
+    place-items: center;
+    color: var(--secondary);
+
+    svg {
+      animation: address-autocomplete-spin 800ms linear infinite;
+    }
+  }
+
+  &__message {
+    min-height: 44px;
+    padding: 12px 10px;
+    color: var(--text-p);
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+  }
+}
+
+@keyframes address-autocomplete-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .error {
   color: var(--color-error);
   font-size: 14px;

@@ -54,6 +54,7 @@ const organizationSelect = `
 		o.deleted_at,
 		COALESCE(string_agg(DISTINCT oc.slug, ',' ORDER BY oc.slug), '') AS category_slugs
 	FROM organizations o
+	JOIN accounts a ON a.id = o.account_id
 	LEFT JOIN organization_categories_links ocl ON ocl.organization_id = o.id
 	LEFT JOIN organization_categories oc ON oc.id = ocl.organization_category_id
 `
@@ -149,8 +150,9 @@ func (r *Repository) List(ctx context.Context, filters ListFilters) ([]Organizat
 
 func (r *Repository) GetByID(ctx context.Context, id int64, includeInactive bool, includeDeleted bool) (*Organization, error) {
 	filters := ListFilters{
-		IncludeInactive: includeInactive,
-		IncludeDeleted:  includeDeleted,
+		IncludeInactive:          includeInactive,
+		IncludeDeleted:           includeDeleted,
+		IncludeSuspendedAccounts: includeInactive || includeDeleted,
 	}
 	where, args := buildOrganizationWhere(filters)
 	args = append(args, id)
@@ -169,9 +171,10 @@ func (r *Repository) GetByID(ctx context.Context, id int64, includeInactive bool
 
 func (r *Repository) GetByAccountID(ctx context.Context, accountID int64, includeInactive bool, includeDeleted bool) (*Organization, error) {
 	filters := ListFilters{
-		IncludeInactive: includeInactive,
-		IncludeDeleted:  includeDeleted,
-		AccountID:       &accountID,
+		IncludeInactive:          includeInactive,
+		IncludeDeleted:           includeDeleted,
+		IncludeSuspendedAccounts: includeInactive || includeDeleted,
+		AccountID:                &accountID,
 	}
 	where, args := buildOrganizationWhere(filters)
 	query := organizationSelect + where + organizationGroupBy + " LIMIT 1"
@@ -386,6 +389,12 @@ func (r *Repository) Update(ctx context.Context, organizationID int64, input Org
 		return nil, err
 	}
 
+	if input.IsActive != nil && isAdmin(actorRole) {
+		if err := syncOwningAccountActiveInTx(ctx, tx, accountID, isActive); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := r.replaceCategoriesInTx(ctx, tx, organizationID, input.CategoryIDs, input.CategorySlugs); err != nil {
 		return nil, err
 	}
@@ -402,7 +411,16 @@ func (r *Repository) SetActive(ctx context.Context, organizationID int64, active
 		return nil, ErrForbidden
 	}
 
-	res, err := r.db.ExecContext(ctx, `
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin set organization active tx: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	var accountID int64
+	res, err := tx.ExecContext(ctx, `
 		UPDATE organizations
 		SET is_active = $1,
 		    updated_at = NOW()
@@ -414,6 +432,22 @@ func (r *Repository) SetActive(ctx context.Context, organizationID int64, active
 	}
 	if err := requireRows(res, ErrOrganizationNotFound); err != nil {
 		return nil, err
+	}
+
+	if err := tx.QueryRowContext(ctx, `
+		SELECT account_id
+		FROM organizations
+		WHERE id = $1
+	`, organizationID).Scan(&accountID); err != nil {
+		return nil, fmt.Errorf("get organization account: %w", err)
+	}
+
+	if err := syncOwningAccountActiveInTx(ctx, tx, accountID, active); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit set organization active tx: %w", err)
 	}
 
 	return r.GetByID(ctx, organizationID, true, false)
@@ -446,7 +480,16 @@ func (r *Repository) Delete(ctx context.Context, organizationID int64, actorAcco
 		return ErrForbidden
 	}
 
-	res, err := r.db.ExecContext(ctx, `
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin delete organization tx: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	var accountID int64
+	res, err := tx.ExecContext(ctx, `
 		UPDATE organizations
 		SET deleted_at = COALESCE(deleted_at, NOW()),
 		    is_active = FALSE,
@@ -458,7 +501,23 @@ func (r *Repository) Delete(ctx context.Context, organizationID int64, actorAcco
 		return fmt.Errorf("delete organization: %w", err)
 	}
 
-	return requireRows(res, ErrOrganizationNotFound)
+	if err := requireRows(res, ErrOrganizationNotFound); err != nil {
+		return err
+	}
+	if err := tx.QueryRowContext(ctx, `
+		SELECT account_id
+		FROM organizations
+		WHERE id = $1
+	`, organizationID).Scan(&accountID); err != nil {
+		return fmt.Errorf("get deleted organization account: %w", err)
+	}
+	if err := syncOwningAccountActiveInTx(ctx, tx, accountID, false); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delete organization tx: %w", err)
+	}
+	return nil
 }
 
 func (r *Repository) Restore(ctx context.Context, organizationID int64, actorRole string) (*Organization, error) {
@@ -466,7 +525,16 @@ func (r *Repository) Restore(ctx context.Context, organizationID int64, actorRol
 		return nil, ErrForbidden
 	}
 
-	res, err := r.db.ExecContext(ctx, `
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin restore organization tx: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	var accountID int64
+	res, err := tx.ExecContext(ctx, `
 		UPDATE organizations
 		SET deleted_at = NULL,
 		    is_active = TRUE,
@@ -481,7 +549,51 @@ func (r *Repository) Restore(ctx context.Context, organizationID int64, actorRol
 		return nil, err
 	}
 
+	if err := tx.QueryRowContext(ctx, `
+		SELECT account_id
+		FROM organizations
+		WHERE id = $1
+	`, organizationID).Scan(&accountID); err != nil {
+		return nil, fmt.Errorf("get restored organization account: %w", err)
+	}
+	if err := syncOwningAccountActiveInTx(ctx, tx, accountID, true); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit restore organization tx: %w", err)
+	}
+
 	return r.GetByID(ctx, organizationID, true, false)
+}
+
+func syncOwningAccountActiveInTx(ctx context.Context, tx *sql.Tx, accountID int64, active bool) error {
+	res, err := tx.ExecContext(ctx, `
+		UPDATE accounts
+		SET is_active = $1,
+		    updated_at = NOW()
+		WHERE id = $2
+		  AND deleted_at IS NULL
+	`, active, accountID)
+	if err != nil {
+		return fmt.Errorf("sync organization account active: %w", err)
+	}
+	if err := requireRows(res, ErrAccountNotFound); err != nil {
+		return err
+	}
+	if active {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, `
+		DELETE FROM auth_refresh_tokens
+		WHERE subject IN (
+			SELECT login_email
+			FROM accounts
+			WHERE id = $1
+		)
+	`, accountID); err != nil {
+		return fmt.Errorf("delete organization account refresh tokens: %w", err)
+	}
+	return nil
 }
 
 func (r *Repository) ListCategories(ctx context.Context) ([]Category, error) {
@@ -813,6 +925,14 @@ func buildOrganizationWhere(filters ListFilters) (string, []any) {
 	}
 	if !filters.IncludeInactive {
 		clauses = append(clauses, "o.is_active = TRUE")
+	}
+	if !filters.IncludeSuspendedAccounts {
+		clauses = append(
+			clauses,
+			"a.deleted_at IS NULL",
+			"a.is_active = TRUE",
+			"(a.suspended_until IS NULL OR a.suspended_until <= NOW())",
+		)
 	}
 	if filters.AccountID != nil {
 		args = append(args, *filters.AccountID)

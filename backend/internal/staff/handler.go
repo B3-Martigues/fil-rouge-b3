@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 
+	"mappening/internal/events"
 	"mappening/internal/http/middleware"
 	"mappening/internal/httpx"
 )
@@ -17,15 +18,7 @@ type Handler struct {
 	Repo *Repository
 }
 
-func (h Handler) Snapshot(w http.ResponseWriter, r *http.Request) {
-	snapshot, err := h.repo().Snapshot(r.Context())
-	if err != nil {
-		log.Error().Err(err).Msg("staff snapshot failed")
-		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-	httpx.WriteJSON(w, http.StatusOK, snapshot)
-}
+var reportAllowedRoles = []string{"user", "admin", "moderator"}
 
 func (h Handler) ApplyAction(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUser(r)
@@ -46,12 +39,11 @@ func (h Handler) ApplyAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snapshot, err := h.repo().ApplyAction(r.Context(), req, moderatorUserID, claims.Role)
-	if err != nil {
+	if err := h.repo().ApplyAction(r.Context(), req, moderatorUserID, claims.Role); err != nil {
 		writeStaffError(w, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, snapshot)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h Handler) CreateReport(w http.ResponseWriter, r *http.Request) {
@@ -87,6 +79,70 @@ func (h Handler) repo() *Repository {
 	return h.Repo
 }
 
+func (h Handler) Accounts(w http.ResponseWriter, r *http.Request) {
+	writeStaffList(w, "list staff accounts", func() ([]Account, error) {
+		return h.repo().listAccounts(r.Context())
+	})
+}
+
+func (h Handler) Users(w http.ResponseWriter, r *http.Request) {
+	writeStaffList(w, "list staff users", func() ([]User, error) {
+		return h.repo().listUsers(r.Context())
+	})
+}
+
+func (h Handler) Organizations(w http.ResponseWriter, r *http.Request) {
+	writeStaffList(w, "list staff organizations", func() ([]Organization, error) {
+		return h.repo().listOrganizations(r.Context())
+	})
+}
+
+func (h Handler) Organizers(w http.ResponseWriter, r *http.Request) {
+	writeStaffList(w, "list staff organizers", func() ([]Organizer, error) {
+		return h.repo().listOrganizers(r.Context())
+	})
+}
+
+func (h Handler) Events(w http.ResponseWriter, r *http.Request) {
+	writeStaffList(w, "list staff events", func() ([]events.Event, error) {
+		return h.repo().listEvents(r.Context())
+	})
+}
+
+func (h Handler) NotificationTypes(w http.ResponseWriter, r *http.Request) {
+	writeStaffList(w, "list staff notification types", func() ([]NotificationType, error) {
+		return h.repo().listNotificationTypes(r.Context())
+	})
+}
+
+func (h Handler) Notifications(w http.ResponseWriter, r *http.Request) {
+	writeStaffList(w, "list staff notifications", func() ([]Notification, error) {
+		return h.repo().listNotifications(r.Context())
+	})
+}
+
+func (h Handler) ModerationReports(w http.ResponseWriter, r *http.Request) {
+	writeStaffList(w, "list staff moderation reports", func() ([]ModerationReport, error) {
+		return h.repo().listReports(r.Context())
+	})
+}
+
+func (h Handler) ModerationDecisions(w http.ResponseWriter, r *http.Request) {
+	writeStaffList(w, "list staff moderation decisions", func() ([]ModerationDecision, error) {
+		return h.repo().listDecisions(r.Context())
+	})
+}
+
+func writeStaffList[T any](w http.ResponseWriter, logMessage string, load func() (T, error)) {
+	data, err := load()
+	if err != nil {
+		log.Error().Err(err).Msg(logMessage)
+		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, data)
+}
+
 func (r *Repository) userProfileIDByAccountID(ctx context.Context, accountID int64) (int64, error) {
 	var userID int64
 	err := r.db.QueryRowContext(ctx, `
@@ -119,13 +175,21 @@ func RegisterRoutes(r chi.Router, handler Handler, authMiddleware func(http.Hand
 	r.Group(func(pr chi.Router) {
 		pr.Use(authMiddleware)
 		pr.Use(middleware.RequireRole("admin", "moderator"))
-		pr.Get("/api/staff/snapshot", handler.Snapshot)
+		pr.Get("/api/staff/accounts", handler.Accounts)
+		pr.Get("/api/staff/users", handler.Users)
+		pr.Get("/api/staff/organizations", handler.Organizations)
+		pr.Get("/api/staff/organizers", handler.Organizers)
+		pr.Get("/api/staff/events", handler.Events)
+		pr.Get("/api/staff/notification-types", handler.NotificationTypes)
+		pr.Get("/api/staff/notifications", handler.Notifications)
+		pr.Get("/api/staff/moderation-reports", handler.ModerationReports)
+		pr.Get("/api/staff/moderation-decisions", handler.ModerationDecisions)
 		pr.Post("/api/staff/actions", handler.ApplyAction)
 	})
 
 	r.Group(func(pr chi.Router) {
 		pr.Use(authMiddleware)
-		pr.Use(middleware.RequireRole("user"))
+		pr.Use(middleware.RequireRole(reportAllowedRoles...))
 		pr.Post("/api/moderation/reports", handler.CreateReport)
 	})
 }

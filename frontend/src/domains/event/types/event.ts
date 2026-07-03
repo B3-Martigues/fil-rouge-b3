@@ -7,6 +7,8 @@ export type Event = {
   description: string;
   start_date: string;
   end_date: string;
+  time_start?: string | null;
+  time_end?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   address: string;
@@ -14,6 +16,9 @@ export type Event = {
   postal_code: string;
   category_slugs: EventCategoryName[];
   image: string;
+  external_image_url?: string | null;
+  image_optimized_url?: string | null;
+  image_thumbnail_url?: string | null;
   price: number;
   ticketing_link: string;
   source?: string | null;

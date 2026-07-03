@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"time"
 
 	"mappening/internal/users"
 
@@ -25,7 +26,7 @@ func NewAuthService(userRepo *users.Repository) *AuthService {
 	}
 }
 
-// Verifie les identifiants d'un utilisateur et refuse les comptes inactifs.
+// Verifie les identifiants d'un utilisateur et refuse les comptes inactifs ou suspendus.
 func (s *AuthService) Login(ctx context.Context, email, password string) (*users.User, error) {
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
@@ -36,7 +37,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*users
 		return nil, ErrInvalidCredentials
 	}
 
-	if !user.IsActive {
+	if !isUserAllowedToAuthenticate(user) {
 		return nil, ErrUserInactive
 	}
 
@@ -45,4 +46,8 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*users
 	}
 
 	return user, nil
+}
+
+func isUserAllowedToAuthenticate(user *users.User) bool {
+	return user != nil && user.IsActive && !user.IsSuspended(time.Now().UTC())
 }

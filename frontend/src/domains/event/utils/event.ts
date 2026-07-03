@@ -9,10 +9,6 @@ const dateFormatOptions: Intl.DateTimeFormatOptions = {
   dateStyle: "short",
 };
 
-const timeFormatOptions: Intl.DateTimeFormatOptions = {
-  timeStyle: "short",
-};
-
 const priceFormatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
   currency: "EUR",
@@ -50,13 +46,113 @@ export function isEventInPeriod(
 }
 
 export function toDateTimeLocalValue(date: string): string {
-  return date.slice(0, 16);
+  const value = new Date(date);
+
+  if (Number.isNaN(value.getTime())) {
+    return date.slice(0, 16);
+  }
+
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  const hours = String(value.getHours()).padStart(2, "0");
+  const minutes = String(value.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function toLocalDateTimeString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+}
+
+function combineDateAndTime(dateValue: string, timeValue?: string | null): string {
+  const time = timeValue?.trim();
+  if (!time) return dateValue;
+
+  const datePart = dateValue.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  const timePart = time.match(/^(\d{2}:\d{2})(?::\d{2})?/)?.[0];
+  if (!datePart || !timePart) return dateValue;
+
+  return `${datePart}T${timePart}`;
+}
+
+export function normalizeEventDateTimes(
+  event: Pick<Event, "start_date" | "end_date" | "time_start" | "time_end">,
+): Pick<Event, "start_date" | "end_date"> {
+  const startDate = combineDateAndTime(event.start_date, event.time_start);
+  let endDate = combineDateAndTime(event.end_date, event.time_end);
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (
+    event.time_start &&
+    event.time_end &&
+    !Number.isNaN(start.getTime()) &&
+    !Number.isNaN(end.getTime()) &&
+    end < start
+  ) {
+    end.setDate(end.getDate() + 1);
+    endDate = toLocalDateTimeString(end);
+  }
+
+  return {
+    start_date: startDate,
+    end_date: endDate,
+  };
 }
 
 export function hasEventCoordinates(
   event: Event,
 ): event is Event & { latitude: number; longitude: number } {
   return event.latitude != null && event.longitude != null;
+}
+
+export function hasDisplayableEventImage(event: Pick<Event, "image">): boolean {
+  const image = getEventImageUrl(event).trim();
+
+  if (!image) return false;
+
+  const normalizedImage = image.toLowerCase();
+  return (
+    !normalizedImage.startsWith("data:") &&
+    !/\.svg(?:[?#]|$)/.test(normalizedImage)
+  );
+}
+
+export function getEventImageUrl(
+  event: Pick<
+    Event,
+    "image" | "external_image_url" | "image_optimized_url" | "image_thumbnail_url"
+  >,
+): string {
+  return (
+    event.image_optimized_url?.trim() ||
+    event.image?.trim() ||
+    event.external_image_url?.trim() ||
+    ""
+  );
+}
+
+export function getEventThumbnailUrl(
+  event: Pick<
+    Event,
+    "image" | "external_image_url" | "image_optimized_url" | "image_thumbnail_url"
+  >,
+): string {
+  return (
+    event.image_thumbnail_url?.trim() ||
+    event.image_optimized_url?.trim() ||
+    event.image?.trim() ||
+    event.external_image_url?.trim() ||
+    ""
+  );
 }
 
 export function getDistanceInKilometers(
@@ -117,16 +213,13 @@ export function isEventSuspended(
 }
 
 export function formatEventDateRange(
-  event: Pick<Event, "start_date" | "end_date">,
+  event: Pick<Event, "start_date" | "end_date" | "time_start" | "time_end">,
 ): string {
-  const start = new Date(event.start_date);
-  const end = new Date(event.end_date);
+  const normalizedDates = normalizeEventDateTimes(event);
+  const start = new Date(normalizedDates.start_date);
+  const end = new Date(normalizedDates.end_date);
 
-  if (isSameLocalDay(start, end)) {
-    return `${formatDate(start)} ${formatTime(start)} - ${formatTime(end)}`;
-  }
-
-  return `${formatDateTime(start)} - ${formatDateTime(end)}`;
+  return `${formatEventDate(start)} - ${formatEventDate(end)} de ${formatClockTime(start)} \u00e0 ${formatHour(end)}`;
 }
 
 export function formatDateTime(date: string | Date): string {
@@ -141,26 +234,27 @@ function formatDate(date: string | Date): string {
   return new Date(date).toLocaleDateString("fr-FR", dateFormatOptions);
 }
 
-function formatTime(date: string | Date): string {
-  return new Date(date).toLocaleTimeString("fr-FR", timeFormatOptions);
-}
-
 function formatHour(date: string | Date): string {
   const value = new Date(date);
   const hours = String(value.getHours()).padStart(2, "0");
-  const minutes = value.getMinutes();
+  const minutes = String(value.getMinutes()).padStart(2, "0");
 
-  return minutes === 0
-    ? `${hours}h`
-    : `${hours}h${String(minutes).padStart(2, "0")}`;
+  return `${hours}h${minutes}`;
 }
 
-function isSameLocalDay(firstDate: Date, secondDate: Date): boolean {
-  return (
-    firstDate.getFullYear() === secondDate.getFullYear() &&
-    firstDate.getMonth() === secondDate.getMonth() &&
-    firstDate.getDate() === secondDate.getDate()
-  );
+function formatClockTime(date: string | Date): string {
+  const value = new Date(date);
+  const hours = String(value.getHours()).padStart(2, "0");
+  const minutes = String(value.getMinutes()).padStart(2, "0");
+
+  return `${hours}:${minutes}`;
+}
+
+function formatEventDate(date: Date): string {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+
+  return `${day}/${month}`;
 }
 
 export function getWeekStart(date: Date): Date {

@@ -1,6 +1,29 @@
 @use "../../../shared/styles/tokens" as *;
 @use "../../../shared/styles/mixins" as *;
 
+.notification-badge {
+  display: inline-flex;
+  flex: 0 0 20px;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  height: 20px;
+  min-height: 20px;
+  max-height: 20px;
+  aspect-ratio: 1 / 1;
+  box-sizing: border-box;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--color-inverse);
+  background: var(--color-favorite);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 4px 10px var(--color-floating-shadow);
+}
+
 .notification-center {
   position: relative;
   display: inline-flex;
@@ -24,25 +47,6 @@
       position: absolute;
       top: -6px;
       right: -6px;
-      display: inline-flex;
-      flex: 0 0 20px;
-      align-items: center;
-      justify-content: center;
-      width: 20px;
-      min-width: 20px;
-      max-width: 20px;
-      height: 20px;
-      min-height: 20px;
-      max-height: 20px;
-      aspect-ratio: 1 / 1;
-      box-sizing: border-box;
-      padding: 0;
-      border-radius: 50%;
-      color: var(--color-inverse);
-      background: var(--color-favorite);
-      font-size: 10px;
-      font-weight: 900;
-      line-height: 1;
     }
   }
 
@@ -107,7 +111,10 @@
       background: var(--bg);
       font: inherit;
       text-align: left;
-      cursor: pointer;
+
+      &.is-clickable {
+        cursor: pointer;
+      }
 
       .btn__content {
         display: grid;
