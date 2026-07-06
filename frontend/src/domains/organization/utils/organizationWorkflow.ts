@@ -54,9 +54,6 @@ export type EventFormErrors = Partial<Record<keyof EventForm, string>>;
 
 export const normalizeComparable = (value: string) => value.trim().toLowerCase();
 
-export const createNextId = (items: { id: number }[]) =>
-  Math.max(0, ...items.map((item) => item.id)) + 1;
-
 export const emptyOrganizerProfileForm = (): OrganizerProfileForm => ({
   job_role: "",
 });

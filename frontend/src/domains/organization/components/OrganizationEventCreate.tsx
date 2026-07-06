@@ -23,6 +23,7 @@ import {
   type EventForm,
   type EventFormErrors,
 } from "../utils/organizationWorkflow";
+import { toEventDateTimePayload } from "../../event/utils/event";
 
 export default function OrganizationDashboard() {
   const navigate = useNavigate();
@@ -72,8 +73,8 @@ export default function OrganizationDashboard() {
       organization_id: currentUser.organization_id,
       title: form.title.trim(),
       description: form.description.trim(),
-      start_date: new Date(form.start_date).toISOString(),
-      end_date: new Date(form.end_date).toISOString(),
+      start_date: toEventDateTimePayload(form.start_date),
+      end_date: toEventDateTimePayload(form.end_date),
       address: form.address.trim(),
       city: form.city.trim(),
       postal_code: form.postal_code.trim(),

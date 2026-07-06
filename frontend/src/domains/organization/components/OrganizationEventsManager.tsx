@@ -28,6 +28,7 @@ import {
   formatDateTime,
   formatEventDateRange,
   getTicketingHref,
+  toEventDateTimePayload,
   toDateTimeLocalValue,
 } from "../../event/utils/event";
 import { validateEventForm } from "../utils/organizationWorkflow";
@@ -204,8 +205,8 @@ export default function OrganizationEvents() {
       ...originalEvent,
       title: eventDraft.title.trim(),
       description: eventDraft.description.trim(),
-      start_date: new Date(eventDraft.start_date).toISOString(),
-      end_date: new Date(eventDraft.end_date).toISOString(),
+      start_date: toEventDateTimePayload(eventDraft.start_date),
+      end_date: toEventDateTimePayload(eventDraft.end_date),
       address: eventDraft.address.trim(),
       city: eventDraft.city.trim(),
       postal_code: eventDraft.postal_code.trim(),

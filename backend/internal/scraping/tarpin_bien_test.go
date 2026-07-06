@@ -27,11 +27,22 @@ func TestParseSchemaDates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseSchemaDates returned error: %v", err)
 	}
-	if start.Format("2006-01-02 15:04:05") != "2025-06-05 10:00:00" {
-		t.Fatalf("unexpected schema start: %s", start.Format("2006-01-02 15:04:05"))
+	if got := formatEventDateTimeForDB(start); got != "2025-06-05 12:00:00" {
+		t.Fatalf("unexpected schema start: %s", got)
 	}
-	if end.Format("2006-01-02 15:04:05") != "2026-12-31 19:00:00" {
-		t.Fatalf("unexpected schema end: %s", end.Format("2006-01-02 15:04:05"))
+	if got := formatEventDateTimeForDB(end); got != "2026-12-31 20:00:00" {
+		t.Fatalf("unexpected schema end: %s", got)
+	}
+}
+
+func TestParseSchemaDateKeepsParisLocalDateTimeUnshifted(t *testing.T) {
+	start, err := parseSchemaDate("2026-07-03T20:00:00")
+	if err != nil {
+		t.Fatalf("parseSchemaDate returned error: %v", err)
+	}
+
+	if got := formatEventDateTimeForDB(start); got != "2026-07-03 20:00:00" {
+		t.Fatalf("expected local schema date to stay 20:00, got %s", got)
 	}
 }
 
@@ -239,6 +250,12 @@ func TestIsDisplayableImageURL(t *testing.T) {
 		if isDisplayableImageURL(rawURL) {
 			t.Fatalf("expected %q to be rejected", rawURL)
 		}
+	}
+}
+
+func TestParseSchemaDateRejectsSentinelYear(t *testing.T) {
+	if _, err := parseSchemaDate("2000-11-30T00:00:00Z"); err == nil {
+		t.Fatal("expected schema sentinel date to be rejected")
 	}
 }
 

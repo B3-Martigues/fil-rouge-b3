@@ -69,6 +69,7 @@ import {
   getTicketingHref,
   isValidOptionalUrl,
   isEventSuspended,
+  toEventDateTimePayload,
   toDateTimeLocalValue,
 } from "../../event/utils/event";
 
@@ -336,6 +337,31 @@ const getEventAdminStatus = (event: Event, hasOpenReport = false) => {
     value: "pending" as const,
     variant: "pending" as const,
   };
+};
+
+const getSortableEventDate = (event: Event): number => {
+  const timestamp = new Date(event.start_date).getTime();
+
+  return Number.isNaN(timestamp) ? Number.POSITIVE_INFINITY : timestamp;
+};
+
+const compareEventDates = (
+  firstEvent: Event,
+  secondEvent: Event,
+  direction: "asc" | "desc",
+): number => {
+  const firstTimestamp = getSortableEventDate(firstEvent);
+  const secondTimestamp = getSortableEventDate(secondEvent);
+  const firstInvalid = !Number.isFinite(firstTimestamp);
+  const secondInvalid = !Number.isFinite(secondTimestamp);
+
+  if (firstInvalid && secondInvalid) return 0;
+  if (firstInvalid) return 1;
+  if (secondInvalid) return -1;
+
+  return direction === "desc"
+    ? secondTimestamp - firstTimestamp
+    : firstTimestamp - secondTimestamp;
 };
 
 const toggleEventDraftCategory = (
@@ -616,10 +642,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     })
     .sort((firstEvent, secondEvent) => {
       if (eventSort === "date-desc") {
-        return (
-          new Date(secondEvent.start_date).getTime() -
-          new Date(firstEvent.start_date).getTime()
-        );
+        return compareEventDates(firstEvent, secondEvent, "desc");
       }
 
       if (eventSort === "title-asc") {
@@ -634,10 +657,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         return firstEvent.city.localeCompare(secondEvent.city, "fr-FR");
       }
 
-      return (
-        new Date(firstEvent.start_date).getTime() -
-        new Date(secondEvent.start_date).getTime()
-      );
+      return compareEventDates(firstEvent, secondEvent, "asc");
     });
 
   const startUserEdit = (account: AccountSummary) => {
@@ -1018,8 +1038,8 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     const payload = {
       title: eventDraft.title.trim(),
       description: eventDraft.description.trim(),
-      start_date: new Date(eventDraft.start_date).toISOString(),
-      end_date: new Date(eventDraft.end_date).toISOString(),
+      start_date: toEventDateTimePayload(eventDraft.start_date),
+      end_date: toEventDateTimePayload(eventDraft.end_date),
       address: eventDraft.address.trim(),
       category_slugs: eventDraft.category_slugs,
       city: eventDraft.city.trim(),

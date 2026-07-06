@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	TarpinBienSource    = "Le Tarpin Bien"
-	tarpinBienSearchURL = "https://tarpin-bien.com/recherche/?evenementCheck=1"
-	addressAPIURL       = "https://data.geopf.fr/geocodage/search"
+	TarpinBienSource      = "Le Tarpin Bien"
+	tarpinBienSearchURL   = "https://tarpin-bien.com/recherche/?evenementCheck=1"
+	addressAPIURL         = "https://data.geopf.fr/geocodage/search"
+	eventDateTimeDBLayout = "2006-01-02 15:04:05"
 )
 
 type TarpinBienService struct {
@@ -108,6 +109,18 @@ type eventCategory struct {
 	ID   int64
 	Name string
 	Slug string
+}
+
+func eventLocation() *time.Location {
+	location, err := time.LoadLocation("Europe/Paris")
+	if err != nil {
+		return time.Local
+	}
+	return location
+}
+
+func formatEventDateTimeForDB(value time.Time) string {
+	return value.In(eventLocation()).Format(eventDateTimeDBLayout)
 }
 
 func NewTarpinBienService(db *sql.DB) *TarpinBienService {
@@ -769,7 +782,7 @@ func (s *TarpinBienService) findExistingScrapedEvent(ctx context.Context, event 
 		WHERE deleted_at IS NULL
 		  AND (
 		      (source_url IS NOT NULL AND source_url = $1)
-		      OR (source = $2 AND LOWER(title) = LOWER($3) AND DATE(start_date) = DATE($4))
+		      OR (source = $2 AND LOWER(title) = LOWER($3) AND DATE(start_date) = DATE($4::timestamp))
 		  )
 		ORDER BY
 			CASE
@@ -779,7 +792,7 @@ func (s *TarpinBienService) findExistingScrapedEvent(ctx context.Context, event 
 			END,
 			updated_at DESC
 		LIMIT 1
-	`, event.SourceURL, TarpinBienSource, event.Title, event.StartDate, event.Address).Scan(
+	`, event.SourceURL, TarpinBienSource, event.Title, formatEventDateTimeForDB(event.StartDate), event.Address).Scan(
 		&existing.ID,
 		&existing.Title,
 		&existing.Description,
@@ -893,8 +906,8 @@ func (s *TarpinBienService) insertScrapedEvent(ctx context.Context, event scrape
 	`,
 		event.Title,
 		event.Description,
-		event.StartDate,
-		event.EndDate,
+		formatEventDateTimeForDB(event.StartDate),
+		formatEventDateTimeForDB(event.EndDate),
 		nullStringValue(event.TimeStart),
 		nullStringValue(event.TimeEnd),
 		nullFloatValue(event.Latitude),
@@ -1022,8 +1035,8 @@ func (s *TarpinBienService) updateScrapedEventIfChanged(ctx context.Context, exi
 		`,
 			event.Title,
 			event.Description,
-			event.StartDate,
-			event.EndDate,
+			formatEventDateTimeForDB(event.StartDate),
+			formatEventDateTimeForDB(event.EndDate),
 			nullStringValue(event.TimeStart),
 			nullStringValue(event.TimeEnd),
 			nullFloatValue(event.Latitude),
@@ -1123,10 +1136,10 @@ func changedScrapedEventFields(existing existingScrapedEvent, event scrapedEvent
 	if existing.Description != event.Description {
 		changed = append(changed, "description")
 	}
-	if !sameTime(existing.StartDate, event.StartDate) {
+	if !sameLocalDateTime(existing.StartDate, event.StartDate) {
 		changed = append(changed, "start_date")
 	}
-	if !sameTime(existing.EndDate, event.EndDate) {
+	if !sameLocalDateTime(existing.EndDate, event.EndDate) {
 		changed = append(changed, "end_date")
 	}
 	if !sameNullableString(existing.TimeStart, nullStringValue(event.TimeStart)) {
@@ -1172,8 +1185,8 @@ func changedScrapedEventFields(existing existingScrapedEvent, event scrapedEvent
 	return changed
 }
 
-func sameTime(left time.Time, right time.Time) bool {
-	return left.Equal(right)
+func sameLocalDateTime(left time.Time, right time.Time) bool {
+	return formatEventDateTimeForDB(left) == formatEventDateTimeForDB(right)
 }
 
 func sameNullableString(left sql.NullString, right sql.NullString) bool {
@@ -1959,19 +1972,35 @@ func parseSchemaDate(value string) (time.Time, error) {
 	if value == "" {
 		return time.Time{}, errors.New("missing schema date")
 	}
-	layouts := []string{
+	location := eventLocation()
+	instantLayouts := []string{
 		time.RFC3339,
 		"2006-01-02T15:04:05-0700",
 		"2006-01-02T15:04:05Z0700",
+	}
+	for _, layout := range instantLayouts {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return validateScrapedDate(parsed.In(location), value)
+		}
+	}
+
+	localLayouts := []string{
 		"2006-01-02T15:04:05",
 		"2006-01-02",
 	}
-	for _, layout := range layouts {
-		if parsed, err := time.Parse(layout, value); err == nil {
-			return parsed, nil
+	for _, layout := range localLayouts {
+		if parsed, err := time.ParseInLocation(layout, value, location); err == nil {
+			return validateScrapedDate(parsed, value)
 		}
 	}
 	return time.Time{}, fmt.Errorf("invalid schema date %q", value)
+}
+
+func validateScrapedDate(value time.Time, raw string) (time.Time, error) {
+	if value.Year() <= 2000 {
+		return time.Time{}, fmt.Errorf("invalid schema date %q", raw)
+	}
+	return value, nil
 }
 
 func timesFromDates(startDate, endDate time.Time) (*string, *string) {
@@ -2006,7 +2035,7 @@ func parseFrenchDateParts(dayRaw, monthRaw, yearRaw string) (time.Time, error) {
 	if !ok {
 		return time.Time{}, fmt.Errorf("unknown french month %q", monthRaw)
 	}
-	return time.Date(year, month, day, 0, 0, 0, 0, time.Local), nil
+	return time.Date(year, month, day, 0, 0, 0, 0, eventLocation()), nil
 }
 
 var frenchMonths = map[string]time.Month{

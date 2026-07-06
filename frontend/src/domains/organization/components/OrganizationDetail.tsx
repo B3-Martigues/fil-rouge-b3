@@ -27,6 +27,7 @@ import {
   formatEventDateRange,
   formatEventPrice,
   getTicketingHref,
+  toEventDateTimePayload,
 } from "../../event/utils/event";
 import { OrganizationFields } from "./OrganizationSetupFlow";
 import {
@@ -247,8 +248,8 @@ export default function OrganizationDetailPage() {
       organization_id: organization.id,
       title: eventForm.title.trim(),
       description: eventForm.description.trim(),
-      start_date: new Date(eventForm.start_date).toISOString(),
-      end_date: new Date(eventForm.end_date).toISOString(),
+      start_date: toEventDateTimePayload(eventForm.start_date),
+      end_date: toEventDateTimePayload(eventForm.end_date),
       address: eventForm.address.trim(),
       city: eventForm.city.trim(),
       postal_code: eventForm.postal_code.trim(),

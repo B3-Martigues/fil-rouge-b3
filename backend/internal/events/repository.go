@@ -27,13 +27,13 @@ var (
 )
 
 type Repository struct {
-	db *sql.DB
+	db    *sql.DB
 	cache *cache.Client
 }
 
 func NewRepository(db *sql.DB, cache *cache.Client) *Repository {
 	return &Repository{
-		db: db,
+		db:    db,
 		cache: cache,
 	}
 }
@@ -43,8 +43,8 @@ const eventColumns = `
 		e.organization_id,
 		e.title,
 		e.description,
-		e.start_date,
-		e.end_date,
+		TO_CHAR(e.start_date, 'YYYY-MM-DD"T"HH24:MI:SS') AS start_date,
+		TO_CHAR(e.end_date, 'YYYY-MM-DD"T"HH24:MI:SS') AS end_date,
 		TO_CHAR(e.time_start, 'HH24:MI:SS') AS time_start,
 		TO_CHAR(e.time_end, 'HH24:MI:SS') AS time_end,
 		e.latitude,
@@ -452,7 +452,7 @@ func (r *Repository) List(ctx context.Context, filters ListFilters) ([]Event, er
 }
 
 func (r *Repository) GetByID(ctx context.Context, id int64, includeInactive bool) (*Event, error) {
-	
+
 	key := fmt.Sprintf("events:byid:%d", id)
 	if r.cache != nil {
 		if cached, err := r.cache.Get(ctx, key).Result(); err == nil {
@@ -646,13 +646,13 @@ func (r *Repository) Update(ctx context.Context, eventID int64, input EventInput
 	}
 
 	if r.cache != nil {
-	_ = r.cache.Del(ctx, fmt.Sprintf("events:byid:%d", eventID)).Err()
+		_ = r.cache.Del(ctx, fmt.Sprintf("events:byid:%d", eventID)).Err()
 
-	iter := r.cache.Scan(ctx, 0, "events:list:*", 0).Iterator()
-	for iter.Next(ctx) {
-		_ = r.cache.Del(ctx, iter.Val()).Err()
+		iter := r.cache.Scan(ctx, 0, "events:list:*", 0).Iterator()
+		for iter.Next(ctx) {
+			_ = r.cache.Del(ctx, iter.Val()).Err()
+		}
 	}
-}
 
 	return r.GetByID(ctx, eventID, true)
 }
@@ -1358,10 +1358,10 @@ func buildEventWhere(filters ListFilters) (string, []any) {
 		clauses = append(clauses, "e.price > 0")
 	}
 	if filters.UpcomingOnly {
-		clauses = append(clauses, "e.end_date >= NOW()")
+		clauses = append(clauses, "e.end_date >= (NOW() AT TIME ZONE 'Europe/Paris')")
 	}
 	if filters.PastOnly {
-		clauses = append(clauses, "e.end_date < NOW()")
+		clauses = append(clauses, "e.end_date < (NOW() AT TIME ZONE 'Europe/Paris')")
 	}
 	if filters.Bounds != nil {
 		args = append(args, filters.Bounds.South)

@@ -25,7 +25,7 @@ func TestAdminUsersRoutes_RequireAuth_AndConfiguredRepo(t *testing.T) {
 		}
 	})
 
-	t.Run("login admin user", func(t *testing.T) {
+	t.Run("login requires configured repository", func(t *testing.T) {
 		req := testutils.NewJSONRequest(t, http.MethodPost, srv.URL+"/api/auth/login", map[string]string{
 			"email":    "admin@mappening.local",
 			"password": "admin1234",
@@ -38,15 +38,12 @@ func TestAdminUsersRoutes_RequireAuth_AndConfiguredRepo(t *testing.T) {
 		}
 		res.Body.Close()
 
-		if res.StatusCode != http.StatusOK {
-			t.Fatalf("expected 200 on login, got %d", res.StatusCode)
-		}
-		if tc.RootCookie(t, "access_token") == nil {
-			t.Fatalf("expected access_token cookie after login")
+		if res.StatusCode != http.StatusInternalServerError {
+			t.Fatalf("expected 500 without configured auth repo, got %d", res.StatusCode)
 		}
 	})
 
-	t.Run("list returns 500 when admin repository is not configured", func(t *testing.T) {
+	t.Run("list stays unauthenticated without fake login", func(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodGet, srv.URL+"/api/admin/users", nil)
 		res, err := tc.Client.Do(req)
 		if err != nil {
@@ -54,8 +51,8 @@ func TestAdminUsersRoutes_RequireAuth_AndConfiguredRepo(t *testing.T) {
 		}
 		res.Body.Close()
 
-		if res.StatusCode != http.StatusInternalServerError {
-			t.Fatalf("expected 500 without configured repo, got %d", res.StatusCode)
+		if res.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("expected 401 without authenticated user, got %d", res.StatusCode)
 		}
 	})
 

@@ -41,8 +41,6 @@ func NewRouter(cfg config.Config, db *sql.DB, cache *cache.Client) nethttp.Handl
 
 		userRepo = users.NewRepository(db)
 		authUserRepo = userRepo
-	} else if cfg.EnableTestAuthFallback && config.NormalizeEnv(cfg.Env) == "test" {
-		authUserRepo = staticAuthUserRepo{}
 	}
 
 	adminUsersHandler := users.AdminHandler{

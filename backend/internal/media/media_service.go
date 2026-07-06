@@ -145,6 +145,9 @@ func (s Service) authorizeUpload(ctx context.Context, actor Actor, entityType st
 			return s.repo().CanManageEvent(ctx, actor, *entityID)
 		}
 		if organizationID == nil || *organizationID <= 0 {
+			if isAdmin(actor.Role) {
+				return nil
+			}
 			return ErrTargetNotFound
 		}
 		return s.repo().CanManageOrganizationMembership(ctx, actor, *organizationID)

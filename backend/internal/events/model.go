@@ -7,8 +7,8 @@ type Event struct {
 	OrganizationID    *int64               `json:"organization_id"`
 	Title             string               `json:"title"`
 	Description       string               `json:"description"`
-	StartDate         time.Time            `json:"start_date"`
-	EndDate           time.Time            `json:"end_date"`
+	StartDate         string               `json:"start_date"`
+	EndDate           string               `json:"end_date"`
 	TimeStart         *string              `json:"time_start,omitempty"`
 	TimeEnd           *string              `json:"time_end,omitempty"`
 	Latitude          *float64             `json:"latitude,omitempty"`

@@ -149,7 +149,7 @@ func (r *Repository) CanManageOrganization(ctx context.Context, actor Actor, org
 }
 
 func (r *Repository) CanManageEvent(ctx context.Context, actor Actor, eventID int64) error {
-	var organizationID int64
+	var organizationID sql.NullInt64
 	err := r.db.QueryRowContext(ctx, `
 		SELECT organization_id
 		FROM events
@@ -162,7 +162,13 @@ func (r *Repository) CanManageEvent(ctx context.Context, actor Actor, eventID in
 		}
 		return fmt.Errorf("get event media target: %w", err)
 	}
-	return r.CanManageOrganizationMembership(ctx, actor, organizationID)
+	if !organizationID.Valid {
+		if isAdmin(actor.Role) {
+			return nil
+		}
+		return ErrForbidden
+	}
+	return r.CanManageOrganizationMembership(ctx, actor, organizationID.Int64)
 }
 
 func (r *Repository) CanManageOrganizationMembership(ctx context.Context, actor Actor, organizationID int64) error {

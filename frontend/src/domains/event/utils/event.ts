@@ -61,6 +61,22 @@ export function toDateTimeLocalValue(date: string): string {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
+export function toEventDateTimePayload(date: string): string {
+  const value = date.trim();
+  const match = value.match(
+    /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(?::(\d{2}))?$/,
+  );
+
+  if (match) {
+    return `${match[1]}T${match[2]}:${match[3] ?? "00"}`;
+  }
+
+  const localValue = toDateTimeLocalValue(value);
+  const localMatch = localValue.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/);
+
+  return localMatch ? `${localMatch[1]}T${localMatch[2]}:00` : value;
+}
+
 function toLocalDateTimeString(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -72,7 +88,15 @@ function toLocalDateTimeString(date: Date): string {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 }
 
+function isValidDateValue(value: string): boolean {
+  const date = new Date(value);
+
+  return !Number.isNaN(date.getTime()) && date.getFullYear() > 2000;
+}
+
 function combineDateAndTime(dateValue: string, timeValue?: string | null): string {
+  if (!isValidDateValue(dateValue)) return "";
+
   const time = timeValue?.trim();
   if (!time) return dateValue;
 
@@ -218,6 +242,10 @@ export function formatEventDateRange(
   const normalizedDates = normalizeEventDateTimes(event);
   const start = new Date(normalizedDates.start_date);
   const end = new Date(normalizedDates.end_date);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return "Date non renseignée";
+  }
 
   return `${formatEventDate(start)} - ${formatEventDate(end)} de ${formatClockTime(start)} \u00e0 ${formatHour(end)}`;
 }

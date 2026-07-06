@@ -21,6 +21,16 @@ type Handler struct {
 	Geocoder geocoding.Normalizer
 }
 
+const eventDateTimeDBLayout = "2006-01-02 15:04:05"
+
+func eventLocation() *time.Location {
+	location, err := time.LoadLocation("Europe/Paris")
+	if err != nil {
+		return time.Local
+	}
+	return location
+}
+
 func (h Handler) List(w http.ResponseWriter, r *http.Request) {
 	filters, err := parseListFilters(r)
 	if err != nil {
@@ -576,8 +586,8 @@ func decodeAndValidateInput(w http.ResponseWriter, r *http.Request) (EventInput,
 		return input, errors.New("end_date must be after or equal to start_date")
 	}
 
-	input.StartDate = startDate.Format(time.RFC3339)
-	input.EndDate = endDate.Format(time.RFC3339)
+	input.StartDate = formatEventDateTimeForDB(startDate)
+	input.EndDate = formatEventDateTimeForDB(endDate)
 
 	return input, nil
 }
@@ -704,18 +714,28 @@ func parseDateOrTime(value string) (time.Time, error) {
 	if value == "" {
 		return time.Time{}, errors.New("empty date")
 	}
+
+	location := eventLocation()
+	if parsed, err := time.Parse(time.RFC3339, value); err == nil {
+		return parsed.In(location), nil
+	}
+
 	layouts := []string{
-		time.RFC3339,
+		"2006-01-02T15:04:05",
 		"2006-01-02T15:04",
 		"2006-01-02 15:04:05",
 		"2006-01-02",
 	}
 	for _, layout := range layouts {
-		if parsed, err := time.Parse(layout, value); err == nil {
+		if parsed, err := time.ParseInLocation(layout, value, location); err == nil {
 			return parsed, nil
 		}
 	}
 	return time.Time{}, errors.New("invalid date")
+}
+
+func formatEventDateTimeForDB(value time.Time) string {
+	return value.In(eventLocation()).Format(eventDateTimeDBLayout)
 }
 
 func parseBounds(northRaw, southRaw, eastRaw, westRaw string) (GeoBounds, bool, error) {
