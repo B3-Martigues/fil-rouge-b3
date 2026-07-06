@@ -100,6 +100,7 @@ type ModerationReport struct {
 
 type ModerationDecision struct {
 	ID              int64     `json:"id"`
+	ReportID        *int64    `json:"report_id,omitempty"`
 	Action          string    `json:"action"`
 	TargetType      string    `json:"target_type"`
 	TargetID        int64     `json:"target_id"`

@@ -27,11 +27,11 @@ type Repository struct {
 	frontendURL string
 }
 
-func NewRepository(db *sql.DB,) *Repository {
+func NewRepository(db *sql.DB) *Repository {
 	return NewRepositoryWithMailer(db, nil, "")
 }
 
-func NewRepositoryWithMailer(db *sql.DB, sender mailer.Sender, frontendURL string, ) *Repository {
+func NewRepositoryWithMailer(db *sql.DB, sender mailer.Sender, frontendURL string) *Repository {
 	return &Repository{db: db, eventRepo: events.NewRepository(db, nil), mailSender: sender, frontendURL: strings.TrimRight(frontendURL, "/")}
 }
 
@@ -62,14 +62,14 @@ func (r *Repository) ApplyAction(ctx context.Context, req ActionRequest, moderat
 		if req.ReportStatus != nil && strings.TrimSpace(*req.ReportStatus) != "" {
 			status = strings.TrimSpace(strings.ToLower(*req.ReportStatus))
 		}
-		if err := updateReportInTx(ctx, tx, *req.ReportID, status, moderatorUserID, req.Reason); err != nil {
+		if err := updateReportInTx(ctx, tx, *req.ReportID, req.TargetType, req.TargetID, status, moderatorUserID, req.Reason); err != nil {
 			return err
 		}
 	}
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO moderation_decisions (action, target_type, target_id, moderator_user_id, reason)
-		VALUES ($1, $2, $3, $4, $5)
-	`, req.Action, req.TargetType, req.TargetID, moderatorUserID, req.Reason); err != nil {
+		INSERT INTO moderation_decisions (report_id, action, target_type, target_id, moderator_user_id, reason)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`, req.ReportID, req.Action, req.TargetType, req.TargetID, moderatorUserID, req.Reason); err != nil {
 		return fmt.Errorf("record moderation decision: %w", err)
 	}
 	emailMessages, err := r.createActionNotification(ctx, tx, req)
@@ -608,7 +608,7 @@ func (r *Repository) listReports(ctx context.Context) ([]ModerationReport, error
 
 func (r *Repository) listDecisions(ctx context.Context) ([]ModerationDecision, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, action, target_type, target_id, moderator_user_id, reason, created_at
+		SELECT id, report_id, action, target_type, target_id, moderator_user_id, reason, created_at
 		FROM moderation_decisions
 		ORDER BY created_at DESC, id DESC
 		LIMIT 500
@@ -620,15 +620,17 @@ func (r *Repository) listDecisions(ctx context.Context) ([]ModerationDecision, e
 	var decisions []ModerationDecision
 	for rows.Next() {
 		var decision ModerationDecision
-		if err := rows.Scan(&decision.ID, &decision.Action, &decision.TargetType, &decision.TargetID, &decision.ModeratorUserID, &decision.Reason, &decision.CreatedAt); err != nil {
+		var reportID sql.NullInt64
+		if err := rows.Scan(&decision.ID, &reportID, &decision.Action, &decision.TargetType, &decision.TargetID, &decision.ModeratorUserID, &decision.Reason, &decision.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan moderation decision: %w", err)
 		}
+		decision.ReportID = nullableInt(reportID)
 		decisions = append(decisions, decision)
 	}
 	return decisions, rows.Err()
 }
 
-func updateReportInTx(ctx context.Context, tx *sql.Tx, reportID int64, status string, moderatorUserID int64, note string) error {
+func updateReportInTx(ctx context.Context, tx *sql.Tx, reportID int64, targetType string, targetID int64, status string, moderatorUserID int64, note string) error {
 	if status != "open" && status != "reviewing" && status != "resolved" && status != "dismissed" {
 		return ErrValidation
 	}
@@ -640,13 +642,17 @@ func updateReportInTx(ctx context.Context, tx *sql.Tx, reportID int64, status st
 			SET status = $1, handled_by_user_id = $2, resolution_note = $3,
 			    resolved_at = NOW(), updated_at = NOW()
 			WHERE id = $4
-		`, status, moderatorUserID, note, reportID)
+			  AND target_type = $5
+			  AND target_id = $6
+		`, status, moderatorUserID, note, reportID, targetType, targetID)
 	} else {
 		res, err = tx.ExecContext(ctx, `
 			UPDATE moderation_reports
 			SET status = $1, handled_by_user_id = $2, updated_at = NOW()
 			WHERE id = $3
-		`, status, moderatorUserID, reportID)
+			  AND target_type = $4
+			  AND target_id = $5
+		`, status, moderatorUserID, reportID, targetType, targetID)
 	}
 	if err != nil {
 		return fmt.Errorf("update moderation report: %w", err)

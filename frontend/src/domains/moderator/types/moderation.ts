@@ -45,6 +45,7 @@ export type ModerationReport = {
 
 export type ModerationDecision = {
   id: number;
+  report_id?: number | null;
   action: ModerationAction;
   target_type: ModerationTargetType;
   target_id: number;
