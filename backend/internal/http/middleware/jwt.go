@@ -39,7 +39,7 @@ func AuthJWTWithUserLookup(
 	secret string,
 	issuer string,
 	env string,
-	userRepo authUserStateReader,
+	userService authUserStateReader,
 ) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -75,7 +75,7 @@ func AuthJWTWithUserLookup(
 				return
 			}
 
-			if !hasCurrentUserState(r.Context(), userRepo, claims) {
+			if !hasCurrentUserState(r.Context(), userService, claims) {
 				writeJSONError(w, http.StatusUnauthorized, "invalid token")
 				return
 			}
@@ -120,8 +120,8 @@ func hasAudience(audiences []string, expected string) bool {
 }
 
 // Confirme que les claims correspondent encore a l'etat actuel du compte.
-func hasCurrentUserState(ctx context.Context, userRepo authUserStateReader, claims *UserClaims) bool {
-	if userRepo == nil {
+func hasCurrentUserState(ctx context.Context, userService authUserStateReader, claims *UserClaims) bool {
+	if userService == nil {
 		return true
 	}
 	if claims == nil {
@@ -133,7 +133,7 @@ func hasCurrentUserState(ctx context.Context, userRepo authUserStateReader, clai
 		return false
 	}
 
-	user, err := userRepo.GetByEmail(ctx, subject)
+	user, err := userService.GetByEmail(ctx, subject)
 	if err != nil || user == nil {
 		return false
 	}

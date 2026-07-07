@@ -1,7 +1,6 @@
 package staff
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -15,7 +14,7 @@ import (
 )
 
 type Handler struct {
-	Repo *Repository
+	Service Service
 }
 
 var reportAllowedRoles = []string{"user", "admin", "moderator"}
@@ -39,7 +38,7 @@ func (h Handler) ApplyAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.repo().ApplyAction(r.Context(), req, moderatorUserID, claims.Role); err != nil {
+	if err := h.service().ApplyAction(r.Context(), req, moderatorUserID, claims.Role); err != nil {
 		writeStaffError(w, err)
 		return
 	}
@@ -59,7 +58,7 @@ func (h Handler) CreateReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	report, err := h.repo().CreateReport(r.Context(), req, authenticatedUserID)
+	report, err := h.service().CreateReport(r.Context(), req, authenticatedUserID)
 	if err != nil {
 		writeStaffError(w, err)
 		return
@@ -72,64 +71,64 @@ func (h Handler) userProfileID(r *http.Request) (int64, error) {
 	if claims == nil || claims.UserID <= 0 {
 		return 0, ErrForbidden
 	}
-	return h.repo().userProfileIDByAccountID(r.Context(), claims.UserID)
+	return h.service().UserProfileIDByAccountID(r.Context(), claims.UserID)
 }
 
-func (h Handler) repo() *Repository {
-	return h.Repo
+func (h Handler) service() Service {
+	return h.Service
 }
 
 func (h Handler) Accounts(w http.ResponseWriter, r *http.Request) {
 	writeStaffList(w, "list staff accounts", func() ([]Account, error) {
-		return h.repo().listAccounts(r.Context())
+		return h.service().Accounts(r.Context())
 	})
 }
 
 func (h Handler) Users(w http.ResponseWriter, r *http.Request) {
 	writeStaffList(w, "list staff users", func() ([]User, error) {
-		return h.repo().listUsers(r.Context())
+		return h.service().Users(r.Context())
 	})
 }
 
 func (h Handler) Organizations(w http.ResponseWriter, r *http.Request) {
 	writeStaffList(w, "list staff organizations", func() ([]Organization, error) {
-		return h.repo().listOrganizations(r.Context())
+		return h.service().Organizations(r.Context())
 	})
 }
 
 func (h Handler) Organizers(w http.ResponseWriter, r *http.Request) {
 	writeStaffList(w, "list staff organizers", func() ([]Organizer, error) {
-		return h.repo().listOrganizers(r.Context())
+		return h.service().Organizers(r.Context())
 	})
 }
 
 func (h Handler) Events(w http.ResponseWriter, r *http.Request) {
 	writeStaffList(w, "list staff events", func() ([]events.Event, error) {
-		return h.repo().listEvents(r.Context())
+		return h.service().Events(r.Context())
 	})
 }
 
 func (h Handler) NotificationTypes(w http.ResponseWriter, r *http.Request) {
 	writeStaffList(w, "list staff notification types", func() ([]NotificationType, error) {
-		return h.repo().listNotificationTypes(r.Context())
+		return h.service().NotificationTypes(r.Context())
 	})
 }
 
 func (h Handler) Notifications(w http.ResponseWriter, r *http.Request) {
 	writeStaffList(w, "list staff notifications", func() ([]Notification, error) {
-		return h.repo().listNotifications(r.Context())
+		return h.service().Notifications(r.Context())
 	})
 }
 
 func (h Handler) ModerationReports(w http.ResponseWriter, r *http.Request) {
 	writeStaffList(w, "list staff moderation reports", func() ([]ModerationReport, error) {
-		return h.repo().listReports(r.Context())
+		return h.service().ModerationReports(r.Context())
 	})
 }
 
 func (h Handler) ModerationDecisions(w http.ResponseWriter, r *http.Request) {
 	writeStaffList(w, "list staff moderation decisions", func() ([]ModerationDecision, error) {
-		return h.repo().listDecisions(r.Context())
+		return h.service().ModerationDecisions(r.Context())
 	})
 }
 
@@ -141,20 +140,6 @@ func writeStaffList[T any](w http.ResponseWriter, logMessage string, load func()
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, data)
-}
-
-func (r *Repository) userProfileIDByAccountID(ctx context.Context, accountID int64) (int64, error) {
-	var userID int64
-	err := r.db.QueryRowContext(ctx, `
-		SELECT id
-		FROM users
-		WHERE account_id = $1
-		  AND deleted_at IS NULL
-	`, accountID).Scan(&userID)
-	if err != nil {
-		return 0, err
-	}
-	return userID, nil
 }
 
 func writeStaffError(w http.ResponseWriter, err error) {

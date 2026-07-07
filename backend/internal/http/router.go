@@ -28,8 +28,8 @@ import (
 func NewRouter(cfg config.Config, db *sql.DB, cache *cache.Client) nethttp.Handler {
 	var store auth.RefreshTokenStore = auth.NewRefreshStore()
 
-	var authUserRepo authUserReader
 	var userRepo *users.Repository
+	var authService authUserReader
 
 	if db != nil {
 		dbStore, err := auth.NewDBRefreshStore(db)
@@ -40,15 +40,18 @@ func NewRouter(cfg config.Config, db *sql.DB, cache *cache.Client) nethttp.Handl
 		}
 
 		userRepo = users.NewRepository(db)
-		authUserRepo = userRepo
+		authService = auth.NewAuthService(userRepo)
 	}
 
+	var adminService users.AdminService
+	if userRepo != nil {
+		adminService = users.NewAdminService(userRepo, store)
+	}
 	adminUsersHandler := users.AdminHandler{
-		UserRepo:     userRepo,
-		SessionStore: store,
+		Service: adminService,
 	}
 
-	return newRouter(cfg, db, store, authUserRepo, adminUsersHandler, geocoding.NewClient(), cache)
+	return newRouter(cfg, db, store, authService, adminUsersHandler, geocoding.NewClient(), cache)
 }
 
 type authUserReader interface {
@@ -67,7 +70,7 @@ func newRouter(
 	cfg config.Config,
 	db *sql.DB,
 	store auth.RefreshTokenStore,
-	authUserRepo authUserReader,
+	authService authUserReader,
 	adminUsers users.AdminHandler,
 	geocoder geocoding.Normalizer,
 	cache *cache.Client,
@@ -131,7 +134,7 @@ func newRouter(
 		DevLoginEnabled:  cfg.DevLoginEnabled,
 		DevLoginEmail:    cfg.DevLoginEmail,
 		Store:            store,
-		UserRepo:         authUserRepo,
+		Service:          authService,
 		Geocoder:         geocoder,
 		Mailer:           mailer.NewSender(cfg.Mail),
 	}
@@ -150,16 +153,16 @@ func newRouter(
 				},
 				Geocoder: geocoder,
 			},
-			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo),
+			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authService),
 		)
 
 		events.RegisterRoutes(
 			r,
 			events.Handler{
-				Repo:     events.NewRepository(db, cache),
+				Service:  events.Service{Repo: events.NewRepository(db, cache)},
 				Geocoder: geocoder,
 			},
-			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo),
+			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authService),
 		)
 
 		media.RegisterRoutes(
@@ -170,15 +173,17 @@ func newRouter(
 					Storage: media.NewLocalStorage("uploads"),
 				},
 			},
-			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo),
+			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authService),
 		)
 
 		staff.RegisterRoutes(
 			r,
 			staff.Handler{
-				Repo: staff.NewRepositoryWithMailer(db, mailer.NewSender(cfg.Mail), cfg.FrontendURL),
+				Service: staff.Service{
+					Repo: staff.NewRepositoryWithMailer(db, mailer.NewSender(cfg.Mail), cfg.FrontendURL),
+				},
 			},
-			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo),
+			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authService),
 		)
 	}
 
@@ -202,7 +207,7 @@ func newRouter(
 
 	r.Group(func(pr chi.Router) {
 		pr.Use(middleware.NoStore())
-		pr.Use(middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authUserRepo))
+		pr.Use(middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authService))
 
 		pr.Post("/api/auth/logout", authHandler.Logout)
 		pr.Get("/api/auth/me", authHandler.Me)

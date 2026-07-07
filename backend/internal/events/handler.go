@@ -17,7 +17,7 @@ import (
 )
 
 type Handler struct {
-	Repo     *Repository
+	Service  Service
 	Geocoder geocoding.Normalizer
 }
 
@@ -38,7 +38,7 @@ func (h Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	events, err := h.repo().List(r.Context(), filters)
+	events, err := h.service().List(r.Context(), filters)
 	if err != nil {
 		log.Error().Err(err).Msg("list events failed")
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
@@ -55,7 +55,7 @@ func (h Handler) ListUpcoming(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	filters.UpcomingOnly = true
-	events, err := h.repo().List(r.Context(), filters)
+	events, err := h.service().List(r.Context(), filters)
 	if err != nil {
 		log.Error().Err(err).Msg("list upcoming events failed")
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
@@ -71,7 +71,7 @@ func (h Handler) ListPast(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	filters.PastOnly = true
-	events, err := h.repo().List(r.Context(), filters)
+	events, err := h.service().List(r.Context(), filters)
 	if err != nil {
 		log.Error().Err(err).Msg("list past events failed")
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
@@ -87,7 +87,7 @@ func (h Handler) ListPopular(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	filters.Sort = "popular"
-	events, err := h.repo().List(r.Context(), filters)
+	events, err := h.service().List(r.Context(), filters)
 	if err != nil {
 		log.Error().Err(err).Msg("list popular events failed")
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
@@ -108,7 +108,7 @@ func (h Handler) ListByOrganization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	filters.OrganizationID = &organizationID
-	events, err := h.repo().List(r.Context(), filters)
+	events, err := h.service().List(r.Context(), filters)
 	if err != nil {
 		log.Error().Err(err).Int64("organization_id", organizationID).Msg("list organization events failed")
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
@@ -124,7 +124,7 @@ func (h Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := h.repo().GetByID(r.Context(), eventID, false)
+	event, err := h.service().GetByID(r.Context(), eventID, false)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -149,7 +149,7 @@ func (h Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := h.repo().Create(r.Context(), input, accountID, role)
+	event, err := h.service().Create(r.Context(), input, accountID, role)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -179,7 +179,7 @@ func (h Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := h.repo().Update(r.Context(), eventID, input, accountID, role)
+	event, err := h.service().Update(r.Context(), eventID, input, accountID, role)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -200,7 +200,7 @@ func (h Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.repo().Delete(r.Context(), eventID, accountID, role); err != nil {
+	if err := h.service().Delete(r.Context(), eventID, accountID, role); err != nil {
 		writeDomainError(w, err)
 		return
 	}
@@ -227,7 +227,7 @@ func (h Handler) SetActive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := h.repo().SetActive(r.Context(), eventID, req.IsActive, accountID, role)
+	event, err := h.service().SetActive(r.Context(), eventID, req.IsActive, accountID, role)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -237,7 +237,7 @@ func (h Handler) SetActive(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) ListCategories(w http.ResponseWriter, r *http.Request) {
-	categories, err := h.repo().ListCategories(r.Context())
+	categories, err := h.service().ListCategories(r.Context())
 	if err != nil {
 		log.Error().Err(err).Msg("list event categories failed")
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
@@ -253,7 +253,7 @@ func (h Handler) GetCategory(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSONError(w, http.StatusBadRequest, "invalid category id")
 		return
 	}
-	category, err := h.repo().GetCategory(r.Context(), categoryID)
+	category, err := h.service().GetCategory(r.Context(), categoryID)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -268,7 +268,7 @@ func (h Handler) ListByCategory(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSONError(w, http.StatusBadRequest, "invalid category id")
 		return
 	}
-	category, err := h.repo().GetCategory(r.Context(), categoryID)
+	category, err := h.service().GetCategory(r.Context(), categoryID)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -280,7 +280,7 @@ func (h Handler) ListByCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	filters.CategorySlugs = append(filters.CategorySlugs, category.Slug)
-	events, err := h.repo().List(r.Context(), filters)
+	events, err := h.service().List(r.Context(), filters)
 	if err != nil {
 		log.Error().Err(err).Int64("category_id", categoryID).Msg("list category events failed")
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
@@ -310,7 +310,7 @@ func (h Handler) ReplaceCategories(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := h.repo().ReplaceCategories(r.Context(), eventID, req.CategoryIDs, req.CategorySlugs, accountID, role)
+	event, err := h.service().ReplaceCategories(r.Context(), eventID, req.CategoryIDs, req.CategorySlugs, accountID, role)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -330,7 +330,7 @@ func (h Handler) AddCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := h.repo().AddCategory(r.Context(), eventID, categoryID, accountID, role)
+	event, err := h.service().AddCategory(r.Context(), eventID, categoryID, accountID, role)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -350,7 +350,7 @@ func (h Handler) RemoveCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := h.repo().RemoveCategory(r.Context(), eventID, categoryID, accountID, role)
+	event, err := h.service().RemoveCategory(r.Context(), eventID, categoryID, accountID, role)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -371,7 +371,7 @@ func (h Handler) AddFavorite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	favorite, err := h.repo().AddFavorite(r.Context(), accountID, eventID)
+	favorite, err := h.service().AddFavorite(r.Context(), accountID, eventID)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -392,7 +392,7 @@ func (h Handler) RemoveFavorite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.repo().RemoveFavorite(r.Context(), accountID, eventID); err != nil {
+	if err := h.service().RemoveFavorite(r.Context(), accountID, eventID); err != nil {
 		writeDomainError(w, err)
 		return
 	}
@@ -412,7 +412,7 @@ func (h Handler) IsFavorite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	active, err := h.repo().IsFavorite(r.Context(), accountID, eventID)
+	active, err := h.service().IsFavorite(r.Context(), accountID, eventID)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -428,7 +428,7 @@ func (h Handler) ListFavorites(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	favorites, err := h.repo().ListFavorites(r.Context(), accountID)
+	favorites, err := h.service().ListFavorites(r.Context(), accountID)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -449,7 +449,7 @@ func (h Handler) RecordHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	history, err := h.repo().RecordHistory(r.Context(), accountID, eventID)
+	history, err := h.service().RecordHistory(r.Context(), accountID, eventID)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -465,7 +465,7 @@ func (h Handler) ListHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	histories, err := h.repo().ListHistory(r.Context(), accountID)
+	histories, err := h.service().ListHistory(r.Context(), accountID)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -486,7 +486,7 @@ func (h Handler) RemoveHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.repo().RemoveHistory(r.Context(), accountID, historyID); err != nil {
+	if err := h.service().RemoveHistory(r.Context(), accountID, historyID); err != nil {
 		writeDomainError(w, err)
 		return
 	}
@@ -494,8 +494,8 @@ func (h Handler) RemoveHistory(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h Handler) repo() *Repository {
-	return h.Repo
+func (h Handler) service() Service {
+	return h.Service
 }
 
 func (h Handler) normalizeAddress(r *http.Request, input *EventInput) error {

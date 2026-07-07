@@ -43,7 +43,7 @@ type Handler struct {
 	DevLoginEmail   string
 
 	Store    RefreshTokenStore
-	UserRepo authUserReader
+	Service  authUserReader
 	Geocoder geocoding.Normalizer
 	Mailer   mailer.Sender
 }
@@ -75,12 +75,12 @@ type authPasswordResetter interface {
 	ResetPasswordWithToken(ctx context.Context, token string, passwordHash string) error
 }
 
-type authUserPreferencesRepository interface {
+type authUserPreferencesService interface {
 	ListEventPreferences(ctx context.Context, accountID int64) ([]users.EventPreference, error)
 	ReplaceEventPreferences(ctx context.Context, accountID int64, categorySlugs []string) ([]users.EventPreference, error)
 }
 
-type authUserNotificationsRepository interface {
+type authUserNotificationsService interface {
 	ListNotificationTypes(ctx context.Context) ([]users.NotificationType, error)
 	ListNotifications(ctx context.Context, accountID int64) ([]users.Notification, error)
 	MarkNotificationRead(ctx context.Context, accountID int64, notificationID int64) (*users.Notification, error)
@@ -93,7 +93,7 @@ type authUserDeleter interface {
 }
 
 func (h Handler) Login(w http.ResponseWriter, r *http.Request) {
-	if h.UserRepo == nil || h.Store == nil {
+	if h.Service == nil || h.Store == nil {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}
@@ -130,7 +130,7 @@ func (h Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.UserRepo.GetByEmail(r.Context(), req.Email)
+	user, err := h.Service.GetByEmail(r.Context(), req.Email)
 	if err != nil {
 		if errors.Is(err, users.ErrUserNotFound) {
 			_ = bcrypt.CompareHashAndPassword([]byte(dummyPasswordHash), []byte(req.Password))
@@ -184,8 +184,8 @@ func (h Handler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
-	creator, ok := h.UserRepo.(authUserCreator)
-	if h.UserRepo == nil || h.Store == nil || !ok {
+	creator, ok := h.Service.(authUserCreator)
+	if h.Service == nil || h.Store == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}
@@ -249,8 +249,8 @@ func (h Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) RegisterOrganization(w http.ResponseWriter, r *http.Request) {
-	creator, ok := h.UserRepo.(authOrganizationCreator)
-	if h.UserRepo == nil || h.Store == nil || !ok {
+	creator, ok := h.Service.(authOrganizationCreator)
+	if h.Service == nil || h.Store == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}
@@ -390,7 +390,7 @@ func (h Handler) DevLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.UserRepo == nil || h.Store == nil {
+	if h.Service == nil || h.Store == nil {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}
@@ -415,7 +415,7 @@ func (h Handler) DevLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.UserRepo.GetByEmail(r.Context(), email)
+	user, err := h.Service.GetByEmail(r.Context(), email)
 	if err != nil {
 		if errors.Is(err, users.ErrUserNotFound) {
 			httpx.WriteJSONError(w, http.StatusUnauthorized, "dev login user not found")
@@ -450,7 +450,7 @@ func (h Handler) DevLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) Refresh(w http.ResponseWriter, r *http.Request) {
-	if h.UserRepo == nil || h.Store == nil {
+	if h.Service == nil || h.Store == nil {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}
@@ -518,7 +518,7 @@ func (h Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.UserRepo.GetByEmail(r.Context(), claims.Subject)
+	user, err := h.Service.GetByEmail(r.Context(), claims.Subject)
 	if err != nil {
 		if errors.Is(err, users.ErrUserNotFound) {
 			log.Warn().
@@ -636,7 +636,7 @@ func (h Handler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) Me(w http.ResponseWriter, r *http.Request) {
-	if h.UserRepo == nil {
+	if h.Service == nil {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}
@@ -649,7 +649,7 @@ func (h Handler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.UserRepo.GetByEmail(r.Context(), claimsUser.Email)
+	user, err := h.Service.GetByEmail(r.Context(), claimsUser.Email)
 	if err != nil {
 		if errors.Is(err, users.ErrUserNotFound) {
 			log.Warn().
@@ -682,8 +682,8 @@ func (h Handler) Me(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
-	updater, ok := h.UserRepo.(authUserProfileUpdater)
-	if h.UserRepo == nil || !ok {
+	updater, ok := h.Service.(authUserProfileUpdater)
+	if h.Service == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}
@@ -728,8 +728,8 @@ func (h Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
-	resetter, ok := h.UserRepo.(authPasswordResetter)
-	if h.UserRepo == nil || !ok {
+	resetter, ok := h.Service.(authPasswordResetter)
+	if h.Service == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}
@@ -790,8 +790,8 @@ func (h Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
-	resetter, ok := h.UserRepo.(authPasswordResetter)
-	if h.UserRepo == nil || !ok {
+	resetter, ok := h.Service.(authPasswordResetter)
+	if h.Service == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}
@@ -896,8 +896,8 @@ func (h Handler) sendMail(_ context.Context, message mailer.Message, purpose str
 }
 
 func (h Handler) ListPreferences(w http.ResponseWriter, r *http.Request) {
-	repo, ok := h.UserRepo.(authUserPreferencesRepository)
-	if h.UserRepo == nil || !ok {
+	service, ok := h.Service.(authUserPreferencesService)
+	if h.Service == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}
@@ -906,7 +906,7 @@ func (h Handler) ListPreferences(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSONError(w, http.StatusUnauthorized, "no user")
 		return
 	}
-	preferences, err := repo.ListEventPreferences(r.Context(), claimsUser.UserID)
+	preferences, err := service.ListEventPreferences(r.Context(), claimsUser.UserID)
 	if err != nil {
 		writeAuthMutationError(w, err)
 		return
@@ -915,8 +915,8 @@ func (h Handler) ListPreferences(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) ReplacePreferences(w http.ResponseWriter, r *http.Request) {
-	repo, ok := h.UserRepo.(authUserPreferencesRepository)
-	if h.UserRepo == nil || !ok {
+	service, ok := h.Service.(authUserPreferencesService)
+	if h.Service == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}
@@ -934,7 +934,7 @@ func (h Handler) ReplacePreferences(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSONError(w, http.StatusBadRequest, "at least one preference is required")
 		return
 	}
-	preferences, err := repo.ReplaceEventPreferences(r.Context(), claimsUser.UserID, req.CategorySlugs)
+	preferences, err := service.ReplaceEventPreferences(r.Context(), claimsUser.UserID, req.CategorySlugs)
 	if err != nil {
 		writeAuthMutationError(w, err)
 		return
@@ -943,8 +943,8 @@ func (h Handler) ReplacePreferences(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
-	repo, ok := h.UserRepo.(authUserNotificationsRepository)
-	if h.UserRepo == nil || !ok {
+	service, ok := h.Service.(authUserNotificationsService)
+	if h.Service == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}
@@ -953,7 +953,7 @@ func (h Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSONError(w, http.StatusUnauthorized, "no user")
 		return
 	}
-	notifications, err := repo.ListNotifications(r.Context(), claimsUser.UserID)
+	notifications, err := service.ListNotifications(r.Context(), claimsUser.UserID)
 	if err != nil {
 		writeAuthMutationError(w, err)
 		return
@@ -962,12 +962,12 @@ func (h Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) ListNotificationTypes(w http.ResponseWriter, r *http.Request) {
-	repo, ok := h.UserRepo.(authUserNotificationsRepository)
-	if h.UserRepo == nil || !ok {
+	service, ok := h.Service.(authUserNotificationsService)
+	if h.Service == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}
-	types, err := repo.ListNotificationTypes(r.Context())
+	types, err := service.ListNotificationTypes(r.Context())
 	if err != nil {
 		writeAuthMutationError(w, err)
 		return
@@ -976,8 +976,8 @@ func (h Handler) ListNotificationTypes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
-	repo, ok := h.UserRepo.(authUserNotificationsRepository)
-	if h.UserRepo == nil || !ok {
+	service, ok := h.Service.(authUserNotificationsService)
+	if h.Service == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}
@@ -991,7 +991,7 @@ func (h Handler) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSONError(w, http.StatusBadRequest, "invalid notification id")
 		return
 	}
-	notification, err := repo.MarkNotificationRead(r.Context(), claimsUser.UserID, notificationID)
+	notification, err := service.MarkNotificationRead(r.Context(), claimsUser.UserID, notificationID)
 	if err != nil {
 		writeAuthMutationError(w, err)
 		return
@@ -1000,8 +1000,8 @@ func (h Handler) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) MarkAllNotificationsRead(w http.ResponseWriter, r *http.Request) {
-	repo, ok := h.UserRepo.(authUserNotificationsRepository)
-	if h.UserRepo == nil || !ok {
+	service, ok := h.Service.(authUserNotificationsService)
+	if h.Service == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}
@@ -1010,7 +1010,7 @@ func (h Handler) MarkAllNotificationsRead(w http.ResponseWriter, r *http.Request
 		httpx.WriteJSONError(w, http.StatusUnauthorized, "no user")
 		return
 	}
-	if err := repo.MarkAllNotificationsRead(r.Context(), claimsUser.UserID); err != nil {
+	if err := service.MarkAllNotificationsRead(r.Context(), claimsUser.UserID); err != nil {
 		writeAuthMutationError(w, err)
 		return
 	}
@@ -1018,8 +1018,8 @@ func (h Handler) MarkAllNotificationsRead(w http.ResponseWriter, r *http.Request
 }
 
 func (h Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
-	updater, ok := h.UserRepo.(authUserPasswordUpdater)
-	if h.UserRepo == nil || !ok {
+	updater, ok := h.Service.(authUserPasswordUpdater)
+	if h.Service == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}
@@ -1046,7 +1046,7 @@ func (h Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.UserRepo.GetByEmail(r.Context(), claimsUser.Email)
+	user, err := h.Service.GetByEmail(r.Context(), claimsUser.Email)
 	if err != nil {
 		if errors.Is(err, users.ErrUserNotFound) {
 			httpx.WriteJSONError(w, http.StatusUnauthorized, "user not found")
@@ -1102,7 +1102,7 @@ func (h Handler) CheckAccountType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.UserRepo.GetByEmail(r.Context(), claimsUser.Email)
+	user, err := h.Service.GetByEmail(r.Context(), claimsUser.Email)
 	if err != nil {
 		if errors.Is(err, users.ErrUserNotFound) {
 			httpx.WriteJSONError(w, http.StatusUnauthorized, "user not found")
@@ -1131,8 +1131,8 @@ func (h Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) closeOwnAccount(w http.ResponseWriter, r *http.Request, delete bool) {
-	deleter, ok := h.UserRepo.(authUserDeleter)
-	if h.UserRepo == nil || !ok {
+	deleter, ok := h.Service.(authUserDeleter)
+	if h.Service == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}

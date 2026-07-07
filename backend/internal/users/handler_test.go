@@ -158,6 +158,10 @@ func (f *fakeSessionStore) Delete(subject string) error {
 	return nil
 }
 
+func adminHandler(repo *fakeAdminUserRepo, sessionStore *fakeSessionStore) AdminHandler {
+	return AdminHandler{Service: NewAdminService(repo, sessionStore)}
+}
+
 func withURLParam(req *http.Request, key, value string) *http.Request {
 	routeCtx := chi.NewRouteContext()
 	routeCtx.URLParams.Add(key, value)
@@ -200,7 +204,7 @@ func TestAdminHandler_List_MissingRepoReturnsJSONError(t *testing.T) {
 
 func TestAdminHandler_Create_NormalizesInput_AndHashesPassword(t *testing.T) {
 	repo := &fakeAdminUserRepo{createID: 9}
-	handler := AdminHandler{UserRepo: repo}
+	handler := adminHandler(repo, nil)
 
 	body := []byte(`{"email":"  ADMIN@Mappening.LOCAL ","password":"secret123456","first_name":"  Jane ","last_name":" Doe ","role":" Admin ","is_active":true}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/admin/users", bytes.NewReader(body))
@@ -259,7 +263,7 @@ func TestAdminHandler_Update_UpdatesUserAndPassword(t *testing.T) {
 			IsActive:  true,
 		},
 	}
-	handler := AdminHandler{UserRepo: repo, SessionStore: sessionStore}
+	handler := adminHandler(repo, sessionStore)
 
 	body := []byte(`{"email":"  NEW@Mappening.LOCAL ","first_name":"  Jeanne ","last_name":" Durand ","role":" Admin ","is_active":false,"password":"newsecret123"}`)
 	req := httptest.NewRequest(http.MethodPatch, "/api/admin/users/4", bytes.NewReader(body))
@@ -309,7 +313,7 @@ func TestAdminHandler_Update_InvalidPasswordDoesNotPersistProfileChanges(t *test
 			IsActive:  true,
 		},
 	}
-	handler := AdminHandler{UserRepo: repo}
+	handler := adminHandler(repo, nil)
 
 	body := []byte(`{"email":"new@mappening.local","password":"short"}`)
 	req := httptest.NewRequest(http.MethodPatch, "/api/admin/users/4", bytes.NewReader(body))
@@ -362,7 +366,7 @@ func TestAdminHandler_Update_RejectsRemovingOwnActiveAdminAccess(t *testing.T) {
 			},
 		},
 	}
-	handler := AdminHandler{UserRepo: repo}
+	handler := adminHandler(repo, nil)
 
 	body := []byte(`{"role":"user"}`)
 	req := httptest.NewRequest(http.MethodPatch, "/api/admin/users/4", bytes.NewReader(body))
@@ -402,7 +406,7 @@ func TestAdminHandler_Update_RejectsRemovingLastActiveAdmin(t *testing.T) {
 			},
 		},
 	}
-	handler := AdminHandler{UserRepo: repo}
+	handler := adminHandler(repo, nil)
 
 	body := []byte(`{"is_active":false}`)
 	req := httptest.NewRequest(http.MethodPatch, "/api/admin/users/4", bytes.NewReader(body))
@@ -428,7 +432,7 @@ func TestAdminHandler_Delete_DeletesUser(t *testing.T) {
 		},
 	}
 	sessionStore := &fakeSessionStore{}
-	handler := AdminHandler{UserRepo: repo, SessionStore: sessionStore}
+	handler := adminHandler(repo, sessionStore)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/admin/users/7", nil)
 	req = withURLParam(req, "userID", "7")
@@ -479,7 +483,7 @@ func TestAdminHandler_Delete_RejectsSelfDeletion(t *testing.T) {
 			},
 		},
 	}
-	handler := AdminHandler{UserRepo: repo}
+	handler := adminHandler(repo, nil)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/admin/users/7", nil)
 	req = withURLParam(req, "userID", "7")
@@ -517,7 +521,7 @@ func TestAdminHandler_Delete_RejectsDeletingLastActiveAdmin(t *testing.T) {
 			},
 		},
 	}
-	handler := AdminHandler{UserRepo: repo}
+	handler := adminHandler(repo, nil)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/admin/users/7", nil)
 	req = withURLParam(req, "userID", "7")
@@ -541,7 +545,7 @@ func TestAdminHandler_ResetPassword_UpdatesPasswordHash(t *testing.T) {
 		},
 	}
 	sessionStore := &fakeSessionStore{}
-	handler := AdminHandler{UserRepo: repo, SessionStore: sessionStore}
+	handler := adminHandler(repo, sessionStore)
 
 	body := []byte(`{"password":"resetpass123"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/admin/users/5/reset-password", bytes.NewReader(body))
@@ -570,7 +574,7 @@ func TestAdminHandler_ResetPassword_UpdatesPasswordHash(t *testing.T) {
 
 func TestAdminHandler_Create_RejectsPasswordWithOuterWhitespace(t *testing.T) {
 	repo := &fakeAdminUserRepo{}
-	handler := AdminHandler{UserRepo: repo}
+	handler := adminHandler(repo, nil)
 
 	body := []byte(`{"email":"admin@mappening.local","password":" secret123 ","role":"admin","is_active":true}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/admin/users", bytes.NewReader(body))
@@ -589,7 +593,7 @@ func TestAdminHandler_Create_RejectsPasswordWithOuterWhitespace(t *testing.T) {
 
 func TestAdminHandler_Create_RejectsUnknownRole(t *testing.T) {
 	repo := &fakeAdminUserRepo{}
-	handler := AdminHandler{UserRepo: repo}
+	handler := adminHandler(repo, nil)
 
 	body := []byte(`{"email":"admin@mappening.local","password":"secret123456","role":"superadmin","is_active":true}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/admin/users", bytes.NewReader(body))
@@ -608,7 +612,7 @@ func TestAdminHandler_Create_RejectsUnknownRole(t *testing.T) {
 
 func TestAdminHandler_Create_RejectsInvalidEmailBeforeRepository(t *testing.T) {
 	repo := &fakeAdminUserRepo{}
-	handler := AdminHandler{UserRepo: repo}
+	handler := adminHandler(repo, nil)
 
 	body := []byte(`{"email":"not an email","password":"secret123456","role":"admin","is_active":true}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/admin/users", bytes.NewReader(body))
@@ -636,7 +640,7 @@ func TestAdminHandler_Update_RejectsTooLongNameBeforeRepository(t *testing.T) {
 			IsActive:  true,
 		},
 	}
-	handler := AdminHandler{UserRepo: repo}
+	handler := adminHandler(repo, nil)
 
 	body := []byte(`{"first_name":"` + strings.Repeat("a", 101) + `"}`)
 	req := httptest.NewRequest(http.MethodPatch, "/api/admin/users/4", bytes.NewReader(body))
@@ -665,7 +669,7 @@ func TestAdminHandler_Update_RejectsUnknownRole(t *testing.T) {
 			IsActive:  true,
 		},
 	}
-	handler := AdminHandler{UserRepo: repo}
+	handler := adminHandler(repo, nil)
 
 	body := []byte(`{"role":"superadmin"}`)
 	req := httptest.NewRequest(http.MethodPatch, "/api/admin/users/4", bytes.NewReader(body))

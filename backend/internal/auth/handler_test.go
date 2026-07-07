@@ -76,7 +76,7 @@ func TestAuthHandler_Login_OK_SetsCookies_AndStore(t *testing.T) {
 		CookieSecure: false,
 		FrontendURL:  "http://localhost:5173",
 		Store:        store,
-		UserRepo:     fakeAuthUserRepo{user: makeTestAuthUser(t)},
+		Service:      fakeAuthUserRepo{user: makeTestAuthUser(t)},
 	}
 
 	body := map[string]string{"email": "admin@mappening.local", "password": "admin1234"}
@@ -172,7 +172,7 @@ func TestAuthHandler_RegisterOrganization_RejectsTooLongLogo(t *testing.T) {
 		CookieSecure: false,
 		FrontendURL:  "http://localhost:5173",
 		Store:        store,
-		UserRepo:     repo,
+		Service:      repo,
 	}
 
 	body := map[string]any{
@@ -227,7 +227,7 @@ func TestAuthHandler_Login_InvalidCredentials_401(t *testing.T) {
 		CookieSecure: false,
 		FrontendURL:  "http://localhost:5173",
 		Store:        store,
-		UserRepo:     fakeAuthUserRepo{user: makeTestAuthUser(t)},
+		Service:      fakeAuthUserRepo{user: makeTestAuthUser(t)},
 	}
 
 	body := map[string]string{"email": "admin@mappening.local", "password": "wrong"}
@@ -260,7 +260,7 @@ func TestAuthHandler_Login_InactiveUser_StillReturnsGenericUnauthorized(t *testi
 		CookieSecure: false,
 		FrontendURL:  "http://localhost:5173",
 		Store:        store,
-		UserRepo:     fakeAuthUserRepo{user: inactiveUser},
+		Service:      fakeAuthUserRepo{user: inactiveUser},
 	}
 
 	body := map[string]string{"email": "admin@mappening.local", "password": "admin1234"}
@@ -303,7 +303,7 @@ func TestAuthHandler_Login_SuspendedUser_StillReturnsGenericUnauthorized(t *test
 		CookieSecure: false,
 		FrontendURL:  "http://localhost:5173",
 		Store:        store,
-		UserRepo:     fakeAuthUserRepo{user: suspendedUser},
+		Service:      fakeAuthUserRepo{user: suspendedUser},
 	}
 
 	body := map[string]string{"email": "admin@mappening.local", "password": "admin1234"}
@@ -342,7 +342,7 @@ func TestAuthHandler_Refresh_RotatesRefreshCookie_AndStore(t *testing.T) {
 		CookieSecure: false,
 		FrontendURL:  "http://localhost:5173",
 		Store:        store,
-		UserRepo:     fakeAuthUserRepo{user: makeTestAuthUser(t)},
+		Service:      fakeAuthUserRepo{user: makeTestAuthUser(t)},
 	}
 
 	// 1) Login pour obtenir un refresh_token cohérent + store initialisé
@@ -431,7 +431,7 @@ func TestAuthHandler_Refresh_RejectsStaleSessionRevision(t *testing.T) {
 		CookieSecure: false,
 		FrontendURL:  "http://localhost:5173",
 		Store:        store,
-		UserRepo: fakeAuthUserRepo{user: &users.User{
+		Service: fakeAuthUserRepo{user: &users.User{
 			ID:           user.ID,
 			Email:        user.Email,
 			PasswordHash: user.PasswordHash,
@@ -491,7 +491,7 @@ func TestAuthHandler_DevLogin_OK_FromLoopback(t *testing.T) {
 		DevLoginEnabled: true,
 		DevLoginEmail:   "admin@mappening.local",
 		Store:           store,
-		UserRepo:        fakeAuthUserRepo{user: makeTestAuthUser(t)},
+		Service:         fakeAuthUserRepo{user: makeTestAuthUser(t)},
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/login/dev", nil)
@@ -536,7 +536,7 @@ func TestAuthHandler_DevLogin_RejectsSuspendedUser(t *testing.T) {
 		DevLoginEnabled: true,
 		DevLoginEmail:   "admin@mappening.local",
 		Store:           store,
-		UserRepo:        fakeAuthUserRepo{user: suspendedUser},
+		Service:         fakeAuthUserRepo{user: suspendedUser},
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/login/dev", nil)
@@ -573,7 +573,7 @@ func TestAuthHandler_DevLogin_RejectsNonLoopback(t *testing.T) {
 		DevLoginEnabled: true,
 		DevLoginEmail:   "admin@mappening.local",
 		Store:           store,
-		UserRepo:        fakeAuthUserRepo{user: makeTestAuthUser(t)},
+		Service:         fakeAuthUserRepo{user: makeTestAuthUser(t)},
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/login/dev", nil)
@@ -604,7 +604,7 @@ func TestAuthHandler_DevLogin_RejectsNonLoopbackHost(t *testing.T) {
 		DevLoginEnabled: true,
 		DevLoginEmail:   "admin@mappening.local",
 		Store:           store,
-		UserRepo:        fakeAuthUserRepo{user: makeTestAuthUser(t)},
+		Service:         fakeAuthUserRepo{user: makeTestAuthUser(t)},
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/login/dev", nil)
@@ -630,7 +630,7 @@ func TestAuthHandler_Login_RejectsInvalidOrigin(t *testing.T) {
 		CookieSecure: false,
 		FrontendURL:  "http://localhost:5173",
 		Store:        store,
-		UserRepo:     fakeAuthUserRepo{user: makeTestAuthUser(t)},
+		Service:      fakeAuthUserRepo{user: makeTestAuthUser(t)},
 	}
 
 	body := map[string]string{"email": "admin@mappening.local", "password": "admin1234"}
@@ -658,7 +658,7 @@ func TestAuthHandler_Login_RejectsNonJSONContentType(t *testing.T) {
 		CookieSecure: false,
 		FrontendURL:  "http://localhost:5173",
 		Store:        store,
-		UserRepo:     fakeAuthUserRepo{user: makeTestAuthUser(t)},
+		Service:      fakeAuthUserRepo{user: makeTestAuthUser(t)},
 	}
 
 	body := `{"email":"admin@mappening.local","password":"admin1234"}`
