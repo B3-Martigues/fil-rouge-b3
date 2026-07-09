@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "preview:pwa": "vite preview --port 5173",
     "test": "npm run test:e2e",
     "test:e2e": "playwright test"
   },

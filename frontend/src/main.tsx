@@ -6,9 +6,13 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 
 import App from "./App";
+import { registerServiceWorker } from "./registerServiceWorker";
 import "leaflet/dist/leaflet.css";
 import "react-toastify/dist/ReactToastify.css";
 import "./styles/main.scss";
+
+// Active l'enregistrement du service worker pour les capacites PWA.
+registerServiceWorker();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
