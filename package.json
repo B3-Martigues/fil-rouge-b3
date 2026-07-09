@@ -1,0 +1,11 @@
+{
+  "name": "fil-rouge-b3",
+  "private": true,
+  "scripts": {
+    "test": "npm run test:all",
+    "test:backend": "cd backend && go test ./...",
+    "test:frontend": "npm --prefix frontend run test:e2e",
+    "test:e2e": "npm --prefix frontend run test:e2e",
+    "test:all": "npm run test:backend && npm run test:frontend"
+  }
+}
