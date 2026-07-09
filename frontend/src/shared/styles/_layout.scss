@@ -365,3 +365,40 @@
     justify-content: space-between;
   }
 }
+.offline-banner {
+  // Bandeau global affiche uniquement quand l'application detecte le mode hors ligne.
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  right: auto;
+  z-index: 1200;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: min(520px, calc(100dvw - 32px));
+  padding: 10px 14px;
+  border: 1px solid var(--color-warning-border);
+  border-radius: 8px;
+  background: var(--color-warning-bg);
+  box-shadow: var(--shadow-default);
+  color: var(--color-warning);
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.25;
+  text-align: left;
+}
+
+@media (max-width: 600px) {
+  .offline-banner {
+    position: fixed;
+    top: 60px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    width: calc(100dvw - 52px);
+    max-width: 100%;
+    font-size: 0.82rem;
+  }
+}

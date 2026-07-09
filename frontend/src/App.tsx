@@ -15,6 +15,7 @@ import { EVENTS_API_MODE, eventsApi } from "./domains/event/api/events.api";
 import { organizationsApi } from "./domains/organization/api/organizations.api";
 import { userApi } from "./domains/user/api/user.api";
 import { isAccountSuspended } from "./domains/user/types/user";
+import OfflineBanner from "./shared/components/feedback/OfflineBanner";
 import AppSplash from "./shared/components/layout/AppSplash";
 import { ROUTES } from "./shared/constants/routes";
 import useDataStore from "./shared/store/dataStore";
@@ -290,6 +291,8 @@ function App() {
 
   return (
     <>
+      <OfflineBanner />
+
       {sessionReady ? (
         <Router
           isHomeDataReady={isHomeDataReady}

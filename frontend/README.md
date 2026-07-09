@@ -38,6 +38,7 @@ Le frontend permet notamment :
 | Leaflet / React-Leaflet | Carte interactive |
 | Sass | Styles modulaires, tokens et layouts |
 | Lucide React | Icônes |
+| PWA | Installation locale, manifeste, service worker et cache de base |
 | ESLint | Analyse statique du code |
 
 ## Architecture frontend
@@ -191,8 +192,38 @@ Commandes utiles :
 | `npm run build` | Compile TypeScript et génère le build de production |
 | `npm run lint` | Lance ESLint |
 | `npm run preview` | Prévisualise le build de production |
+| `npm run preview:pwa` | Prévisualise le build PWA sur `http://localhost:5173` pour rester compatible avec `FRONTEND_URL` |
 
 ## Fonctionnalités implémentées
+
+### Intégration PWA
+
+Le frontend inclut une base Progressive Web App afin de rendre Mappening installable depuis un navigateur compatible.
+
+L'intégration repose sur :
+
+- `public/manifest.webmanifest` : nom, icônes, couleurs, `start_url` et mode d'affichage installé ;
+- `public/sw.js` : service worker chargé du cache de base ;
+- `src/registerServiceWorker.ts` : enregistrement du service worker côté navigateur ;
+- `src/shared/components/feedback/OfflineBanner.tsx` : bandeau affiché lorsque le navigateur passe hors ligne ;
+- `public/pwa-icon-192.png` et `public/pwa-icon-512.png` : icônes utilisées lors de l'installation.
+
+Le service worker met en cache les fichiers essentiels de l'application, les assets statiques, les images servies par `/uploads/*` et certains endpoints publics d'événements. Les requêtes mutantes et les endpoints privés ne sont pas mis en cache.
+
+Pour tester la PWA localement avec le backend de développement :
+
+```powershell
+npm run build
+npm run preview:pwa
+```
+
+Puis ouvrir :
+
+```text
+http://localhost:5173
+```
+
+Le port `5173` est utilisé pour rester aligné avec `FRONTEND_URL=http://localhost:5173` dans la configuration backend locale. Si la PWA est installée depuis un autre port, les requêtes d'authentification peuvent être rejetées par la protection CSRF.
 
 ### Carte interactive des événements
 

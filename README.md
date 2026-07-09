@@ -16,6 +16,7 @@ Depuis la dernière rédaction du README, les ajouts principaux sont :
 - Module staff/modération : tableaux de bord, signalements, décisions motivées, suspensions, notifications et actions d'administration.
 - Scraping fonctionnel de Tarpin Bien, avec commande dédiée, scheduler backend, sources externes, images et synchronisation des événements.
 - Cache Redis branché sur le repository événements pour accélérer les lectures et invalider le cache lors des créations/modifications.
+- Intégration PWA côté frontend : manifeste, icônes, service worker, installation locale et bandeau hors ligne.
 - Upload et gestion des médias pour les images d'événements et logos d'organisations.
 - Autocomplétion d'adresse via endpoint de géocodage.
 - Durcissement sécurité : CSRF, headers HTTP, rate limiting, logs de requêtes, refresh tokens persistés et validation stricte de configuration.
@@ -101,6 +102,14 @@ npm run dev
 ```
 
 En développement, Vite proxifie `/api` et `/uploads` vers `http://127.0.0.1:8080`. Laisser `VITE_API_BASE_URL` vide dans `frontend/.env.local` pour utiliser ce proxy, ou renseigner une origine API complète en déploiement.
+
+Pour tester le build PWA local avec l'authentification backend, utiliser le port attendu par `FRONTEND_URL` :
+
+```powershell
+cd frontend
+npm run build
+npm run preview:pwa
+```
 
 ### Connexion pgAdmin
 
@@ -192,6 +201,7 @@ Attention : cette commande supprime les données PostgreSQL et Redis locales de 
 - Sass pour les styles, tokens, layouts et composants.
 - Lucide React pour les icônes.
 - React Toastify pour les notifications côté interface.
+- PWA : manifeste, icônes d'installation, service worker, cache de base et détection hors ligne.
 
 ### Backend
 
@@ -302,6 +312,7 @@ npm run dev
 npm run build
 npm run lint
 npm run preview
+npm run preview:pwa
 ```
 
 ### Docker
