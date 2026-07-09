@@ -123,6 +123,11 @@ func newRouter(
 	}))
 
 	r.Handle("/uploads/*", cachedUploadsHandler())
+	r.Get("/openapi.yaml", openAPIHandler)
+	r.Get("/swagger", func(w nethttp.ResponseWriter, r *nethttp.Request) {
+		nethttp.Redirect(w, r, "/swagger/", nethttp.StatusMovedPermanently)
+	})
+	r.Get("/swagger/", swaggerUIHandler)
 
 	authHandler := auth.Handler{
 		Secret:           cfg.JWTSecret,

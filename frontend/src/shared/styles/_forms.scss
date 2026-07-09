@@ -11,6 +11,7 @@
   overflow-y: auto;
   padding: 32px 16px;
   background: var(--color-overlay);
+  
 
   &__dialog {
     position: relative;
@@ -19,6 +20,8 @@
     overflow-y: auto;
     box-shadow: var(--shadow);
     text-align: center;
+      overflow-x: hidden;
+
 
     @include surface;
 
@@ -87,6 +90,7 @@
       border: 0;
       border-radius: 18px 18px 0 0;
       box-shadow: none;
+      overflow-x: hidden;
     }
 
     &__dialog--lg {

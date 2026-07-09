@@ -1,0 +1,882 @@
+openapi: 3.0.3
+info:
+  title: Mappening API
+  version: 0.1.0
+  description: API backend de Mappening.
+servers:
+  - url: http://localhost:8080
+    description: Backend local
+tags:
+  - name: Health
+  - name: Auth
+  - name: Events
+  - name: Organizations
+  - name: Media
+  - name: Staff
+  - name: Admin
+  - name: Geocoding
+security:
+  - bearerAuth: []
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      security: []
+      summary: Verifie que l'API repond.
+      responses:
+        "200":
+          description: API disponible.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: ok
+  /api/health/db:
+    get:
+      tags: [Health]
+      summary: Verifie la connexion base de donnees.
+      responses:
+        "200":
+          description: Base de donnees disponible.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/geocoding/suggestions:
+    get:
+      tags: [Geocoding]
+      security: []
+      summary: Recherche des suggestions d'adresse.
+      parameters:
+        - $ref: "#/components/parameters/SearchQuery"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+      responses:
+        "200":
+          description: Suggestions d'adresse.
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Connecte un compte.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Session creee.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/auth/login/dev:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Connecte le compte de developpement si active.
+      responses:
+        "200":
+          description: Session de developpement creee.
+  /api/auth/register/user:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Cree un compte utilisateur.
+      responses:
+        "201":
+          description: Compte utilisateur cree.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /api/auth/register/organization:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Cree un compte organisation.
+      responses:
+        "201":
+          description: Compte organisation cree.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /api/auth/password/forgot:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Demande une reinitialisation de mot de passe.
+      responses:
+        "204":
+          description: Demande acceptee.
+  /api/auth/password/reset:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Reinitialise le mot de passe avec un jeton.
+      responses:
+        "204":
+          description: Mot de passe reinitialise.
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Renouvelle le jeton d'acces.
+      responses:
+        "200":
+          description: Jeton renouvele.
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Deconnecte le compte courant.
+      responses:
+        "204":
+          description: Session supprimee.
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Retourne le compte courant.
+      responses:
+        "200":
+          description: Compte courant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/auth/profile:
+    patch:
+      tags: [Auth]
+      summary: Met a jour le profil du compte courant.
+      responses:
+        "200":
+          description: Profil mis a jour.
+  /api/auth/password:
+    patch:
+      tags: [Auth]
+      summary: Change le mot de passe du compte courant.
+      responses:
+        "204":
+          description: Mot de passe modifie.
+  /api/auth/check-role/{role}:
+    get:
+      tags: [Auth]
+      summary: Verifie le role du compte courant.
+      parameters:
+        - $ref: "#/components/parameters/RolePath"
+      responses:
+        "200":
+          description: Resultat du controle.
+  /api/auth/check-account-type/{accountType}:
+    get:
+      tags: [Auth]
+      summary: Verifie le type de compte courant.
+      parameters:
+        - name: accountType
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Resultat du controle.
+  /api/auth/deactivate:
+    patch:
+      tags: [Auth]
+      summary: Desactive le compte courant.
+      responses:
+        "204":
+          description: Compte desactive.
+  /api/auth/account:
+    delete:
+      tags: [Auth]
+      summary: Supprime le compte courant.
+      responses:
+        "204":
+          description: Compte supprime.
+  /api/events:
+    get:
+      tags: [Events]
+      security: []
+      summary: Liste les evenements.
+      parameters:
+        - $ref: "#/components/parameters/SearchQuery"
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Liste d'evenements.
+    post:
+      tags: [Events]
+      summary: Cree un evenement.
+      responses:
+        "201":
+          description: Evenement cree.
+  /api/events/upcoming:
+    get:
+      tags: [Events]
+      security: []
+      summary: Liste les prochains evenements.
+      responses:
+        "200":
+          description: Liste d'evenements.
+  /api/events/past:
+    get:
+      tags: [Events]
+      security: []
+      summary: Liste les evenements passes.
+      responses:
+        "200":
+          description: Liste d'evenements.
+  /api/events/popular:
+    get:
+      tags: [Events]
+      security: []
+      summary: Liste les evenements populaires.
+      responses:
+        "200":
+          description: Liste d'evenements.
+  /api/events/map:
+    get:
+      tags: [Events]
+      security: []
+      summary: Liste les evenements pour la carte.
+      responses:
+        "200":
+          description: Liste d'evenements.
+  /api/events/{eventID}:
+    get:
+      tags: [Events]
+      security: []
+      summary: Recupere un evenement.
+      parameters:
+        - $ref: "#/components/parameters/EventID"
+      responses:
+        "200":
+          description: Evenement.
+    put:
+      tags: [Events]
+      summary: Remplace un evenement.
+      parameters:
+        - $ref: "#/components/parameters/EventID"
+      responses:
+        "200":
+          description: Evenement mis a jour.
+    patch:
+      tags: [Events]
+      summary: Met a jour un evenement.
+      parameters:
+        - $ref: "#/components/parameters/EventID"
+      responses:
+        "200":
+          description: Evenement mis a jour.
+    delete:
+      tags: [Events]
+      summary: Supprime un evenement.
+      parameters:
+        - $ref: "#/components/parameters/EventID"
+      responses:
+        "204":
+          description: Evenement supprime.
+  /api/event-categories:
+    get:
+      tags: [Events]
+      security: []
+      summary: Liste les categories d'evenements.
+      responses:
+        "200":
+          description: Categories.
+  /api/event-categories/{categoryID}:
+    get:
+      tags: [Events]
+      security: []
+      summary: Recupere une categorie d'evenement.
+      parameters:
+        - $ref: "#/components/parameters/CategoryID"
+      responses:
+        "200":
+          description: Categorie.
+  /api/event-categories/{categoryID}/events:
+    get:
+      tags: [Events]
+      security: []
+      summary: Liste les evenements d'une categorie.
+      parameters:
+        - $ref: "#/components/parameters/CategoryID"
+      responses:
+        "200":
+          description: Evenements.
+  /api/events/{eventID}/active:
+    patch:
+      tags: [Events]
+      summary: Active ou desactive un evenement.
+      parameters:
+        - $ref: "#/components/parameters/EventID"
+      responses:
+        "200":
+          description: Statut mis a jour.
+  /api/events/{eventID}/categories:
+    put:
+      tags: [Events]
+      summary: Remplace les categories d'un evenement.
+      parameters:
+        - $ref: "#/components/parameters/EventID"
+      responses:
+        "200":
+          description: Categories mises a jour.
+  /api/events/{eventID}/categories/{categoryID}:
+    post:
+      tags: [Events]
+      summary: Ajoute une categorie a un evenement.
+      parameters:
+        - $ref: "#/components/parameters/EventID"
+        - $ref: "#/components/parameters/CategoryID"
+      responses:
+        "204":
+          description: Categorie ajoutee.
+    delete:
+      tags: [Events]
+      summary: Retire une categorie d'un evenement.
+      parameters:
+        - $ref: "#/components/parameters/EventID"
+        - $ref: "#/components/parameters/CategoryID"
+      responses:
+        "204":
+          description: Categorie retiree.
+  /api/events/{eventID}/favorite:
+    get:
+      tags: [Events]
+      summary: Verifie si l'evenement est en favori.
+      parameters:
+        - $ref: "#/components/parameters/EventID"
+      responses:
+        "200":
+          description: Etat favori.
+    post:
+      tags: [Events]
+      summary: Ajoute l'evenement aux favoris.
+      parameters:
+        - $ref: "#/components/parameters/EventID"
+      responses:
+        "204":
+          description: Favori ajoute.
+    delete:
+      tags: [Events]
+      summary: Retire l'evenement des favoris.
+      parameters:
+        - $ref: "#/components/parameters/EventID"
+      responses:
+        "204":
+          description: Favori retire.
+  /api/me/favorites:
+    get:
+      tags: [Events]
+      summary: Liste les favoris du compte courant.
+      responses:
+        "200":
+          description: Favoris.
+  /api/events/{eventID}/history:
+    post:
+      tags: [Events]
+      summary: Enregistre une consultation d'evenement.
+      parameters:
+        - $ref: "#/components/parameters/EventID"
+      responses:
+        "204":
+          description: Historique enregistre.
+  /api/me/history:
+    get:
+      tags: [Events]
+      summary: Liste l'historique du compte courant.
+      responses:
+        "200":
+          description: Historique.
+  /api/me/history/{historyID}:
+    delete:
+      tags: [Events]
+      summary: Supprime une entree d'historique.
+      parameters:
+        - name: historyID
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Entree supprimee.
+  /api/organizations:
+    get:
+      tags: [Organizations]
+      security: []
+      summary: Liste les organisations.
+      parameters:
+        - $ref: "#/components/parameters/SearchQuery"
+      responses:
+        "200":
+          description: Organisations.
+    post:
+      tags: [Organizations]
+      summary: Cree une organisation.
+      responses:
+        "201":
+          description: Organisation creee.
+  /api/organizations/{organizationID}:
+    get:
+      tags: [Organizations]
+      security: []
+      summary: Recupere une organisation.
+      parameters:
+        - $ref: "#/components/parameters/OrganizationID"
+      responses:
+        "200":
+          description: Organisation.
+    put:
+      tags: [Organizations]
+      summary: Remplace une organisation.
+      parameters:
+        - $ref: "#/components/parameters/OrganizationID"
+      responses:
+        "200":
+          description: Organisation mise a jour.
+    patch:
+      tags: [Organizations]
+      summary: Met a jour une organisation.
+      parameters:
+        - $ref: "#/components/parameters/OrganizationID"
+      responses:
+        "200":
+          description: Organisation mise a jour.
+    delete:
+      tags: [Organizations]
+      summary: Supprime une organisation.
+      parameters:
+        - $ref: "#/components/parameters/OrganizationID"
+      responses:
+        "204":
+          description: Organisation supprimee.
+  /api/organizations/{organizationID}/events:
+    get:
+      tags: [Events]
+      security: []
+      summary: Liste les evenements d'une organisation.
+      parameters:
+        - $ref: "#/components/parameters/OrganizationID"
+      responses:
+        "200":
+          description: Evenements.
+  /api/organization-categories:
+    get:
+      tags: [Organizations]
+      security: []
+      summary: Liste les categories d'organisations.
+      responses:
+        "200":
+          description: Categories.
+  /api/organizations/me:
+    get:
+      tags: [Organizations]
+      summary: Recupere l'organisation du compte courant.
+      responses:
+        "200":
+          description: Organisation.
+  /api/me/organizations:
+    get:
+      tags: [Organizations]
+      summary: Liste les organisations liees au compte courant.
+      responses:
+        "200":
+          description: Organisations.
+  /api/users/{userID}/organizations:
+    get:
+      tags: [Organizations]
+      summary: Liste les organisations d'un utilisateur.
+      parameters:
+        - $ref: "#/components/parameters/UserID"
+      responses:
+        "200":
+          description: Organisations.
+  /api/organizations/{organizationID}/status:
+    patch:
+      tags: [Organizations]
+      summary: Met a jour le statut d'une organisation.
+      parameters:
+        - $ref: "#/components/parameters/OrganizationID"
+      responses:
+        "200":
+          description: Statut mis a jour.
+  /api/organizations/{organizationID}/active:
+    patch:
+      tags: [Organizations]
+      summary: Active ou desactive une organisation.
+      parameters:
+        - $ref: "#/components/parameters/OrganizationID"
+      responses:
+        "200":
+          description: Statut mis a jour.
+  /api/organizations/{organizationID}/verification:
+    patch:
+      tags: [Organizations]
+      summary: Met a jour la verification d'une organisation.
+      parameters:
+        - $ref: "#/components/parameters/OrganizationID"
+      responses:
+        "200":
+          description: Verification mise a jour.
+  /api/organizations/{organizationID}/restore:
+    post:
+      tags: [Organizations]
+      summary: Restaure une organisation supprimee.
+      parameters:
+        - $ref: "#/components/parameters/OrganizationID"
+      responses:
+        "200":
+          description: Organisation restauree.
+  /api/organizations/{organizationID}/categories:
+    put:
+      tags: [Organizations]
+      summary: Remplace les categories d'une organisation.
+      parameters:
+        - $ref: "#/components/parameters/OrganizationID"
+      responses:
+        "200":
+          description: Categories mises a jour.
+    delete:
+      tags: [Organizations]
+      summary: Supprime les categories d'une organisation.
+      parameters:
+        - $ref: "#/components/parameters/OrganizationID"
+      responses:
+        "204":
+          description: Categories supprimees.
+  /api/organizations/{organizationID}/members:
+    get:
+      tags: [Organizations]
+      summary: Liste les membres d'une organisation.
+      parameters:
+        - $ref: "#/components/parameters/OrganizationID"
+      responses:
+        "200":
+          description: Membres.
+    post:
+      tags: [Organizations]
+      summary: Ajoute un membre a une organisation.
+      parameters:
+        - $ref: "#/components/parameters/OrganizationID"
+      responses:
+        "201":
+          description: Membre ajoute.
+  /api/organizations/{organizationID}/members/{userID}:
+    delete:
+      tags: [Organizations]
+      summary: Retire un membre d'une organisation.
+      parameters:
+        - $ref: "#/components/parameters/OrganizationID"
+        - $ref: "#/components/parameters/UserID"
+      responses:
+        "204":
+          description: Membre retire.
+  /api/media/upload:
+    post:
+      tags: [Media]
+      summary: Envoie un media.
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Media cree.
+  /api/media/{mediaID}:
+    delete:
+      tags: [Media]
+      summary: Supprime un media.
+      parameters:
+        - name: mediaID
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Media supprime.
+  /api/organizations/{organizationID}/logo:
+    post:
+      tags: [Media]
+      summary: Remplace le logo d'une organisation.
+      parameters:
+        - $ref: "#/components/parameters/OrganizationID"
+      responses:
+        "200":
+          description: Logo remplace.
+  /api/events/{eventID}/image:
+    post:
+      tags: [Media]
+      summary: Remplace l'image d'un evenement.
+      parameters:
+        - $ref: "#/components/parameters/EventID"
+      responses:
+        "200":
+          description: Image remplacee.
+  /api/events/images:
+    post:
+      tags: [Media]
+      summary: Envoie une image d'evenement.
+      responses:
+        "201":
+          description: Image creee.
+  /api/staff/summary:
+    get:
+      tags: [Staff]
+      summary: Retourne le resume staff.
+      responses:
+        "200":
+          description: Resume.
+  /api/staff/accounts:
+    get:
+      tags: [Staff]
+      summary: Liste les comptes.
+      responses:
+        "200":
+          description: Comptes.
+  /api/staff/users:
+    get:
+      tags: [Staff]
+      summary: Liste les utilisateurs.
+      responses:
+        "200":
+          description: Utilisateurs.
+  /api/staff/organizations:
+    get:
+      tags: [Staff]
+      summary: Liste les organisations pour le staff.
+      responses:
+        "200":
+          description: Organisations.
+  /api/staff/organizers:
+    get:
+      tags: [Staff]
+      summary: Liste les organisateurs.
+      responses:
+        "200":
+          description: Organisateurs.
+  /api/staff/events:
+    get:
+      tags: [Staff]
+      summary: Liste les evenements pour le staff.
+      responses:
+        "200":
+          description: Evenements.
+  /api/staff/notification-types:
+    get:
+      tags: [Staff]
+      summary: Liste les types de notifications.
+      responses:
+        "200":
+          description: Types de notifications.
+  /api/staff/notifications:
+    get:
+      tags: [Staff]
+      summary: Liste les notifications.
+      responses:
+        "200":
+          description: Notifications.
+  /api/staff/moderation-reports:
+    get:
+      tags: [Staff]
+      summary: Liste les signalements.
+      responses:
+        "200":
+          description: Signalements.
+  /api/staff/moderation-decisions:
+    get:
+      tags: [Staff]
+      summary: Liste les decisions de moderation.
+      responses:
+        "200":
+          description: Decisions.
+  /api/staff/actions:
+    post:
+      tags: [Staff]
+      summary: Applique une action staff.
+      responses:
+        "200":
+          description: Action appliquee.
+  /api/moderation/reports:
+    post:
+      tags: [Staff]
+      summary: Cree un signalement.
+      responses:
+        "201":
+          description: Signalement cree.
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: Liste les utilisateurs.
+      responses:
+        "200":
+          description: Utilisateurs.
+    post:
+      tags: [Admin]
+      summary: Cree un utilisateur.
+      responses:
+        "201":
+          description: Utilisateur cree.
+  /api/admin/users/{userID}:
+    patch:
+      tags: [Admin]
+      summary: Met a jour un utilisateur.
+      parameters:
+        - $ref: "#/components/parameters/UserID"
+      responses:
+        "200":
+          description: Utilisateur mis a jour.
+    delete:
+      tags: [Admin]
+      summary: Supprime un utilisateur.
+      parameters:
+        - $ref: "#/components/parameters/UserID"
+      responses:
+        "204":
+          description: Utilisateur supprime.
+  /api/admin/users/{userID}/reset-password:
+    post:
+      tags: [Admin]
+      summary: Reinitialise le mot de passe d'un utilisateur.
+      parameters:
+        - $ref: "#/components/parameters/UserID"
+      responses:
+        "204":
+          description: Mot de passe reinitialise.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    SearchQuery:
+      name: q
+      in: query
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+    Offset:
+      name: offset
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+    UserID:
+      name: userID
+      in: path
+      required: true
+      schema:
+        type: integer
+    EventID:
+      name: eventID
+      in: path
+      required: true
+      schema:
+        type: integer
+    OrganizationID:
+      name: organizationID
+      in: path
+      required: true
+      schema:
+        type: integer
+    CategoryID:
+      name: categoryID
+      in: path
+      required: true
+      schema:
+        type: integer
+    RolePath:
+      name: role
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [admin, moderator, organization, user]
+  schemas:
+    Account:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+        is_active:
+          type: boolean
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+  responses:
+    BadRequest:
+      description: Requete invalide.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Authentification requise ou invalide.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Acces refuse.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
