@@ -670,8 +670,8 @@ func parseListFilters(r *http.Request) (ListFilters, error) {
 	if filters.FreeOnly && filters.PaidOnly {
 		return filters, errors.New("free and paid filters cannot be combined")
 	}
-	if parseBoolQuery(query.Get("include_inactive")) {
-		filters.IncludeInactive = true
+	if strings.TrimSpace(query.Get("include_inactive")) != "" {
+		return filters, errors.New("include_inactive is not allowed")
 	}
 
 	if bounds, ok, err := parseBounds(query.Get("north"), query.Get("south"), query.Get("east"), query.Get("west")); err != nil {

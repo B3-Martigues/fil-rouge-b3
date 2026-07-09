@@ -15,14 +15,14 @@ export default function HeaderOrganization() {
     <header className="role-header">
       <nav className="role-header__nav">
         <NavLink to={ROUTES.PUBLIC.HOME}>Accueil</NavLink>
-        <NavLink to={ROUTES.ORGANIZATION.PROFILE}>Profil</NavLink>
+        <NavLink to={ROUTES.USER.PROFILE}>Profil</NavLink>
+        <NavLink to={ROUTES.USER.PARAMETERS}>Parametres</NavLink>
+        <NavLink to={ROUTES.USER.ORGANIZATIONS}>Mes organisations</NavLink>
+        <NavLink to={ROUTES.USER.EVENTS}>Mes evenements</NavLink>
         {canManageEvents && (
-          <>
-            <NavLink to={ROUTES.ORGANIZATION.EVENTS}>Mes evenements</NavLink>
-            <FormModalNavLink to={ROUTES.ORGANIZATION.CREATE}>
-              Nouvel evenement
-            </FormModalNavLink>
-          </>
+          <FormModalNavLink to={ROUTES.ORGANIZATION.CREATE}>
+            Nouvel evenement
+          </FormModalNavLink>
         )}
         <NotificationCenter />
         <HeaderWeather />

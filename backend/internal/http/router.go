@@ -92,6 +92,7 @@ func newRouter(
 	)
 	refreshRateLimiter := middleware.NewDBRateLimiter(db, 30, time.Minute, cfg.TrustedProxyCIDRs...)
 	adminWriteRateLimiter := middleware.NewDBRateLimiter(db, 60, time.Minute, cfg.TrustedProxyCIDRs...)
+	geocodingRateLimiter := middleware.NewDBRateLimiter(db, 60, time.Minute, cfg.TrustedProxyCIDRs...)
 
 	r.Use(middleware.RequestID())
 	r.Use(middleware.AccessLog(cfg.TrustedProxyCIDRs...))
@@ -114,6 +115,7 @@ func newRouter(
 			"/api/auth/login/dev",
 			"/api/auth/register/user",
 			"/api/auth/register/organization",
+			"/api/auth/refresh",
 			"/api/auth/password/forgot",
 			"/api/auth/password/reset",
 		},
@@ -140,8 +142,9 @@ func newRouter(
 	}
 
 	geocodingSuggester, _ := geocoder.(geocoding.Suggester)
-	geocoding.RegisterRoutes(r, geocoding.Handler{
+	geocoding.RegisterRoutes(r.With(geocodingRateLimiter.Handler()), geocoding.Handler{
 		Suggester: geocodingSuggester,
+		Cache:     geocoding.NewSuggestionCache(cache),
 	})
 
 	if db != nil {

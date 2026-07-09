@@ -2,12 +2,13 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: mappening-postgres
+    profiles: ["dev"]
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
     ports:
-      - "55432:5432"
+      - "127.0.0.1:55432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/scripts/postgres-dev-init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
@@ -16,14 +17,14 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-
-    # Cache pour optimiser les performances API
+  # Local development cache only. Do not expose this service on a public host
+  # without enabling Redis authentication and network restrictions.
   redis:
     image: redis:7-alpine
     container_name: mappening-redis
+    profiles: ["dev"]
     ports:
-      - "6379:6379" # Port redis exposé sur l'hôte
-        # Persistance des données redis, Mode AOF (persistance fiable), Redémarrage automatique sauf arrêt manuel
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes

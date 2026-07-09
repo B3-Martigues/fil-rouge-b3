@@ -23,6 +23,7 @@ import type {
 import { ROLE_IDS } from "../../domains/user/types/user";
 
 type StaffDataSet = {
+  summary: StaffSummary;
   accounts: Account[];
   users: User[];
   organizations: Organization[];
@@ -34,7 +35,20 @@ type StaffDataSet = {
   moderationDecisions: ModerationDecision[];
 };
 
+type StaffSummaryStat = {
+  total: number;
+  pending: number;
+};
+
+type StaffSummary = {
+  accounts: StaffSummaryStat;
+  events: StaffSummaryStat;
+  organizations: StaffSummaryStat;
+  reports: StaffSummaryStat;
+};
+
 type DataState = {
+  staffSummary: StaffSummary;
   accounts: Account[];
   users: User[];
   organizations: Organization[];
@@ -125,6 +139,13 @@ const createSoftDeletePatch = () => ({
   updated_at: now(),
 });
 
+const emptyStaffSummary = (): StaffSummary => ({
+  accounts: { total: 0, pending: 0 },
+  events: { total: 0, pending: 0 },
+  organizations: { total: 0, pending: 0 },
+  reports: { total: 0, pending: 0 },
+});
+
 const normalizeEvent = (event: Event): Event => {
   const legacyEvent = event as Event & {
     category_slugs?: unknown;
@@ -176,16 +197,21 @@ export const buildAccountSummaries = (
     );
 
     if (organization) {
+      const isOrganizationAccount =
+        account.account_type === "organization" || user?.role === "organization";
+      const role = isOrganizationAccount
+        ? "organization"
+        : (user?.role ?? account.account_type);
       return {
         account_id: account.id,
         login_email: account.login_email,
-        password_hash: account.password_hash,
-        role: user?.role === "organization" ? "user" : (user?.role ?? "user"),
-        role_id:
-          user?.role === "organization"
-            ? ROLE_IDS.user
-            : (user?.role_id ?? ROLE_IDS.user),
-        display_name: user?.username ?? account.login_email,
+        role,
+        role_id: isOrganizationAccount
+          ? (organization.role_id ?? user?.role_id ?? ROLE_IDS.organization)
+          : (user?.role_id ?? ROLE_IDS[role]),
+        display_name: isOrganizationAccount
+          ? organization.name
+          : (user?.username ?? account.login_email),
         is_active: account.is_active && organization.is_active,
         suspended_until: account.suspended_until ?? null,
         suspension_reason: account.suspension_reason ?? null,
@@ -195,20 +221,12 @@ export const buildAccountSummaries = (
       };
     }
 
-    const accountType =
-      account.account_type === "organization" ? "user" : account.account_type;
-    const accountRole = user?.role === "organization"
-      ? "user"
-      : (user?.role ?? accountType);
-    const roleId =
-      user?.role === "organization"
-        ? ROLE_IDS.user
-        : (user?.role_id ?? ROLE_IDS[accountRole] ?? ROLE_IDS.user);
+    const accountRole = user?.role ?? account.account_type;
+    const roleId = user?.role_id ?? ROLE_IDS[accountRole] ?? ROLE_IDS.user;
 
     return {
       account_id: account.id,
       login_email: account.login_email,
-      password_hash: account.password_hash,
       role: accountRole,
       role_id: roleId,
       display_name: user?.username ?? account.login_email,
@@ -221,6 +239,7 @@ export const buildAccountSummaries = (
 
 const useDataStore = create<DataState>()(
     (set, get) => ({
+      staffSummary: emptyStaffSummary(),
       accounts: [],
       users: [],
       organizations: [],
@@ -245,10 +264,12 @@ const useDataStore = create<DataState>()(
           notifications: [],
           moderationReports: [],
           moderationDecisions: [],
+          staffSummary: emptyStaffSummary(),
         })),
 
       hydrateStaffData: (data) =>
         set(() => ({
+          staffSummary: data.summary,
           accounts: data.accounts,
           users: data.users,
           organizations: data.organizations,

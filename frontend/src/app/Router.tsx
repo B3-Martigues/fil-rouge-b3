@@ -51,6 +51,9 @@ const OrganizationDetailPage = lazy(
 const OrganizationSetup = lazy(
   () => import("../domains/organization/pages/OrganizationSetup"),
 );
+const OrganizationEventCreate = lazy(
+  () => import("../domains/organization/components/OrganizationEventCreate"),
+);
 const Favorites = lazy(() => import("../domains/user/pages/Favorites"));
 const History = lazy(() => import("../domains/user/pages/History"));
 const Notifications = lazy(() => import("../domains/user/pages/Notifications"));
@@ -82,6 +85,7 @@ const formModalRoutes = [
   { path: ROUTES.USER.PARAMETERS, label: "Paramètres utilisateur" },
   { path: ROUTES.USER.BECOME_ORGANIZER, label: "Devenir organisateur" },
   { path: ROUTES.USER.CREATE_ORGANIZATION, label: "Ajouter une organisation" },
+  { path: ROUTES.ORGANIZATION.CREATE, label: "Nouvel evenement" },
 ] as const;
 
 const getFormModalLabel = (pathname: string) =>
@@ -140,7 +144,6 @@ const PrivateRoute = ({ children }: Props) => {
   const currentUser = useAuthStore((s) => s.currentUser);
   const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
-  const organizations = useDataStore((s) => s.organizations);
 
   const account = currentUser
     ? accounts.find((item) => item.id === currentUser.account_id)
@@ -154,19 +157,12 @@ const PrivateRoute = ({ children }: Props) => {
       !isAccountSuspended(account));
   const hasValidProfile =
     isApiBackedSession ||
-    (currentUser?.role === "organization"
-      ? organizations.some(
-          (organization) =>
-            organization.id === currentUser.organization_id &&
-            organization.account_id === currentUser.account_id &&
-            !organization.deleted_at,
-        )
-      : users.some(
+    users.some(
         (user) =>
           user.id === currentUser?.user_id &&
           user.account_id === currentUser?.account_id &&
           !user.deleted_at,
-      ));
+      );
 
   return isAuthenticated &&
     currentUser &&
@@ -236,13 +232,11 @@ const RequireUserOrganizer = ({ children }: Props) => {
   const currentUser = useAuthStore((s) => s.currentUser);
   const organizers = useDataStore((s) => s.organizers);
   const organizations = useDataStore((s) => s.organizations);
-  const hasOrganizations =
-    currentUser?.role === "user" &&
-    hasCurrentUserOrganizationMembership(
-      currentUser,
-      organizers,
-      organizations,
-    );
+  const hasOrganizations = hasCurrentUserOrganizationMembership(
+    currentUser,
+    organizers,
+    organizations,
+  );
 
   if (!hasOrganizations) {
     return <Navigate to={ROUTES.USER.PROFILE} replace />;
@@ -343,7 +337,7 @@ const Router = ({
         <Route
           element={
             <PrivateRoute>
-              <RoleRoute roles={["user", "admin", "moderator", "organization"]}>
+              <RoleRoute roles={["user", "admin", "moderator"]}>
                 <PrivateLayout />
               </RoleRoute>
             </PrivateRoute>
@@ -582,7 +576,13 @@ const Router = ({
           />
           <Route
             path={ROUTES.ORGANIZATION.CREATE}
-            element={<Navigate to={ROUTES.USER.EVENTS} replace />}
+            element={
+              <RoleRoute role="user">
+                <RequireUserOrganizer>
+                  <OrganizationEventCreate />
+                </RequireUserOrganizer>
+              </RoleRoute>
+            }
           />
         </Route>
 
@@ -645,6 +645,18 @@ const Router = ({
                   <PrivateRoute>
                     <RoleRoute role="user">
                       <OrganizationSetup mode="create" />
+                    </RoleRoute>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path={ROUTES.ORGANIZATION.CREATE}
+                element={
+                  <PrivateRoute>
+                    <RoleRoute role="user">
+                      <RequireUserOrganizer>
+                        <OrganizationEventCreate />
+                      </RequireUserOrganizer>
                     </RoleRoute>
                   </PrivateRoute>
                 }

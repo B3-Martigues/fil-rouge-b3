@@ -245,7 +245,7 @@ export default function UserOrganizations() {
     const refreshOrganizationEvents = async () => {
       const results = await Promise.all(
         userOrganizationIdList.map((organizationId) =>
-          eventsApi.listByOrganization(organizationId, { includeInactive: true }),
+          eventsApi.listByOrganization(organizationId),
         ),
       );
 

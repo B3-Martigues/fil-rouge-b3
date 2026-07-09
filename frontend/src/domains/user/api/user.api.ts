@@ -72,7 +72,6 @@ const toApiList = <Item>(items: Item[] | null | undefined): Item[] =>
 const backendRoleToFrontendRole = (role: string): Role => {
   if (role === "admin") return "admin";
   if (role === "moderator") return "moderator";
-  if (role === "organization") return "organization";
   return "user";
 };
 

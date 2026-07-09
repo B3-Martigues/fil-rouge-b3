@@ -209,19 +209,30 @@ export default function ModeratorDashboard({
   view = "dashboard",
 }: ModeratorDashboardProps) {
   const currentUser = useAuthStore((s) => s.currentUser);
+  const staffDataScope =
+    view === "events"
+      ? "moderator-events"
+      : view === "organizations"
+        ? "moderator-organizations"
+        : view === "accounts"
+          ? "moderator-accounts"
+          : view === "reports"
+            ? "moderator-reports"
+            : "moderator-dashboard";
   const {
     applyAction: applyStaffAction,
     error: staffSyncError,
     isLoaded: isStaffLoaded,
     isLoading: isStaffLoading,
     refresh: refreshStaffData,
-  } = useStaffSync();
+  } = useStaffSync(staffDataScope);
   const { can } = useModeratorPermissions();
   const accounts = useDataStore((s) => s.accounts);
   const users = useDataStore((s) => s.users);
   const organizations = useDataStore((s) => s.organizations);
   const organizers = useDataStore((s) => s.organizers);
   const events = useDataStore((s) => s.events);
+  const staffSummary = useDataStore((s) => s.staffSummary);
   const moderationReports = useDataStore((s) => s.moderationReports);
   const moderationDecisions = useDataStore((s) => s.moderationDecisions);
   const [reportDecisionMessages, setReportDecisionMessages] = useState<
@@ -305,9 +316,6 @@ export default function ModeratorDashboard({
       (!latestDecision || !finalOrganizationActions.includes(latestDecision))
     );
   });
-  const pendingReports = moderationReports.filter(
-    (report) => report.status === "open",
-  );
   const moderationAccounts = accountSummaries.filter(
     (account) => account.role === "user" || account.role === "organization",
   );
@@ -326,7 +334,6 @@ export default function ModeratorDashboard({
         return {
           account_id: user.account_id,
           login_email: account?.login_email ?? user.username,
-          password_hash: account?.password_hash ?? "",
           role: user.role === "organization" ? "user" : user.role,
           role_id: user.role_id,
           display_name: user.username,
@@ -994,26 +1001,27 @@ export default function ModeratorDashboard({
     {
       label: "Utilisateurs",
       to: ROUTES.MODERATOR.DASHBOARD,
-      value: userAccounts.length,
+      value: staffSummary.accounts.total,
+      detail: `${staffSummary.accounts.pending} en attente`,
       end: true,
     },
     {
       label: "Evenements",
       to: ROUTES.MODERATOR.EVENTS,
-      value: visibleEvents.length,
-      detail: `${pendingEvents.length} en attente`,
+      value: staffSummary.events.total,
+      detail: `${staffSummary.events.pending} en attente`,
     },
     {
       label: "Organisations",
       to: ROUTES.MODERATOR.ORGANIZATIONS,
-      value: activeOrganizations.length,
-      detail: `${pendingOrganizations.length} en attente`,
+      value: staffSummary.organizations.total,
+      detail: `${staffSummary.organizations.pending} en attente`,
     },
     {
       label: "Signalements",
       to: ROUTES.MODERATOR.REPORTS,
-      value: moderationReports.length,
-      detail: `${pendingReports.length} en attente`,
+      value: staffSummary.reports.total,
+      detail: `${staffSummary.reports.pending} en attente`,
     },
   ].filter((stat) => {
     if (stat.to === ROUTES.MODERATOR.EVENTS) {

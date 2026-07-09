@@ -2,13 +2,18 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
 import useAuthStore from "../../auth/store/authStore";
-import { staffApi, type StaffActionPayload, type StaffDataSet } from "../api/staff.api";
+import {
+  staffApi,
+  type StaffActionPayload,
+  type StaffDataScope,
+  type StaffDataSet,
+} from "../api/staff.api";
 import useDataStore from "../../../shared/store/dataStore";
 
 const canUseStaffApi = (role?: string | null) =>
   role === "admin" || role === "moderator";
 
-export default function useStaffSync() {
+export default function useStaffSync(scope: StaffDataScope = "moderator-dashboard") {
   const currentUser = useAuthStore((state) => state.currentUser);
   const clearStaffData = useDataStore((state) => state.clearStaffData);
   const hydrateStaffData = useDataStore((state) => state.hydrateStaffData);
@@ -35,7 +40,7 @@ export default function useStaffSync() {
     setError(null);
     setIsLoaded(false);
     setIsLoading(true);
-    const result = await staffApi.loadData();
+    const result = await staffApi.loadData(scope);
     setIsLoading(false);
 
     if (result.ok) {
@@ -50,7 +55,7 @@ export default function useStaffSync() {
       toast.error(result.error.message);
     }
     return false;
-  }, [clearStaffData, currentUser?.role, hydrate]);
+  }, [clearStaffData, currentUser?.role, hydrate, scope]);
 
   const applyAction = useCallback(
     async (payload: StaffActionPayload) => {

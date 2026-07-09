@@ -32,40 +32,44 @@ func (s Service) UserProfileIDByAccountID(ctx context.Context, accountID int64) 
 	return userID, nil
 }
 
-func (s Service) Accounts(ctx context.Context) ([]Account, error) {
-	return s.repo().listAccounts(ctx)
+func (s Service) Summary(ctx context.Context, options ListOptions) (*Summary, error) {
+	return s.repo().summary(ctx, options)
 }
 
-func (s Service) Users(ctx context.Context) ([]User, error) {
-	return s.repo().listUsers(ctx)
+func (s Service) Accounts(ctx context.Context, options ListOptions) ([]Account, error) {
+	return s.repo().listAccounts(ctx, options)
 }
 
-func (s Service) Organizations(ctx context.Context) ([]Organization, error) {
-	return s.repo().listOrganizations(ctx)
+func (s Service) Users(ctx context.Context, options ListOptions) ([]User, error) {
+	return s.repo().listUsers(ctx, options)
 }
 
-func (s Service) Organizers(ctx context.Context) ([]Organizer, error) {
-	return s.repo().listOrganizers(ctx)
+func (s Service) Organizations(ctx context.Context, options ListOptions) ([]Organization, error) {
+	return s.repo().listOrganizations(ctx, options)
 }
 
-func (s Service) Events(ctx context.Context) ([]events.Event, error) {
-	return s.repo().listEvents(ctx)
+func (s Service) Organizers(ctx context.Context, options ListOptions) ([]Organizer, error) {
+	return s.repo().listOrganizers(ctx, options)
+}
+
+func (s Service) Events(ctx context.Context, options ListOptions) ([]events.Event, error) {
+	return s.repo().listEvents(ctx, options)
 }
 
 func (s Service) NotificationTypes(ctx context.Context) ([]NotificationType, error) {
 	return s.repo().listNotificationTypes(ctx)
 }
 
-func (s Service) Notifications(ctx context.Context) ([]Notification, error) {
-	return s.repo().listNotifications(ctx)
+func (s Service) Notifications(ctx context.Context, options ListOptions) ([]Notification, error) {
+	return s.repo().listNotifications(ctx, options)
 }
 
-func (s Service) ModerationReports(ctx context.Context) ([]ModerationReport, error) {
-	return s.repo().listReports(ctx)
+func (s Service) ModerationReports(ctx context.Context, options ListOptions) ([]ModerationReport, error) {
+	return s.repo().listReports(ctx, options)
 }
 
-func (s Service) ModerationDecisions(ctx context.Context) ([]ModerationDecision, error) {
-	return s.repo().listDecisions(ctx)
+func (s Service) ModerationDecisions(ctx context.Context, options ListOptions) ([]ModerationDecision, error) {
+	return s.repo().listDecisions(ctx, options)
 }
 
 func (s Service) repo() *Repository {

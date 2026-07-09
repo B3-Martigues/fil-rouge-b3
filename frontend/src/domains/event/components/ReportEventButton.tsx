@@ -101,6 +101,7 @@ export default function ReportEventButton({ event }: Props) {
         disabled={isSubmitting || isReportUnavailable}
         loading={isSubmitting}
         loadingLabel="Envoi..."
+        aria-label="Signaler cet evenement"
         aria-describedby={unavailableMessage ? statusId : undefined}
         aria-expanded={isOpen}
         title={unavailableMessage ?? "Signaler cet evenement"}

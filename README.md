@@ -26,6 +26,8 @@ La documentation détaillée du frontend est disponible dans [`frontend/README.m
 
 Chaque membre de l'équipe utilise sa propre base PostgreSQL locale. Le projet partage le `docker-compose.yml`, les migrations SQL, les scripts de seed et les valeurs de développement, mais `backend/.env.local`, `frontend/.env.local` et les données de base restent propres à chaque machine.
 
+Le `docker-compose.yml` est fourni uniquement pour le développement local. Il utilise des identifiants PostgreSQL connus, Redis sans mot de passe et des ports bindés sur `127.0.0.1`; ne le réutilisez pas pour une préproduction ou une production exposée.
+
 ### Prérequis
 
 - Docker Desktop
@@ -64,7 +66,7 @@ Le backend initialise désormais Redis au démarrage. Si Redis n'est pas déjà 
 docker compose up -d redis
 ```
 
-Le `docker-compose.yml` expose Redis sur `localhost:6379` avec persistance AOF dans le volume `redis_data`.
+Le `docker-compose.yml` expose Redis uniquement sur `127.0.0.1:6379` avec persistance AOF dans le volume `redis_data`. Si Redis doit être accessible hors de la machine locale, activez un mot de passe via `REDIS_PASSWORD`, limitez le réseau d'exposition et évitez le compose de développement.
 
 ### Lancer le backend
 
@@ -311,6 +313,8 @@ docker compose up -d postgres redis
 docker compose down
 docker compose down -v
 ```
+
+Ces services sont dans le profil Compose `dev` et restent destinés au poste local. Les ports PostgreSQL et Redis sont publiés sur `127.0.0.1` pour éviter une exposition réseau accidentelle.
 
 ## Documentation
 

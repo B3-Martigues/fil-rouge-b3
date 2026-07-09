@@ -4,6 +4,7 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, ""
 const CSRF_COOKIE_NAME = "csrf_token";
 const CSRF_HEADER_NAME = "X-CSRF-Token";
 let csrfTokenMemory: string | null = null;
+let refreshPromise: Promise<boolean> | null = null;
 
 type RequestOptions = Omit<RequestInit, "body" | "credentials"> & {
   body?: unknown;
@@ -19,11 +20,22 @@ type MaybeCsrfBody = {
 };
 
 const unsafeMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const AUTH_REFRESH_PATH = "/api/auth/refresh";
+const AUTH_REFRESH_EXCLUDED_PATHS = new Set([
+  AUTH_REFRESH_PATH,
+  "/api/auth/login",
+  "/api/auth/register/user",
+  "/api/auth/register/organization",
+]);
 
 const buildUrl = (path: string) =>
   path.startsWith("http") ? path : `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 
 const getCookieValue = (name: string) => {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
   const cookie = document.cookie
     .split("; ")
     .find((part) => part.startsWith(`${encodeURIComponent(name)}=`));
@@ -66,10 +78,31 @@ const toErrorCode = (status: number) => {
   return "server_error";
 };
 
-export async function apiRequest<Data>(
+const getRequestPathname = (path: string) => {
+  try {
+    const fallbackOrigin =
+      typeof window === "undefined" ? "http://localhost" : window.location.origin;
+
+    return new URL(buildUrl(path), fallbackOrigin).pathname;
+  } catch {
+    return path;
+  }
+};
+
+const shouldAttemptAuthRefresh = (path: string, response: Response) => {
+  const pathname = getRequestPathname(path);
+
+  return (
+    response.status === 401 &&
+    pathname.startsWith("/api/") &&
+    !AUTH_REFRESH_EXCLUDED_PATHS.has(pathname)
+  );
+};
+
+const sendApiRequest = (
   path: string,
   options: RequestOptions = {},
-): Promise<ApiResult<Data>> {
+): Promise<Response> => {
   const method = (options.method ?? "GET").toUpperCase();
   const headers = new Headers(options.headers);
   const isFormDataBody =
@@ -92,27 +125,72 @@ export async function apiRequest<Data>(
     headers.set(CSRF_HEADER_NAME, csrfToken);
   }
 
+  return fetch(buildUrl(path), {
+    ...options,
+    body: requestBody,
+    credentials: "include",
+    headers,
+    method,
+  });
+};
+
+const requestTokenRefresh = async () => {
+  const response = await sendApiRequest(AUTH_REFRESH_PATH, { method: "POST" });
+
+  if (!response.ok) {
+    return false;
+  }
+
+  rememberCsrfToken(response.headers.get(CSRF_HEADER_NAME));
+
+  if (response.status !== 204) {
+    try {
+      rememberCsrfFromBody((await response.json()) as unknown);
+    } catch {
+      // A successful refresh may rely only on cookies and headers.
+    }
+  }
+
+  return true;
+};
+
+const refreshAccessToken = async () => {
+  refreshPromise ??= requestTokenRefresh().finally(() => {
+    refreshPromise = null;
+  });
+
+  return refreshPromise;
+};
+
+const parseApiResponse = async <Data>(
+  response: Response,
+): Promise<ApiResult<Data>> => {
+  if (response.status === 204) {
+    return createApiSuccess(null as Data);
+  }
+
+  if (!response.ok) {
+    return createApiError(toErrorCode(response.status), await toErrorMessage(response));
+  }
+
+  rememberCsrfToken(response.headers.get(CSRF_HEADER_NAME));
+  const data = (await response.json()) as Data;
+  rememberCsrfFromBody(data);
+  return createApiSuccess(data);
+};
+
+export async function apiRequest<Data>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<ApiResult<Data>> {
   try {
-    const response = await fetch(buildUrl(path), {
-      ...options,
-      body: requestBody,
-      credentials: "include",
-      headers,
-      method,
-    });
+    let response = await sendApiRequest(path, options);
 
-    if (response.status === 204) {
-      return createApiSuccess(null as Data);
+    if (shouldAttemptAuthRefresh(path, response) && (await refreshAccessToken())) {
+      response = await sendApiRequest(path, options);
     }
 
-    if (!response.ok) {
-      return createApiError(toErrorCode(response.status), await toErrorMessage(response));
-    }
-
-    rememberCsrfToken(response.headers.get(CSRF_HEADER_NAME));
-    const data = (await response.json()) as Data;
-    rememberCsrfFromBody(data);
-    return createApiSuccess(data);
+    return parseApiResponse(response);
   } catch {
     return createApiError("network_error", "Impossible de joindre le serveur");
   }

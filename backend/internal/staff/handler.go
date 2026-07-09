@@ -3,6 +3,7 @@ package staff
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -78,33 +79,39 @@ func (h Handler) service() Service {
 	return h.Service
 }
 
+func (h Handler) Summary(w http.ResponseWriter, r *http.Request) {
+	writeStaffList(w, "load staff summary", func() (*Summary, error) {
+		return h.service().Summary(r.Context(), parseStaffListOptions(r))
+	})
+}
+
 func (h Handler) Accounts(w http.ResponseWriter, r *http.Request) {
 	writeStaffList(w, "list staff accounts", func() ([]Account, error) {
-		return h.service().Accounts(r.Context())
+		return h.service().Accounts(r.Context(), parseStaffListOptions(r))
 	})
 }
 
 func (h Handler) Users(w http.ResponseWriter, r *http.Request) {
 	writeStaffList(w, "list staff users", func() ([]User, error) {
-		return h.service().Users(r.Context())
+		return h.service().Users(r.Context(), parseStaffListOptions(r))
 	})
 }
 
 func (h Handler) Organizations(w http.ResponseWriter, r *http.Request) {
 	writeStaffList(w, "list staff organizations", func() ([]Organization, error) {
-		return h.service().Organizations(r.Context())
+		return h.service().Organizations(r.Context(), parseStaffListOptions(r))
 	})
 }
 
 func (h Handler) Organizers(w http.ResponseWriter, r *http.Request) {
 	writeStaffList(w, "list staff organizers", func() ([]Organizer, error) {
-		return h.service().Organizers(r.Context())
+		return h.service().Organizers(r.Context(), parseStaffListOptions(r))
 	})
 }
 
 func (h Handler) Events(w http.ResponseWriter, r *http.Request) {
 	writeStaffList(w, "list staff events", func() ([]events.Event, error) {
-		return h.service().Events(r.Context())
+		return h.service().Events(r.Context(), parseStaffListOptions(r))
 	})
 }
 
@@ -116,20 +123,49 @@ func (h Handler) NotificationTypes(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) Notifications(w http.ResponseWriter, r *http.Request) {
 	writeStaffList(w, "list staff notifications", func() ([]Notification, error) {
-		return h.service().Notifications(r.Context())
+		return h.service().Notifications(r.Context(), parseStaffListOptions(r))
 	})
 }
 
 func (h Handler) ModerationReports(w http.ResponseWriter, r *http.Request) {
 	writeStaffList(w, "list staff moderation reports", func() ([]ModerationReport, error) {
-		return h.service().ModerationReports(r.Context())
+		return h.service().ModerationReports(r.Context(), parseStaffListOptions(r))
 	})
 }
 
 func (h Handler) ModerationDecisions(w http.ResponseWriter, r *http.Request) {
 	writeStaffList(w, "list staff moderation decisions", func() ([]ModerationDecision, error) {
-		return h.service().ModerationDecisions(r.Context())
+		return h.service().ModerationDecisions(r.Context(), parseStaffListOptions(r))
 	})
+}
+
+func parseStaffListOptions(r *http.Request) ListOptions {
+	query := r.URL.Query()
+	options := ListOptions{
+		Query:  strings.TrimSpace(query.Get("q")),
+		Status: strings.TrimSpace(strings.ToLower(query.Get("status"))),
+		Limit:  100,
+	}
+	if claims := middleware.GetUser(r); claims != nil {
+		options.Role = strings.TrimSpace(strings.ToLower(claims.Role))
+	}
+	if raw := strings.TrimSpace(query.Get("limit")); raw != "" {
+		if limit, err := strconv.Atoi(raw); err == nil {
+			options.Limit = limit
+		}
+	}
+	if options.Limit <= 0 {
+		options.Limit = 100
+	}
+	if options.Limit > 200 {
+		options.Limit = 200
+	}
+	if raw := strings.TrimSpace(query.Get("offset")); raw != "" {
+		if offset, err := strconv.Atoi(raw); err == nil && offset > 0 {
+			options.Offset = offset
+		}
+	}
+	return options
 }
 
 func writeStaffList[T any](w http.ResponseWriter, logMessage string, load func() (T, error)) {
@@ -160,6 +196,7 @@ func RegisterRoutes(r chi.Router, handler Handler, authMiddleware func(http.Hand
 	r.Group(func(pr chi.Router) {
 		pr.Use(authMiddleware)
 		pr.Use(middleware.RequireRole("admin", "moderator"))
+		pr.Get("/api/staff/summary", handler.Summary)
 		pr.Get("/api/staff/accounts", handler.Accounts)
 		pr.Get("/api/staff/users", handler.Users)
 		pr.Get("/api/staff/organizations", handler.Organizations)

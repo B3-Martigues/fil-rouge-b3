@@ -7,24 +7,30 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import { isAccountSuspended } from "../../user/types/user";
+import { isAccountSuspended, ROLE_IDS } from "../../user/types/user";
+import type { AuthenticatedUser } from "../../user/types/user";
 import type { AuthState } from "./types";
+
+const normalizeAuthenticatedUser = (user: AuthenticatedUser): AuthenticatedUser => {
+  if (user.role !== "organization") return user;
+
+  return {
+    ...user,
+    role: "user",
+    role_id: ROLE_IDS.user,
+  };
+};
 
 const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      /**Indique si un utilisateur est authentifié */
       isAuthenticated: false,
-
-      /**Utilisateur actuellement connecté */
       currentUser: null,
-
-      /**Rôle de l'utilisateur connecté */
       role: null,
-
-      /**Authentifie un utilisateur et met à jour le store global */
       login: (user) => {
-        if (!user.is_active || isAccountSuspended(user)) {
+        const normalizedUser = normalizeAuthenticatedUser(user);
+
+        if (!normalizedUser.is_active || isAccountSuspended(normalizedUser)) {
           set({
             isAuthenticated: false,
             currentUser: null,
@@ -32,16 +38,13 @@ const useAuthStore = create<AuthState>()(
           });
           return false;
         }
-
         set({
           isAuthenticated: true,
-          currentUser: user,
-          role: user.role,
+          currentUser: normalizedUser,
+          role: normalizedUser.role,
         });
         return true;
       },
-
-      /**Déconnecte l'utilisateur et réinitialise l'état global */
       logout: () => {
         set({
           isAuthenticated: false,
@@ -49,23 +52,27 @@ const useAuthStore = create<AuthState>()(
           role: null,
         });
       },
-
-      /**Met à jour les données utilisateur */
       updateUser: (updatedUser) => {
         set((state) => ({
           currentUser: state.currentUser
-            ? {
+            ? normalizeAuthenticatedUser({
                 ...state.currentUser,
                 ...updatedUser,
-              }
+              })
             : null,
         }));
       },
     }),
+    {
+      name: "auth-storage-v4",
+      onRehydrateStorage: () => (state) => {
+        if (!state?.currentUser) return;
 
-    
-    /**Persistence du store dans le localStorage */
-    { name: "auth-storage-v4" },
+        const normalizedUser = normalizeAuthenticatedUser(state.currentUser);
+        state.currentUser = normalizedUser;
+        state.role = normalizedUser.role;
+      },
+    },
   ),
 );
 

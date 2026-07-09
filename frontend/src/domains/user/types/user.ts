@@ -21,7 +21,7 @@ export const ROLE_IDS: Record<Role, number> = {
 };
 
 export const getAccountTypeForRole = (role: Role): AccountType =>
-  role === "organization" ? "user" : role;
+  role;
 
 export const getAccountTypeIdForRole = (role: Role) =>
   ACCOUNT_TYPE_IDS[getAccountTypeForRole(role)];
@@ -31,7 +31,6 @@ export type Account = {
   account_type_id: number;
   account_type: AccountType;
   login_email: string;
-  password_hash: string;
   password_changed_at?: string | null;
   is_active: boolean;
   suspended_until?: string | null;
@@ -55,7 +54,6 @@ export type User = {
 export type AccountSummary = {
   account_id: number;
   login_email: string;
-  password_hash: string;
   role: Role;
   role_id: number;
   display_name: string;
@@ -136,8 +134,8 @@ export function toAuthenticatedOrganization(params: {
     id: params.account.id,
     account_id: params.account.id,
     login_email: params.account.login_email,
-    role: "user",
-    role_id: ROLE_IDS.user,
+    role: "organization",
+    role_id: params.organization.role_id ?? ROLE_IDS.organization,
     username: params.organization.name,
     is_active: params.account.is_active && params.organization.is_active,
     suspended_until: params.account.suspended_until ?? null,

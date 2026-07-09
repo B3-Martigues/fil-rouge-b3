@@ -1,6 +1,9 @@
 package events
 
-import "testing"
+import (
+	"net/http/httptest"
+	"testing"
+)
 
 func TestParseDateOrTimeConvertsRFC3339InstantToParisWallClock(t *testing.T) {
 	parsed, err := parseDateOrTime("2026-07-03T18:00:00Z")
@@ -32,5 +35,13 @@ func TestParseDateOrTimeKeepsLocalDateTimeInputUnshifted(t *testing.T) {
 
 	if got := formatEventDateTimeForDB(parsed); got != "2026-07-03 20:00:00" {
 		t.Fatalf("expected local wall clock to stay 20:00, got %s", got)
+	}
+}
+
+func TestParseListFiltersRejectsIncludeInactiveOnPublicRoutes(t *testing.T) {
+	req := httptest.NewRequest("GET", "/api/events?include_inactive=true", nil)
+
+	if _, err := parseListFilters(req); err == nil {
+		t.Fatal("expected include_inactive to be rejected")
 	}
 }

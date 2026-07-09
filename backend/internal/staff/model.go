@@ -7,7 +7,6 @@ type Account struct {
 	AccountTypeID     int64      `json:"account_type_id"`
 	AccountType       string     `json:"account_type"`
 	LoginEmail        string     `json:"login_email"`
-	PasswordHash      string     `json:"password_hash"`
 	PasswordChangedAt *time.Time `json:"password_changed_at,omitempty"`
 	IsActive          bool       `json:"is_active"`
 	SuspendedUntil    *time.Time `json:"suspended_until,omitempty"`
@@ -126,4 +125,24 @@ type CreateReportRequest struct {
 	Reason         string `json:"reason"`
 	Details        string `json:"details"`
 	Priority       string `json:"priority"`
+}
+
+type SummaryStat struct {
+	Total   int64 `json:"total"`
+	Pending int64 `json:"pending"`
+}
+
+type Summary struct {
+	Accounts      SummaryStat `json:"accounts"`
+	Events        SummaryStat `json:"events"`
+	Organizations SummaryStat `json:"organizations"`
+	Reports       SummaryStat `json:"reports"`
+}
+
+type ListOptions struct {
+	Query  string
+	Status string
+	Role   string
+	Limit  int
+	Offset int
 }

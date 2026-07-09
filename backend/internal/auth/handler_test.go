@@ -391,6 +391,7 @@ func TestAuthHandler_Refresh_RotatesRefreshCookie_AndStore(t *testing.T) {
 
 	rec2 := httptest.NewRecorder()
 	req2 := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	req2.Header.Set("Origin", "http://localhost:5173")
 	req2.AddCookie(refreshCookie)
 
 	h.Refresh(rec2, req2)
@@ -399,6 +400,20 @@ func TestAuthHandler_Refresh_RotatesRefreshCookie_AndStore(t *testing.T) {
 
 	if res2.StatusCode != 200 {
 		t.Fatalf("expected 200 on refresh, got %d", res2.StatusCode)
+	}
+
+	var payload struct {
+		OK        bool   `json:"ok"`
+		CSRFToken string `json:"csrf_token"`
+	}
+	if err := json.NewDecoder(res2.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode refresh payload: %v", err)
+	}
+	if !payload.OK || payload.CSRFToken == "" {
+		t.Fatalf("expected csrf token in refresh payload, got %+v", payload)
+	}
+	if res2.Header.Get("X-CSRF-Token") != payload.CSRFToken {
+		t.Fatalf("expected csrf response header to match payload")
 	}
 
 	newRefresh := findCookie(res2.Cookies(), "refresh_token")
@@ -468,6 +483,7 @@ func TestAuthHandler_Refresh_RejectsStaleSessionRevision(t *testing.T) {
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
 	req.AddCookie(&http.Cookie{Name: "refresh_token", Value: signedToken})
 	rec := httptest.NewRecorder()
 

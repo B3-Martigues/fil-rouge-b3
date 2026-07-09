@@ -76,7 +76,7 @@ import {
 type UserDraft = {
   display_name: string;
   login_email: string;
-  password_hash: string;
+  password: string;
   role: Role;
   is_active: boolean;
 };
@@ -197,7 +197,7 @@ const isStrongPassword = (value: string) => passwordPattern.test(value);
 const toUserDraft = (account: AccountSummary): UserDraft => ({
   display_name: account.display_name,
   login_email: account.login_email,
-  password_hash: account.password_hash,
+  password: "",
   role: account.role,
   is_active: account.is_active,
 });
@@ -205,7 +205,7 @@ const toUserDraft = (account: AccountSummary): UserDraft => ({
 const emptyUserDraft = (): UserDraft => ({
   display_name: "",
   login_email: "",
-  password_hash: "",
+  password: "",
   role: "user",
   is_active: true,
 });
@@ -381,17 +381,24 @@ const toggleEventDraftCategory = (
 
 export default function AdminDashboard({ view = "dashboard" }: AdminDashboardProps) {
   const currentUser = useAuthStore((s) => s.currentUser);
+  const staffDataScope =
+    view === "accounts"
+      ? "admin-accounts"
+      : view === "events"
+        ? "admin-events"
+        : "admin-dashboard";
   const {
     applyAction: applyStaffAction,
     error: staffSyncError,
     isLoaded: isStaffLoaded,
     isLoading: isStaffLoading,
     refresh: refreshStaffData,
-  } = useStaffSync();
+  } = useStaffSync(staffDataScope);
   const accountsData = useDataStore((s) => s.accounts);
   const usersData = useDataStore((s) => s.users);
   const organizationsData = useDataStore((s) => s.organizations);
   const eventsData = useDataStore((s) => s.events);
+  const staffSummary = useDataStore((s) => s.staffSummary);
   const moderationReports = useDataStore((s) => s.moderationReports);
   const addEvent = useDataStore((s) => s.addEvent);
   const updateEvent = useDataStore((s) => s.updateEvent);
@@ -429,7 +436,6 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
   const [decisionReasonError, setDecisionReasonError] = useState("");
 
   const activeOrganizationsData = organizationsData.filter((organization) => !organization.deleted_at);
-  const activeEventsData = eventsData.filter((event) => !event.deleted_at);
   const hasDuplicateAccountEmail = (email: string, currentAccountId?: number) =>
     accountsData.some(
       (account) =>
@@ -711,7 +717,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     }
 
     if (isCreatingUser) {
-      if (!isStrongPassword(userDraft.password_hash)) {
+      if (!isStrongPassword(userDraft.password)) {
         toast.error(
           "Le mot de passe doit contenir au moins 8 caracteres, une majuscule, une minuscule, un chiffre et un caractere special",
         );
@@ -735,7 +741,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
 
       const result = await adminUsersApi.create({
         email: loginEmail,
-        password: userDraft.password_hash,
+        password: userDraft.password,
         first_name: displayName,
         last_name: "",
         role: userDraft.role,
@@ -1212,10 +1218,16 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     {
       label: "Comptes",
       to: ROUTES.ADMIN.DASHBOARD,
-      value: accountSummaries.length,
+      value: staffSummary.accounts.total,
+      detail: `${staffSummary.accounts.pending} en attente`,
       end: true,
     },
-    { label: "Evenements", to: ROUTES.ADMIN.EVENTS, value: activeEventsData.length },
+    {
+      label: "Evenements",
+      to: ROUTES.ADMIN.EVENTS,
+      value: staffSummary.events.total,
+      detail: `${staffSummary.events.pending} en attente`,
+    },
   ];
 
   useEffect(() => {

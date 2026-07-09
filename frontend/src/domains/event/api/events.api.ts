@@ -74,7 +74,6 @@ export type EventListFilters = {
   priceMax?: number;
   free?: boolean;
   paid?: boolean;
-  includeInactive?: boolean;
   bounds?: {
     north: number;
     south: number;
@@ -177,7 +176,6 @@ const buildEventQuery = (filters: EventListFilters = {}) => {
   appendIfDefined(params, "price_max", filters.priceMax);
   appendIfDefined(params, "free", filters.free);
   appendIfDefined(params, "paid", filters.paid);
-  appendIfDefined(params, "include_inactive", filters.includeInactive);
   appendIfDefined(params, "sort", filters.sort);
   appendIfDefined(params, "limit", filters.limit);
   appendIfDefined(params, "offset", filters.offset);

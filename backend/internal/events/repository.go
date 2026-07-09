@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -453,7 +455,7 @@ func (r *Repository) List(ctx context.Context, filters ListFilters) ([]Event, er
 
 func (r *Repository) GetByID(ctx context.Context, id int64, includeInactive bool) (*Event, error) {
 
-	key := fmt.Sprintf("events:byid:%d", id)
+	key := eventByIDCacheKey(id, includeInactive, false)
 	if r.cache != nil {
 		if cached, err := r.cache.Get(ctx, key).Result(); err == nil {
 			var event Event
@@ -646,7 +648,7 @@ func (r *Repository) Update(ctx context.Context, eventID int64, input EventInput
 	}
 
 	if r.cache != nil {
-		_ = r.cache.Del(ctx, fmt.Sprintf("events:byid:%d", eventID)).Err()
+		r.invalidateEventDetailCache(ctx, eventID)
 
 		iter := r.cache.Scan(ctx, 0, "events:list:*", 0).Iterator()
 		for iter.Next(ctx) {
@@ -679,7 +681,7 @@ func (r *Repository) Delete(ctx context.Context, eventID int64, accountID int64,
 	}
 
 	if r.cache != nil {
-		_ = r.cache.Del(ctx, fmt.Sprintf("events:byid:%d", eventID)).Err()
+		r.invalidateEventDetailCache(ctx, eventID)
 
 		keys, err := r.cache.Keys(ctx, "events:list:*").Result()
 		if err == nil && len(keys) > 0 {
@@ -713,7 +715,7 @@ func (r *Repository) SetActive(ctx context.Context, eventID int64, active bool, 
 	}
 
 	if r.cache != nil {
-		_ = r.cache.Del(ctx, fmt.Sprintf("events:byid:%d", eventID)).Err()
+		r.invalidateEventDetailCache(ctx, eventID)
 
 		keys, err := r.cache.Keys(ctx, "events:list:*").Result()
 		if err == nil && len(keys) > 0 {
@@ -790,6 +792,7 @@ func (r *Repository) ReplaceCategories(ctx context.Context, eventID int64, categ
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit replace event categories tx: %w", err)
 	}
+	r.invalidateEventCaches(ctx, eventID)
 
 	return r.GetByID(ctx, eventID, true)
 }
@@ -814,6 +817,7 @@ func (r *Repository) AddCategory(ctx context.Context, eventID int64, categoryID 
 	if err != nil {
 		return nil, fmt.Errorf("add event category: %w", err)
 	}
+	r.invalidateEventCaches(ctx, eventID)
 
 	return r.GetByID(ctx, eventID, true)
 }
@@ -838,6 +842,7 @@ func (r *Repository) RemoveCategory(ctx context.Context, eventID int64, category
 	if err := requireRows(res, ErrCategoryNotFound); err != nil {
 		return nil, err
 	}
+	r.invalidateEventCaches(ctx, eventID)
 
 	return r.GetByID(ctx, eventID, true)
 }
@@ -1526,16 +1531,99 @@ func splitCSV(value string) []string {
 	}
 	return out
 }
+
+func (r *Repository) invalidateEventCaches(ctx context.Context, eventID int64) {
+	if r.cache == nil {
+		return
+	}
+	r.invalidateEventDetailCache(ctx, eventID)
+	keys, err := r.cache.Keys(ctx, "events:list:*").Result()
+	if err == nil && len(keys) > 0 {
+		_ = r.cache.Del(ctx, keys...).Err()
+	}
+}
+
+func (r *Repository) invalidateEventDetailCache(ctx context.Context, eventID int64) {
+	if r.cache == nil {
+		return
+	}
+	iter := r.cache.Scan(ctx, 0, fmt.Sprintf("events:byid:%d:*", eventID), 0).Iterator()
+	for iter.Next(ctx) {
+		_ = r.cache.Del(ctx, iter.Val()).Err()
+	}
+	_ = r.cache.Del(ctx, fmt.Sprintf("events:byid:%d", eventID)).Err()
+}
+
+func eventByIDCacheKey(id int64, includeInactive bool, includeDeleted bool) string {
+	values := url.Values{}
+	values.Set("include_deleted", strconv.FormatBool(includeDeleted))
+	values.Set("include_inactive", strconv.FormatBool(includeInactive))
+	return fmt.Sprintf("events:byid:%d:%s", id, values.Encode())
+}
+
 func (f ListFilters) CacheKey() string {
-	return fmt.Sprintf(
-		"%d:%d:%s:%t:%s:%s:%t:%t",
-		f.Limit,
-		f.Offset,
-		f.Sort,
-		f.IncludeInactive,
-		f.City,
-		f.Query,
-		f.FreeOnly,
-		f.UpcomingOnly,
-	)
+	values := url.Values{}
+	values.Set("bounds_east", "")
+	values.Set("bounds_north", "")
+	values.Set("bounds_south", "")
+	values.Set("bounds_west", "")
+	if f.Bounds != nil {
+		values.Set("bounds_east", formatCacheFloat(f.Bounds.East))
+		values.Set("bounds_north", formatCacheFloat(f.Bounds.North))
+		values.Set("bounds_south", formatCacheFloat(f.Bounds.South))
+		values.Set("bounds_west", formatCacheFloat(f.Bounds.West))
+	}
+	values.Set("categories", strings.Join(normalizedCacheStrings(f.CategorySlugs), ","))
+	values.Set("city", strings.ToLower(strings.TrimSpace(f.City)))
+	values.Set("date", formatCacheTime(f.Date))
+	values.Set("date_from", formatCacheTime(f.DateFrom))
+	values.Set("date_to", formatCacheTime(f.DateTo))
+	values.Set("free_only", strconv.FormatBool(f.FreeOnly))
+	values.Set("include_deleted", strconv.FormatBool(f.IncludeDeleted))
+	values.Set("include_inactive", strconv.FormatBool(f.IncludeInactive))
+	values.Set("limit", strconv.Itoa(f.Limit))
+	values.Set("offset", strconv.Itoa(f.Offset))
+	values.Set("organization_id", "")
+	if f.OrganizationID != nil {
+		values.Set("organization_id", strconv.FormatInt(*f.OrganizationID, 10))
+	}
+	values.Set("paid_only", strconv.FormatBool(f.PaidOnly))
+	values.Set("past_only", strconv.FormatBool(f.PastOnly))
+	values.Set("postal_code", strings.TrimSpace(f.PostalCode))
+	values.Set("price_max", formatCacheFloatPtr(f.PriceMax))
+	values.Set("price_min", formatCacheFloatPtr(f.PriceMin))
+	values.Set("query", strings.ToLower(strings.TrimSpace(f.Query)))
+	values.Set("sort", strings.ToLower(strings.TrimSpace(f.Sort)))
+	values.Set("upcoming_only", strconv.FormatBool(f.UpcomingOnly))
+	return values.Encode()
+}
+
+func normalizedCacheStrings(values []string) []string {
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if value != "" {
+			normalized = append(normalized, value)
+		}
+	}
+	sort.Strings(normalized)
+	return normalized
+}
+
+func formatCacheTime(value *time.Time) string {
+	if value == nil {
+		return ""
+	}
+	return value.Format(time.RFC3339Nano)
+}
+
+func formatCacheFloatPtr(value *float64) string {
+	if value == nil {
+		return ""
+	}
+	return formatCacheFloat(*value)
+}
+
+func formatCacheFloat(value float64) string {
+	return strconv.FormatFloat(value, 'g', -1, 64)
 }

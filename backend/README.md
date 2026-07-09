@@ -40,6 +40,8 @@ Depuis les dernières versions, le périmètre backend inclut :
 
 Chaque membre de l'équipe travaille avec sa propre base PostgreSQL locale. Les migrations et les scripts de seed sont versionnés, mais `backend/.env.local` et les données PostgreSQL/Redis restent locaux et ne doivent pas être commit.
 
+Le `docker-compose.yml` de la racine est un profil `dev` uniquement : PostgreSQL utilise des identifiants locaux connus, Redis n'a pas de mot de passe, et les ports sont publiés sur `127.0.0.1`. Ne l'utilisez pas comme base de staging ou production.
+
 Depuis la racine du repo, une commande prépare la base locale puis lance l'API :
 
 ```powershell
@@ -125,7 +127,7 @@ Variables importantes :
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB` si vous voulez surcharger les valeurs par défaut
 - `TARPIN_BIEN_SCRAPER_ENABLED`
 
-En développement, Redis utilise par défaut `127.0.0.1:6379`, sans mot de passe, DB `0`.
+En développement, Redis utilise par défaut `127.0.0.1:6379`, sans mot de passe, DB `0`. Si Redis est déployé hors poste local, configurez `REDIS_PASSWORD`, limitez l'accès réseau et injectez la configuration via l'environnement cible.
 
 ## Emails
 

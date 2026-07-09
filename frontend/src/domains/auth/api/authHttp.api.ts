@@ -80,8 +80,6 @@ type AuthCheckResponse = {
 const backendRoleToFrontendRole = (role: string): Role => {
   if (role === "admin") return "admin";
   if (role === "moderator") return "moderator";
-  if (role === "organization") return "user";
-  if (role === "user") return "user";
   return "user";
 };
 
@@ -191,17 +189,6 @@ export const authHttpApi = {
   },
 
   async logout(): Promise<ApiResult<null>> {
-    const result = await apiRequest<null>("/api/auth/logout", {
-      method: "POST",
-    });
-
-    if (result.ok || result.error.code !== "unauthorized") {
-      return result;
-    }
-
-    const refreshResult = await this.refresh();
-    if (!refreshResult.ok) return result;
-
     return apiRequest<null>("/api/auth/logout", {
       method: "POST",
     });

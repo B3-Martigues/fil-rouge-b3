@@ -139,7 +139,9 @@ export default function AccountPageShell() {
   const displayName = currentUser?.username ?? "Utilisateur";
   const email = currentUser?.login_email ?? "Compte utilisateur";
   const roleLabel = currentUser
-    ? accountRoleLabels[currentUser.role]
+    ? currentUser.role === "organization"
+      ? "Organisateur"
+      : accountRoleLabels[currentUser.role]
     : "Utilisateur";
   const activeSection = getActiveAccountSection(location.pathname);
   const isStaffAccount =
@@ -175,7 +177,7 @@ export default function AccountPageShell() {
     accountSections.find((section) => section.key === activeSection)?.title ??
     "Compte";
   const visibleAccountSections =
-    currentUser?.role === "user"
+    currentUser?.role === "user" || currentUser?.role === "organization"
       ? accountSections.filter(
           (section) => hasOrganizations || !organizerOnlySections.includes(section.key),
         )

@@ -221,6 +221,10 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
   const desktopFloatingSearchInputRef = useRef<HTMLInputElement | null>(null);
   const desktopSidebarSearchInputRef = useRef<HTMLInputElement | null>(null);
   const shouldFocusDesktopSidebarSearchRef = useRef(false);
+  const sidebarViewportStateRef = useRef({
+    isDesktopOpen: false,
+    mobileSheetState: "preview" as MobileSheetState,
+  });
   const [failedImageEventIds, setFailedImageEventIds] = useState<Set<number>>(
     () => new Set(),
   );
@@ -259,6 +263,15 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
       const isMobileView = mediaQuery.matches;
 
       setIsMobile(isMobileView);
+      if (isMobileView) {
+        setMobileSheetState(
+          sidebarViewportStateRef.current.isDesktopOpen ? "expanded" : "preview",
+        );
+      } else {
+        setIsDesktopSidebarOpen(
+          sidebarViewportStateRef.current.mobileSheetState !== "preview",
+        );
+      }
       if (!isMobileView) {
         setOpenEventSections((sections) => ({ ...sections, past: true }));
       }
@@ -273,6 +286,14 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
       document.body.classList.remove("events-home-route");
     };
   }, []);
+
+  useEffect(() => {
+    sidebarViewportStateRef.current.isDesktopOpen = isDesktopSidebarOpen;
+  }, [isDesktopSidebarOpen]);
+
+  useEffect(() => {
+    sidebarViewportStateRef.current.mobileSheetState = mobileSheetState;
+  }, [mobileSheetState]);
 
   const activeOrganizationsById = useMemo(
     () => {
@@ -516,6 +537,9 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
 
   const filteredEvents = useMemo(() => {
     const normalizedSearch = normalizeText(search);
+    const searchCategory = EVENT_CATEGORIES.find(
+      (eventCategory) => normalizeText(eventCategory) === normalizedSearch,
+    );
 
     return sortEvents(
       publicDisplayableEvents.filter((event) => {
@@ -526,6 +550,8 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
         const eventCategories = getEventCategories(event);
         const matchesCategory =
           category === "all" || eventCategories.includes(category);
+        const matchesSearchCategory =
+          !searchCategory || eventCategories.includes(searchCategory);
         const matchesCity = city === "all" || event.city === city;
         const matchesPrice =
           priceFilter === "all" ||
@@ -547,9 +573,10 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
 
         return (
           matchesCategory &&
+          matchesSearchCategory &&
           matchesCity &&
           matchesPrice &&
-          searchableContent.includes(normalizedSearch)
+          (searchCategory || searchableContent.includes(normalizedSearch))
         );
       }),
     );
@@ -1157,7 +1184,10 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
         <div className="event-card__content">
           <div className="event-card__tags" aria-label="Categories">
             {getEventCategories(event).map((eventCategory) => (
-              <span className="event-card__tag" key={eventCategory}>
+              <span
+                className={`event-card__tag event-card__tag--${eventCategory}`}
+                key={eventCategory}
+              >
                 {eventCategory}
               </span>
             ))}

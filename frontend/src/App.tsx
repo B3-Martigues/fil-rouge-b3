@@ -19,12 +19,6 @@ import AppSplash from "./shared/components/layout/AppSplash";
 import { ROUTES } from "./shared/constants/routes";
 import useDataStore from "./shared/store/dataStore";
 
-const hasCookie = (name: string) =>
-  typeof document !== "undefined" &&
-  document.cookie
-    .split("; ")
-    .some((part) => part.startsWith(`${encodeURIComponent(name)}=`));
-
 function App() {
   const location = useLocation();
   const isHomeRoute = location.pathname === ROUTES.PUBLIC.HOME;
@@ -87,8 +81,7 @@ function App() {
     const restoreSession = async () => {
       if (
         EVENTS_API_MODE !== "http" ||
-        initialSessionUser?.auth_source !== "api" ||
-        !hasCookie("csrf_token")
+        initialSessionUser?.auth_source !== "api"
       ) {
         if (initialSessionUser) {
           logout();
@@ -129,7 +122,7 @@ function App() {
     let ignore = false;
 
     void eventsApi
-      .list({ includeInactive: true })
+      .list()
       .then((result) => {
         if (!ignore && result.ok) {
           setEvents(result.data);
@@ -218,11 +211,7 @@ function App() {
       }
 
       const organizationsResult =
-        currentUser.role === "organization"
-          ? await organizationsApi.me()
-          : currentUser.role === "user"
-            ? await organizationsApi.mine()
-            : null;
+        currentUser.role === "user" ? await organizationsApi.mine() : null;
 
       if (ignore || !organizationsResult?.ok) return;
 

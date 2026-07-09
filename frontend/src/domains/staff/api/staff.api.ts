@@ -9,6 +9,7 @@ import type { Organizer } from "../../organization/types/organizer";
 import type { Account, User } from "../../user/types/user";
 
 export type StaffDataSet = {
+  summary: StaffSummary;
   accounts: Account[];
   users: User[];
   organizations: Organization[];
@@ -19,6 +20,28 @@ export type StaffDataSet = {
   moderationReports: ModerationReport[];
   moderationDecisions: ModerationDecision[];
 };
+
+export type StaffSummaryStat = {
+  total: number;
+  pending: number;
+};
+
+export type StaffSummary = {
+  accounts: StaffSummaryStat;
+  events: StaffSummaryStat;
+  organizations: StaffSummaryStat;
+  reports: StaffSummaryStat;
+};
+
+export type StaffDataScope =
+  | "admin-dashboard"
+  | "admin-accounts"
+  | "admin-events"
+  | "moderator-dashboard"
+  | "moderator-events"
+  | "moderator-organizations"
+  | "moderator-accounts"
+  | "moderator-reports";
 
 export type StaffActionPayload = {
   action: string;
@@ -40,50 +63,17 @@ export type CreateModerationReportPayload = {
 };
 
 export const staffApi = {
-  async loadData(): Promise<ApiResult<StaffDataSet>> {
-    const [
-      accounts,
-      users,
-      organizations,
-      organizers,
-      events,
-      notificationTypes,
-      notifications,
-      moderationReports,
-      moderationDecisions,
-    ] = await Promise.all([
-      apiRequest<Account[]>("/api/staff/accounts"),
-      apiRequest<User[]>("/api/staff/users"),
-      apiRequest<Organization[]>("/api/staff/organizations"),
-      apiRequest<Organizer[]>("/api/staff/organizers"),
-      apiRequest<Event[]>("/api/staff/events"),
-      apiRequest<NotificationType[]>("/api/staff/notification-types"),
-      apiRequest<Notification[]>("/api/staff/notifications"),
-      apiRequest<ModerationReport[]>("/api/staff/moderation-reports"),
-      apiRequest<ModerationDecision[]>("/api/staff/moderation-decisions"),
-    ]);
+  async loadData(scope: StaffDataScope = "moderator-dashboard"): Promise<ApiResult<StaffDataSet>> {
+    const data = emptyStaffDataSet();
+    const requests = staffDataRequests(scope);
 
-    if (!accounts.ok) return accounts;
-    if (!users.ok) return users;
-    if (!organizations.ok) return organizations;
-    if (!organizers.ok) return organizers;
-    if (!events.ok) return events;
-    if (!notificationTypes.ok) return notificationTypes;
-    if (!notifications.ok) return notifications;
-    if (!moderationReports.ok) return moderationReports;
-    if (!moderationDecisions.ok) return moderationDecisions;
+    for (const request of requests) {
+      const result = await request.load();
+      if (!result.ok) return result;
+      assignStaffData(data, request.key, result.data ?? []);
+    }
 
-    return createApiSuccess({
-      accounts: accounts.data ?? [],
-      users: users.data ?? [],
-      organizations: organizations.data ?? [],
-      organizers: organizers.data ?? [],
-      events: events.data ?? [],
-      notificationTypes: notificationTypes.data ?? [],
-      notifications: notifications.data ?? [],
-      moderationReports: moderationReports.data ?? [],
-      moderationDecisions: moderationDecisions.data ?? [],
-    });
+    return createApiSuccess(data);
   },
 
   async applyAction(
@@ -112,4 +102,176 @@ export const staffApi = {
       method: "POST",
     });
   },
+};
+
+type StaffDataKey = keyof StaffDataSet;
+
+type StaffDataRequest<K extends StaffDataKey = StaffDataKey> = {
+  key: K;
+  load: () => Promise<ApiResult<StaffDataSet[K]>>;
+};
+
+const STAFF_LIST_LIMIT = 100;
+
+const staffListPath = (path: string, params: Record<string, string | number> = {}) => {
+  const searchParams = new URLSearchParams({
+    limit: String(STAFF_LIST_LIMIT),
+    ...Object.fromEntries(
+      Object.entries(params).map(([key, value]) => [key, String(value)]),
+    ),
+  });
+
+  return `${path}?${searchParams.toString()}`;
+};
+
+const emptyStaffDataSet = (): StaffDataSet => ({
+  summary: emptyStaffSummary(),
+  accounts: [],
+  users: [],
+  organizations: [],
+  organizers: [],
+  events: [],
+  notificationTypes: [],
+  notifications: [],
+  moderationReports: [],
+  moderationDecisions: [],
+});
+
+const emptyStaffSummary = (): StaffSummary => ({
+  accounts: { total: 0, pending: 0 },
+  events: { total: 0, pending: 0 },
+  organizations: { total: 0, pending: 0 },
+  reports: { total: 0, pending: 0 },
+});
+
+const assignStaffData = <K extends StaffDataKey>(
+  data: StaffDataSet,
+  key: K,
+  value: StaffDataSet[K],
+) => {
+  data[key] = value;
+};
+
+const staffDataRequests = (scope: StaffDataScope): StaffDataRequest[] => {
+  const summaryRequest: StaffDataRequest = {
+    key: "summary",
+    load: async () => {
+      const result = await apiRequest<StaffSummary>("/api/staff/summary");
+
+      if (!result.ok && result.error.code === "not_found") {
+        return createApiSuccess(emptyStaffSummary());
+      }
+
+      return result;
+    },
+  };
+  const accountRequests: StaffDataRequest[] = [
+    {
+      key: "accounts",
+      load: () => apiRequest<Account[]>(staffListPath("/api/staff/accounts")),
+    },
+    {
+      key: "users",
+      load: () => apiRequest<User[]>(staffListPath("/api/staff/users")),
+    },
+    {
+      key: "organizations",
+      load: () => apiRequest<Organization[]>(staffListPath("/api/staff/organizations")),
+    },
+  ];
+  const eventRequests: StaffDataRequest[] = [
+    {
+      key: "organizations",
+      load: () => apiRequest<Organization[]>(staffListPath("/api/staff/organizations")),
+    },
+    {
+      key: "events",
+      load: () => apiRequest<Event[]>(staffListPath("/api/staff/events")),
+    },
+    {
+      key: "moderationReports",
+      load: () =>
+        apiRequest<ModerationReport[]>(staffListPath("/api/staff/moderation-reports")),
+    },
+    {
+      key: "moderationDecisions",
+      load: () =>
+        apiRequest<ModerationDecision[]>(staffListPath("/api/staff/moderation-decisions")),
+    },
+  ];
+
+  switch (scope) {
+    case "admin-accounts":
+      return [summaryRequest, ...accountRequests];
+    case "admin-events":
+      return [summaryRequest, ...eventRequests];
+    case "admin-dashboard":
+      return [
+        summaryRequest,
+        ...accountRequests,
+        {
+          key: "events",
+          load: () => apiRequest<Event[]>(staffListPath("/api/staff/events")),
+        },
+      ];
+    case "moderator-events":
+      return [summaryRequest, ...eventRequests];
+    case "moderator-organizations":
+      return [
+        summaryRequest,
+        ...accountRequests,
+        {
+          key: "organizers",
+          load: () => apiRequest<Organizer[]>(staffListPath("/api/staff/organizers")),
+        },
+        {
+          key: "moderationDecisions",
+          load: () =>
+            apiRequest<ModerationDecision[]>(staffListPath("/api/staff/moderation-decisions")),
+        },
+      ];
+    case "moderator-accounts":
+      return [summaryRequest, ...accountRequests];
+    case "moderator-reports":
+      return [
+        summaryRequest,
+        ...accountRequests,
+        {
+          key: "events",
+          load: () => apiRequest<Event[]>(staffListPath("/api/staff/events")),
+        },
+        {
+          key: "moderationReports",
+          load: () =>
+            apiRequest<ModerationReport[]>(staffListPath("/api/staff/moderation-reports")),
+        },
+        {
+          key: "moderationDecisions",
+          load: () =>
+            apiRequest<ModerationDecision[]>(staffListPath("/api/staff/moderation-decisions")),
+        },
+      ];
+    case "moderator-dashboard":
+    default:
+      return [
+        summaryRequest,
+        ...accountRequests,
+        {
+          key: "events",
+          load: () => apiRequest<Event[]>(staffListPath("/api/staff/events")),
+        },
+        {
+          key: "moderationReports",
+          load: () =>
+            apiRequest<ModerationReport[]>(
+              staffListPath("/api/staff/moderation-reports", { status: "open" }),
+            ),
+        },
+        {
+          key: "moderationDecisions",
+          load: () =>
+            apiRequest<ModerationDecision[]>(staffListPath("/api/staff/moderation-decisions")),
+        },
+      ];
+  }
 };

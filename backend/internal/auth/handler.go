@@ -455,6 +455,11 @@ func (h Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !isAllowedBrowserOrigin(r, h.FrontendURL) {
+		httpx.WriteJSONError(w, http.StatusForbidden, "invalid origin")
+		return
+	}
+
 	c, err := r.Cookie("refresh_token")
 	if err != nil || c.Value == "" {
 		log.Warn().Msg("refresh failed: missing refresh token")

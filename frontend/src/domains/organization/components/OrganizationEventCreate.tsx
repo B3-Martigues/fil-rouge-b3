@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -12,11 +12,13 @@ import AddressAutocomplete from "../../../shared/components/forms/AddressAutocom
 import FormField from "../../../shared/components/ui/FormField";
 import ImageField from "../../../shared/components/forms/ImageField";
 import Input from "../../../shared/components/ui/Input";
+import Select from "../../../shared/components/ui/Select";
 import Textarea from "../../../shared/components/ui/Textarea";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import useDataStore from "../../../shared/store/dataStore";
-import { useOrganizationAccess } from "../hooks/useOrganizationAccess";
 import { ROUTES } from "../../../shared/constants/routes";
+import { getCurrentUserOrganizationMemberships } from "../utils/organizerAccess";
+import type { Organization } from "../types/organization";
 import {
   emptyEventForm,
   validateEventForm,
@@ -27,13 +29,37 @@ import { toEventDateTimePayload } from "../../event/utils/event";
 
 export default function OrganizationDashboard() {
   const navigate = useNavigate();
-  const { isPendingApproval } = useOrganizationAccess();
   const currentUser = useAuthStore((s) => s.currentUser);
   const addEvent = useDataStore((s) => s.addEvent);
+  const organizations = useDataStore((s) => s.organizations);
+  const organizers = useDataStore((s) => s.organizers);
+  const manageableOrganizations = useMemo(() => {
+    const memberships = getCurrentUserOrganizationMemberships(
+      currentUser,
+      organizers,
+      organizations,
+    ).map(({ organization }) => organization);
+    const selectableOrganizations = memberships.filter(
+      (organization): organization is Organization =>
+        !!organization && organization.is_active && organization.is_verified,
+    );
+    const organizationsById = new Map(
+      selectableOrganizations.map((organization) => [organization.id, organization]),
+    );
+
+    return Array.from(organizationsById.values());
+  }, [currentUser, organizers, organizations]);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState<number | null>(
+    () => manageableOrganizations[0]?.id ?? null,
+  );
   const [form, setForm] = useState<EventForm>(emptyEventForm);
   const [errors, setErrors] = useState<EventFormErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const selectedOrganization =
+    manageableOrganizations.find(
+      (organization) => organization.id === selectedOrganizationId,
+    ) ?? manageableOrganizations[0];
 
   const updateField = <Key extends keyof EventForm>(
     field: Key,
@@ -56,7 +82,7 @@ export default function OrganizationDashboard() {
     event.preventDefault();
     setServerError(null);
 
-    if (!currentUser?.organization_id) {
+    if (!selectedOrganization) {
       setServerError("Impossible d'identifier l'organisation connectee");
       return;
     }
@@ -70,7 +96,7 @@ export default function OrganizationDashboard() {
     setIsSubmitting(true);
 
     const newEvent: Omit<Event, "id" | "created_at" | "updated_at"> = {
-      organization_id: currentUser.organization_id,
+      organization_id: selectedOrganization.id,
       title: form.title.trim(),
       description: form.description.trim(),
       start_date: toEventDateTimePayload(form.start_date),
@@ -96,21 +122,33 @@ export default function OrganizationDashboard() {
 
     addEvent({
       ...result.data,
-      organization_id: currentUser.organization_id,
+      organization_id: selectedOrganization.id,
     });
     setForm(emptyEventForm());
     toast.success("Evenement envoye en attente de publication");
     setIsSubmitting(false);
-    navigate(ROUTES.ORGANIZATION.EVENTS);
+    navigate(ROUTES.USER.EVENTS);
     requestAnimationFrame(() => {
       window.scrollTo({ top: 0, left: 0 });
     });
   };
 
-  if (isPendingApproval) {
+  if (manageableOrganizations.length === 0) {
     return (
       <div className="organization-dashboard">
-        <h2>Votre compte est en attente de validation</h2>
+        <h2>Aucune organisation validee</h2>
+        <p>
+          Vous devez creer une organisation et attendre sa validation avant de
+          pouvoir creer des evenements.
+        </p>
+      </div>
+    );
+  }
+
+  if (selectedOrganizationId === Number.NEGATIVE_INFINITY) {
+    return (
+      <div className="organization-dashboard">
+        <h2>Aucune organisation validee</h2>
         <p>
           Votre compte doit etre valide par un administrateur avant de pouvoir
           creer des événements.
@@ -132,6 +170,31 @@ export default function OrganizationDashboard() {
       >
         <form onSubmit={handleSubmit} noValidate>
           <div className="organization-event-form__grid">
+            {manageableOrganizations.length > 1 && (
+              <FormField
+                label="Organisation"
+                htmlFor="event-organization"
+                error={
+                  selectedOrganization ? undefined : "Selectionnez une organisation"
+                }
+              >
+                <Select
+                  id="event-organization"
+                  value={selectedOrganizationId ?? ""}
+                  hasError={!selectedOrganization}
+                  onChange={(event) =>
+                    setSelectedOrganizationId(Number(event.target.value))
+                  }
+                >
+                  {manageableOrganizations.map((organization) => (
+                    <option value={organization.id} key={organization.id}>
+                      {organization.name}
+                    </option>
+                  ))}
+                </Select>
+              </FormField>
+            )}
+
             <FormField label="Titre" htmlFor="event-title" error={errors.title}>
               <Input
                 id="event-title"

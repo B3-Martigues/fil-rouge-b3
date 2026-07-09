@@ -291,10 +291,25 @@ export default function RegistrationWorkflow() {
       }
 
       let nextUser = result.data;
-      const organizationResult = await organizationsApi.me();
+      const organizationResult = await organizationsApi.mine();
 
       if (organizationResult.ok) {
-        let registeredOrganization = organizationResult.data;
+        let registeredOrganization =
+          organizationResult.data.find(
+            (organization) =>
+              normalizeComparable(organization.name) ===
+                normalizeComparable(organizationPayload.name) &&
+              normalizeComparable(organization.contact_email) ===
+                normalizeComparable(organizationPayload.contact_email),
+          ) ?? organizationResult.data[0];
+
+        if (!registeredOrganization) {
+          login(nextUser);
+          toast.info(ORGANIZATION_PENDING_MESSAGE);
+          navigate(ROUTES.PUBLIC.HOME, { replace: true });
+          return;
+        }
+
         upsertOrganizations([registeredOrganization]);
 
         if (organizationLogo) {

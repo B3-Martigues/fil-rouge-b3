@@ -334,15 +334,100 @@ func (r *Repository) createActionNotification(ctx context.Context, tx *sql.Tx, r
 	return messages, nil
 }
 
-func (r *Repository) listAccounts(ctx context.Context) ([]Account, error) {
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT a.id, a.account_type_id, at.slug, a.login_email, a.password_hash,
+func (r *Repository) summary(ctx context.Context, options ListOptions) (*Summary, error) {
+	var summary Summary
+	accountWhere := "a.deleted_at IS NULL"
+	if options.Role == "moderator" {
+		accountWhere += `
+			AND NOT EXISTS (
+				SELECT 1
+				FROM users su
+				JOIN roles sr ON sr.id = su.role_id
+				WHERE su.account_id = a.id
+				  AND su.deleted_at IS NULL
+				  AND sr.slug IN ('admin', 'moderator')
+			)
+		`
+	}
+	if err := r.db.QueryRowContext(ctx, `
+		SELECT
+			COUNT(*) FILTER (WHERE `+accountWhere+`),
+			COUNT(*) FILTER (WHERE `+accountWhere+` AND a.is_active = FALSE)
+		FROM accounts a
+	`).Scan(&summary.Accounts.Total, &summary.Accounts.Pending); err != nil {
+		return nil, fmt.Errorf("count staff accounts summary: %w", err)
+	}
+	if err := r.db.QueryRowContext(ctx, `
+		SELECT
+			COUNT(*) FILTER (WHERE e.deleted_at IS NULL),
+			COUNT(*) FILTER (
+				WHERE e.deleted_at IS NULL
+				  AND e.is_active = FALSE
+				  AND (e.suspended_until IS NULL OR e.suspended_until <= NOW())
+			)
+		FROM events e
+	`).Scan(&summary.Events.Total, &summary.Events.Pending); err != nil {
+		return nil, fmt.Errorf("count staff events summary: %w", err)
+	}
+	if err := r.db.QueryRowContext(ctx, `
+		SELECT
+			COUNT(*) FILTER (WHERE o.deleted_at IS NULL),
+			COUNT(*) FILTER (WHERE o.deleted_at IS NULL AND o.is_active = FALSE)
+		FROM organizations o
+	`).Scan(&summary.Organizations.Total, &summary.Organizations.Pending); err != nil {
+		return nil, fmt.Errorf("count staff organizations summary: %w", err)
+	}
+	if err := r.db.QueryRowContext(ctx, `
+		SELECT
+			COUNT(*),
+			COUNT(*) FILTER (WHERE status = 'open')
+		FROM moderation_reports
+	`).Scan(&summary.Reports.Total, &summary.Reports.Pending); err != nil {
+		return nil, fmt.Errorf("count staff reports summary: %w", err)
+	}
+	return &summary, nil
+}
+
+func (r *Repository) listAccounts(ctx context.Context, options ListOptions) ([]Account, error) {
+	clauses := []string{}
+	args := []any{}
+	if options.Query != "" {
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(options.Query))+"%")
+		clauses = append(clauses, "(LOWER(a.login_email) LIKE $1 OR LOWER(at.slug) LIKE $1)")
+	}
+	switch options.Status {
+	case "active":
+		clauses = append(clauses, "a.is_active = TRUE AND a.deleted_at IS NULL AND (a.suspended_until IS NULL OR a.suspended_until <= NOW())")
+	case "suspended":
+		clauses = append(clauses, "a.suspended_until IS NOT NULL AND a.suspended_until > NOW()")
+	case "deleted":
+		clauses = append(clauses, "a.deleted_at IS NOT NULL")
+	case "pending":
+		clauses = append(clauses, "a.is_active = FALSE AND a.deleted_at IS NULL")
+	}
+	if options.Role == "moderator" {
+		clauses = append(clauses, `
+			NOT EXISTS (
+				SELECT 1
+				FROM users su
+				JOIN roles sr ON sr.id = su.role_id
+				WHERE su.account_id = a.id
+				  AND su.deleted_at IS NULL
+				  AND sr.slug IN ('admin', 'moderator')
+			)
+		`)
+	}
+	query := `
+		SELECT a.id, a.account_type_id, at.slug, a.login_email,
 			a.password_changed_at, a.is_active, a.suspended_until,
 			a.suspension_reason, a.created_at, a.updated_at, a.deleted_at
 		FROM accounts a
 		JOIN account_types at ON at.id = a.account_type_id
-		ORDER BY a.id ASC
-	`)
+	` + staffWhere(clauses) + `
+		ORDER BY a.id ASC` + staffLimitOffset(options, len(args))
+	args = appendStaffPaginationArgs(args, options)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list staff accounts: %w", err)
 	}
@@ -360,7 +445,6 @@ func (r *Repository) listAccounts(ctx context.Context) ([]Account, error) {
 			&account.AccountTypeID,
 			&account.AccountType,
 			&account.LoginEmail,
-			&account.PasswordHash,
 			&passwordChangedAt,
 			&account.IsActive,
 			&suspendedUntil,
@@ -380,14 +464,26 @@ func (r *Repository) listAccounts(ctx context.Context) ([]Account, error) {
 	return accounts, rows.Err()
 }
 
-func (r *Repository) listUsers(ctx context.Context) ([]User, error) {
-	rows, err := r.db.QueryContext(ctx, `
+func (r *Repository) listUsers(ctx context.Context, options ListOptions) ([]User, error) {
+	clauses := []string{}
+	args := []any{}
+	if options.Query != "" {
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(options.Query))+"%")
+		clauses = append(clauses, "(LOWER(u.username) LIKE $1 OR LOWER(r.slug) LIKE $1)")
+	}
+	if options.Role == "moderator" {
+		clauses = append(clauses, "r.slug NOT IN ('admin', 'moderator')")
+	}
+	query := `
 		SELECT u.id, u.account_id, u.username, u.role_id, r.slug,
 			u.created_at, u.updated_at, u.deleted_at
 		FROM users u
 		JOIN roles r ON r.id = u.role_id
-		ORDER BY u.id ASC
-	`)
+	` + staffWhere(clauses) + `
+		ORDER BY u.id ASC` + staffLimitOffset(options, len(args))
+	args = appendStaffPaginationArgs(args, options)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list staff users: %w", err)
 	}
@@ -406,8 +502,24 @@ func (r *Repository) listUsers(ctx context.Context) ([]User, error) {
 	return users, rows.Err()
 }
 
-func (r *Repository) listOrganizations(ctx context.Context) ([]Organization, error) {
-	rows, err := r.db.QueryContext(ctx, `
+func (r *Repository) listOrganizations(ctx context.Context, options ListOptions) ([]Organization, error) {
+	clauses := []string{}
+	args := []any{}
+	if options.Query != "" {
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(options.Query))+"%")
+		clauses = append(clauses, "(LOWER(o.name) LIKE $1 OR LOWER(o.contact_email) LIKE $1 OR LOWER(o.city) LIKE $1)")
+	}
+	switch options.Status {
+	case "active":
+		clauses = append(clauses, "o.is_active = TRUE AND o.deleted_at IS NULL")
+	case "pending":
+		clauses = append(clauses, "o.is_active = FALSE AND o.deleted_at IS NULL")
+	case "verified":
+		clauses = append(clauses, "o.is_verified = TRUE AND o.deleted_at IS NULL")
+	case "deleted":
+		clauses = append(clauses, "o.deleted_at IS NOT NULL")
+	}
+	query := `
 		SELECT o.id, o.account_id, o.name, o.contact_email, o.role_id,
 			o.description, o.website, o.latitude, o.longitude, o.address,
 			o.city, o.postal_code, o.logo, o.contact_phone_number, o.siret,
@@ -416,9 +528,12 @@ func (r *Repository) listOrganizations(ctx context.Context) ([]Organization, err
 		FROM organizations o
 		LEFT JOIN organization_categories_links ocl ON ocl.organization_id = o.id
 		LEFT JOIN organization_categories oc ON oc.id = ocl.organization_category_id
+	` + staffWhere(clauses) + `
 		GROUP BY o.id
-		ORDER BY o.name ASC, o.id ASC
-	`)
+		ORDER BY o.name ASC, o.id ASC` + staffLimitOffset(options, len(args))
+	args = appendStaffPaginationArgs(args, options)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list staff organizations: %w", err)
 	}
@@ -472,12 +587,13 @@ func (r *Repository) listOrganizations(ctx context.Context) ([]Organization, err
 	return organizations, rows.Err()
 }
 
-func (r *Repository) listOrganizers(ctx context.Context) ([]Organizer, error) {
-	rows, err := r.db.QueryContext(ctx, `
+func (r *Repository) listOrganizers(ctx context.Context, options ListOptions) ([]Organizer, error) {
+	query := `
 		SELECT id, user_id, organization_id, job_role, created_at, updated_at, deleted_at
 		FROM organizers
-		ORDER BY id ASC
-	`)
+		ORDER BY id ASC` + staffLimitOffset(options, 0)
+	args := appendStaffPaginationArgs(nil, options)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list staff organizers: %w", err)
 	}
@@ -498,16 +614,58 @@ func (r *Repository) listOrganizers(ctx context.Context) ([]Organizer, error) {
 	return organizers, rows.Err()
 }
 
-func (r *Repository) listEvents(ctx context.Context) ([]events.Event, error) {
-	eventList, err := r.eventRepo.List(ctx, staffEventListFilters())
+func (r *Repository) listEvents(ctx context.Context, options ListOptions) ([]events.Event, error) {
+	eventList, err := r.eventRepo.List(ctx, staffEventListFilters(options))
 	if err != nil {
 		return nil, fmt.Errorf("list staff events: %w", err)
 	}
 	return eventList, nil
 }
 
-func staffEventListFilters() events.ListFilters {
-	return events.ListFilters{IncludeInactive: true, Sort: "date-asc"}
+func staffEventListFilters(options ListOptions) events.ListFilters {
+	return events.ListFilters{
+		Query:           options.Query,
+		IncludeInactive: true,
+		Sort:            "date-asc",
+		Limit:           normalizedStaffLimit(options),
+		Offset:          options.Offset,
+	}
+}
+
+func staffWhere(clauses []string) string {
+	if len(clauses) == 0 {
+		return ""
+	}
+	return " WHERE " + strings.Join(clauses, " AND ")
+}
+
+func normalizedStaffLimit(options ListOptions) int {
+	if options.Limit <= 0 {
+		return 100
+	}
+	if options.Limit > 200 {
+		return 200
+	}
+	return options.Limit
+}
+
+func staffLimitOffset(options ListOptions, argsCount int) string {
+	parts := []string{}
+	if normalizedStaffLimit(options) > 0 {
+		parts = append(parts, " LIMIT $"+fmt.Sprint(argsCount+len(parts)+1))
+	}
+	if options.Offset > 0 {
+		parts = append(parts, " OFFSET $"+fmt.Sprint(argsCount+len(parts)+1))
+	}
+	return strings.Join(parts, "")
+}
+
+func appendStaffPaginationArgs(args []any, options ListOptions) []any {
+	args = append(args, normalizedStaffLimit(options))
+	if options.Offset > 0 {
+		args = append(args, options.Offset)
+	}
+	return args
 }
 
 func (r *Repository) listNotificationTypes(ctx context.Context) ([]NotificationType, error) {
@@ -527,14 +685,25 @@ func (r *Repository) listNotificationTypes(ctx context.Context) ([]NotificationT
 	return types, rows.Err()
 }
 
-func (r *Repository) listNotifications(ctx context.Context) ([]Notification, error) {
-	rows, err := r.db.QueryContext(ctx, `
+func (r *Repository) listNotifications(ctx context.Context, options ListOptions) ([]Notification, error) {
+	clauses := []string{}
+	args := []any{}
+	if options.Query != "" {
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(options.Query))+"%")
+		clauses = append(clauses, "(LOWER(title) LIKE $1 OR LOWER(message) LIKE $1)")
+	}
+	if options.Status == "unread" {
+		clauses = append(clauses, "is_read = FALSE")
+	}
+	query := `
 		SELECT id, user_id, event_id, organization_id, notification_type_id,
 			title, message, is_read, read_at, action_url, created_at
 		FROM notifications
-		ORDER BY created_at DESC, id DESC
-		LIMIT 500
-	`)
+	` + staffWhere(clauses) + `
+		ORDER BY created_at DESC, id DESC` + staffLimitOffset(options, len(args))
+	args = appendStaffPaginationArgs(args, options)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list staff notifications: %w", err)
 	}
@@ -569,14 +738,28 @@ func (r *Repository) listNotifications(ctx context.Context) ([]Notification, err
 	return notifications, rows.Err()
 }
 
-func (r *Repository) listReports(ctx context.Context) ([]ModerationReport, error) {
-	rows, err := r.db.QueryContext(ctx, `
+func (r *Repository) listReports(ctx context.Context, options ListOptions) ([]ModerationReport, error) {
+	clauses := []string{}
+	args := []any{}
+	if options.Query != "" {
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(options.Query))+"%")
+		clauses = append(clauses, "(LOWER(reason) LIKE $1 OR LOWER(details) LIKE $1 OR LOWER(target_type) LIKE $1)")
+	}
+	switch options.Status {
+	case "open", "reviewing", "resolved", "dismissed":
+		args = append(args, options.Status)
+		clauses = append(clauses, "status = $"+fmt.Sprint(len(args)))
+	}
+	query := `
 		SELECT id, target_type, target_id, reporter_user_id, reason, details,
 			status, priority, created_at, updated_at, resolved_at,
 			handled_by_user_id, resolution_note
 		FROM moderation_reports
-		ORDER BY created_at DESC, id DESC
-	`)
+	` + staffWhere(clauses) + `
+		ORDER BY created_at DESC, id DESC` + staffLimitOffset(options, len(args))
+	args = appendStaffPaginationArgs(args, options)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list moderation reports: %w", err)
 	}
@@ -606,13 +789,21 @@ func (r *Repository) listReports(ctx context.Context) ([]ModerationReport, error
 	return reports, rows.Err()
 }
 
-func (r *Repository) listDecisions(ctx context.Context) ([]ModerationDecision, error) {
-	rows, err := r.db.QueryContext(ctx, `
+func (r *Repository) listDecisions(ctx context.Context, options ListOptions) ([]ModerationDecision, error) {
+	clauses := []string{}
+	args := []any{}
+	if options.Query != "" {
+		args = append(args, "%"+strings.ToLower(strings.TrimSpace(options.Query))+"%")
+		clauses = append(clauses, "(LOWER(action) LIKE $1 OR LOWER(target_type) LIKE $1 OR LOWER(reason) LIKE $1)")
+	}
+	query := `
 		SELECT id, report_id, action, target_type, target_id, moderator_user_id, reason, created_at
 		FROM moderation_decisions
-		ORDER BY created_at DESC, id DESC
-		LIMIT 500
-	`)
+	` + staffWhere(clauses) + `
+		ORDER BY created_at DESC, id DESC` + staffLimitOffset(options, len(args))
+	args = appendStaffPaginationArgs(args, options)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list moderation decisions: %w", err)
 	}

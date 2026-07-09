@@ -76,11 +76,8 @@
 
     span,
     .event-card__tag {
-      padding: 4px 8px;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      color: var(--text-h);
-      background: var(--social-bg);
+      color: var(--event-card-tag-text, var(--text-h));
+      background: var(--event-card-tag-bg, var(--social-bg));
     }
   }
 
@@ -101,12 +98,100 @@
   }
 
   &__tag {
+    --event-card-tag-accent: var(--accent);
+    --event-card-tag-bg: color-mix(
+      in srgb,
+      var(--event-card-tag-accent) 15%,
+      var(--bg)
+    );
+    --event-card-tag-border: color-mix(
+      in srgb,
+      var(--event-card-tag-accent) 42%,
+      var(--border)
+    );
+    --event-card-tag-text: color-mix(
+      in srgb,
+      var(--event-card-tag-accent) 78%,
+      var(--text-h)
+    );
+
     flex: 0 0 auto;
-    line-height: 1.25;
     max-width: 100%;
+    padding: 5px 9px;
+    border: 1px solid var(--event-card-tag-border);
+    border-radius: 999px;
     overflow: hidden;
+    color: var(--event-card-tag-text);
+    background: var(--event-card-tag-bg);
+    font-size: 12px;
+    font-weight: 850;
+    line-height: 1.1;
+    text-transform: capitalize;
     text-overflow: ellipsis;
     white-space: nowrap;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, white 18%, transparent);
+  }
+
+  &__tag--cinema,
+  &__tag--theatre,
+  &__tag--spectacle {
+    --event-card-tag-accent: #f59e0b;
+  }
+
+  &__tag--concert,
+  &__tag--musique,
+  &__tag--festival,
+  &__tag--nightlife,
+  &__tag--soiree {
+    --event-card-tag-accent: #ec4899;
+  }
+
+  &__tag--food,
+  &__tag--gastronomie {
+    --event-card-tag-accent: #f97316;
+  }
+
+  &__tag--sport,
+  &__tag--randonnee,
+  &__tag--plein-air {
+    --event-card-tag-accent: #22c55e;
+  }
+
+  &__tag--art,
+  &__tag--culture,
+  &__tag--exposition,
+  &__tag--patrimoine {
+    --event-card-tag-accent: #8b5cf6;
+  }
+
+  &__tag--business,
+  &__tag--conference,
+  &__tag--emploi,
+  &__tag--formation,
+  &__tag--networking,
+  &__tag--technologie {
+    --event-card-tag-accent: #38bdf8;
+  }
+
+  &__tag--famille,
+  &__tag--enfants,
+  &__tag--jeux,
+  &__tag--gaming,
+  &__tag--esport {
+    --event-card-tag-accent: #14b8a6;
+  }
+
+  &__tag--nature,
+  &__tag--animaux,
+  &__tag--sante,
+  &__tag--bien-etre {
+    --event-card-tag-accent: #84cc16;
+  }
+
+  &__tag--associatif,
+  &__tag--solidarite,
+  &__tag--etudiant {
+    --event-card-tag-accent: #06b6d4;
   }
 
   &__date {
