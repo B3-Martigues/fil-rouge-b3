@@ -286,6 +286,19 @@ test("consultation, recherche, filtrage et tri des evenements", async ({ page })
   await expect(page.getByText("Atelier affiche")).toBeVisible();
 });
 
+test("affichage du bandeau hors ligne", async ({ context, page }) => {
+  await page.goto("/");
+
+  const offlineBanner = page.getByText("Vous etes hors ligne");
+  await expect(offlineBanner).toHaveCount(0);
+
+  await context.setOffline(true);
+  await expect(offlineBanner).toBeVisible();
+
+  await context.setOffline(false);
+  await expect(offlineBanner).toHaveCount(0);
+});
+
 test("inscription, connexion, favoris, historique, preferences et notifications", async ({
   page,
 }) => {

@@ -22,6 +22,16 @@ const PUBLIC_API_CACHE_PATHS = [
   "/api/event-categories",
 ];
 
+// Les donnees privees ou sensibles ne doivent jamais etre stockees par le cache PWA.
+const PRIVATE_API_PREFIXES = [
+  "/api/auth",
+  "/api/me",
+  "/api/admin",
+  "/api/moderation",
+  "/api/organizations",
+  "/api/media",
+];
+
 // Installation: prepare le cache de base de l'application.
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -51,6 +61,9 @@ const isPublicApiGet = (requestUrl) =>
     (path) =>
       requestUrl.pathname === path || requestUrl.pathname.startsWith(`${path}/`),
   );
+
+const isPrivateApiRequest = (requestUrl) =>
+  PRIVATE_API_PREFIXES.some((prefix) => requestUrl.pathname.startsWith(prefix));
 
 const isUploadAsset = (requestUrl) => requestUrl.pathname.startsWith("/uploads/");
 
@@ -100,6 +113,8 @@ self.addEventListener("fetch", (event) => {
   const requestUrl = new URL(request.url);
 
   if (requestUrl.origin !== self.location.origin) return;
+
+  if (isPrivateApiRequest(requestUrl)) return;
 
   if (isPublicApiGet(requestUrl)) {
     event.respondWith(networkFirst(request));
