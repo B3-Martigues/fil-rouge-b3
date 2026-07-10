@@ -33,6 +33,8 @@ export const EVENTS_API_ENDPOINTS = {
   active: (eventId: number) => `/api/events/${toBackendId(eventId)}/active`,
   organizationEvents: (organizationId: number) =>
     `/api/organizations/${toBackendId(organizationId)}/events`,
+  managedOrganizationEvents: (organizationId: number) =>
+    `/api/me/organizations/${toBackendId(organizationId)}/events`,
   categories: "/api/event-categories",
   category: (categoryId: number) =>
     `/api/event-categories/${toBackendId(categoryId)}`,
@@ -286,6 +288,20 @@ export const eventsApi = {
       `${EVENTS_API_ENDPOINTS.organizationEvents(organizationId)}${buildEventQuery(
         filters,
       )}`,
+    );
+    return result.ok
+      ? { ok: true, data: normalizeEventsFromApi(toApiList(result.data)) }
+      : result;
+  },
+
+  async listManagedByOrganization(
+    organizationId: number,
+    filters?: Omit<EventListFilters, "organizationId">,
+  ): Promise<ApiResult<Event[]>> {
+    const result = await apiRequest<Event[] | null>(
+      `${EVENTS_API_ENDPOINTS.managedOrganizationEvents(
+        organizationId,
+      )}${buildEventQuery(filters)}`,
     );
     return result.ok
       ? { ok: true, data: normalizeEventsFromApi(toApiList(result.data)) }

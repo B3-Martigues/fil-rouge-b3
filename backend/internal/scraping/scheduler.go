@@ -10,22 +10,24 @@ import (
 )
 
 type Scheduler struct {
-	db       *sql.DB
-	location *time.Location
-	stop     chan struct{}
-	done     chan struct{}
-	once     sync.Once
+	db        *sql.DB
+	location  *time.Location
+	userAgent string
+	stop      chan struct{}
+	done      chan struct{}
+	once      sync.Once
 }
 
-func NewScheduler(db *sql.DB, location *time.Location) *Scheduler {
+func NewScheduler(db *sql.DB, location *time.Location, userAgent string) *Scheduler {
 	if location == nil {
 		location = time.Local
 	}
 	return &Scheduler{
-		db:       db,
-		location: location,
-		stop:     make(chan struct{}),
-		done:     make(chan struct{}),
+		db:        db,
+		location:  location,
+		userAgent: userAgent,
+		stop:      make(chan struct{}),
+		done:      make(chan struct{}),
 	}
 }
 
@@ -60,7 +62,7 @@ func (s *Scheduler) runOnce() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
-	stats, err := NewTarpinBienService(s.db).Run(ctx)
+	stats, err := NewTarpinBienServiceWithUserAgent(s.db, s.userAgent).Run(ctx)
 	if err != nil {
 		log.Error().Err(err).Msg("scheduled tarpin bien scraping failed")
 		return

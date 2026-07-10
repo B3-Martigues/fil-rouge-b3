@@ -7,7 +7,7 @@ import (
 )
 
 func TestLoad_DefaultValues(t *testing.T) {
-	clearEnv(t, "ADDR", "JWT_SECRET", "JWT_ISSUER", "JWT_TTL", "REFRESH_TTL", "COOKIE_SECURE", "CSRF_COOKIE_DOMAIN", "ENV", "FRONTEND_URL", "MAIL_MODE", "MAIL_FROM", "MAIL_FROM_NAME", "SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD")
+	clearEnv(t, "ADDR", "JWT_SECRET", "JWT_ISSUER", "JWT_TTL", "REFRESH_TTL", "COOKIE_SECURE", "CSRF_COOKIE_DOMAIN", "ENV", "FRONTEND_URL", "MAIL_MODE", "MAIL_FROM", "MAIL_FROM_NAME", "SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD", "MEDIA_UPLOAD_DIR", "PUBLIC_DOCS_ENABLED", "TARPIN_BIEN_USER_AGENT")
 
 	cfg := Load()
 
@@ -38,11 +38,20 @@ func TestLoad_DefaultValues(t *testing.T) {
 	if cfg.Mail.Mode != "disabled" {
 		t.Fatalf("expected production-safe default Mail.Mode disabled, got %q", cfg.Mail.Mode)
 	}
+	if cfg.MediaUploadDir != "/var/lib/mappening/uploads" {
+		t.Fatalf("expected production-safe upload dir, got %q", cfg.MediaUploadDir)
+	}
+	if cfg.PublicDocsEnabled {
+		t.Fatalf("expected public docs to be disabled by default")
+	}
+	if cfg.TarpinBienUserAgent != "MappeningBot/1.0 (+https://mappening.fr)" {
+		t.Fatalf("expected production user agent, got %q", cfg.TarpinBienUserAgent)
+	}
 }
 
 func TestLoad_DevDefaultsRemainConvenientWhenEnvIsExplicitlyDev(t *testing.T) {
 	setEnv(t, "ENV", "dev")
-	clearEnv(t, "ADDR", "COOKIE_SECURE", "FRONTEND_URL", "APP_DB_SSLMODE", "MIGRATIONS_DB_SSLMODE", "MAIL_MODE")
+	clearEnv(t, "ADDR", "COOKIE_SECURE", "FRONTEND_URL", "APP_DB_SSLMODE", "MIGRATIONS_DB_SSLMODE", "MAIL_MODE", "MEDIA_UPLOAD_DIR", "PUBLIC_DOCS_ENABLED")
 
 	cfg := Load()
 
@@ -61,6 +70,12 @@ func TestLoad_DevDefaultsRemainConvenientWhenEnvIsExplicitlyDev(t *testing.T) {
 	if cfg.Mail.Mode != "log" {
 		t.Fatalf("expected dev Mail.Mode log, got %q", cfg.Mail.Mode)
 	}
+	if cfg.MediaUploadDir != "uploads" {
+		t.Fatalf("expected dev upload dir, got %q", cfg.MediaUploadDir)
+	}
+	if !cfg.PublicDocsEnabled {
+		t.Fatalf("expected public docs to be enabled in dev")
+	}
 }
 
 func TestLoad_WithEnvOverrides(t *testing.T) {
@@ -73,6 +88,9 @@ func TestLoad_WithEnvOverrides(t *testing.T) {
 	setEnv(t, "CSRF_COOKIE_DOMAIN", ".example.com")
 	setEnv(t, "ENV", "prod")
 	setEnv(t, "FRONTEND_URL", "https://example.com")
+	setEnv(t, "MEDIA_UPLOAD_DIR", "/srv/mappening/uploads")
+	setEnv(t, "PUBLIC_DOCS_ENABLED", "true")
+	setEnv(t, "TARPIN_BIEN_USER_AGENT", "MappeningBot/2.0 (+https://mappening.fr)")
 
 	cfg := Load()
 
@@ -87,6 +105,15 @@ func TestLoad_WithEnvOverrides(t *testing.T) {
 	}
 	if cfg.CSRFCookieDomain != "example.com" {
 		t.Fatalf("expected overridden CSRFCookieDomain, got %q", cfg.CSRFCookieDomain)
+	}
+	if cfg.MediaUploadDir != "/srv/mappening/uploads" {
+		t.Fatalf("expected overridden MediaUploadDir, got %q", cfg.MediaUploadDir)
+	}
+	if !cfg.PublicDocsEnabled {
+		t.Fatalf("expected overridden PublicDocsEnabled")
+	}
+	if cfg.TarpinBienUserAgent != "MappeningBot/2.0 (+https://mappening.fr)" {
+		t.Fatalf("expected overridden TarpinBienUserAgent, got %q", cfg.TarpinBienUserAgent)
 	}
 }
 
@@ -115,6 +142,58 @@ func TestValidateAPI_ProductionRequiresSecureSettings(t *testing.T) {
 
 	if err := cfg.ValidateAPI(); err == nil {
 		t.Fatalf("expected ValidateAPI to reject insecure production settings")
+	}
+}
+
+func TestValidateAPI_ProductionAllowsLocalPostgresWithoutTLS(t *testing.T) {
+	cfg := validProdConfig()
+	cfg.AppDB.Host = "127.0.0.1"
+	cfg.AppDB.SSLMode = "disable"
+
+	if err := cfg.ValidateAPI(); err != nil {
+		t.Fatalf("expected local PostgreSQL to be accepted without TLS, got %v", err)
+	}
+}
+
+func TestValidateAPI_ProductionRejectsRemotePostgresWithoutTLS(t *testing.T) {
+	cfg := validProdConfig()
+	cfg.AppDB.Host = "db.example.com"
+	cfg.AppDB.SSLMode = "disable"
+
+	if err := cfg.ValidateAPI(); err == nil {
+		t.Fatalf("expected remote PostgreSQL without TLS to be rejected")
+	}
+}
+
+func TestValidateMigrations_ProductionAllowsLocalPostgresWithoutTLS(t *testing.T) {
+	cfg := validProdConfig()
+	cfg.MigrationsDB.Host = "127.0.0.1"
+	cfg.MigrationsDB.Password = "super-secure-migration-password"
+	cfg.MigrationsDB.SSLMode = "disable"
+
+	if err := cfg.ValidateMigrations(); err != nil {
+		t.Fatalf("expected local migrations PostgreSQL to be accepted without TLS, got %v", err)
+	}
+}
+
+func TestValidateMigrations_ProductionRejectsRemotePostgresWithoutTLS(t *testing.T) {
+	cfg := validProdConfig()
+	cfg.MigrationsDB.Host = "db.example.com"
+	cfg.MigrationsDB.Password = "super-secure-migration-password"
+	cfg.MigrationsDB.SSLMode = "disable"
+
+	if err := cfg.ValidateMigrations(); err == nil {
+		t.Fatalf("expected remote migrations PostgreSQL without TLS to be rejected")
+	}
+}
+
+func TestValidateJobs_ProductionRejectsRemotePostgresWithoutTLS(t *testing.T) {
+	cfg := validProdConfig()
+	cfg.AppDB.Host = "db.example.com"
+	cfg.AppDB.SSLMode = "disable"
+
+	if err := cfg.ValidateJobs(); err == nil {
+		t.Fatalf("expected remote jobs PostgreSQL without TLS to be rejected")
 	}
 }
 
@@ -207,6 +286,8 @@ func validProdConfig() Config {
 	cfg.JWTSecret = "01234567890123456789012345678901"
 	cfg.AppDB.Password = "super-secure-password"
 	cfg.AppDB.SSLMode = "require"
+	cfg.MigrationsDB.Password = "super-secure-migration-password"
+	cfg.MigrationsDB.SSLMode = "require"
 	cfg.Mail.Mode = "disabled"
 	return cfg
 }

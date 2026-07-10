@@ -30,7 +30,7 @@ import { toEventDateTimePayload } from "../../event/utils/event";
 export default function OrganizationDashboard() {
   const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.currentUser);
-  const addEvent = useDataStore((s) => s.addEvent);
+  const upsertEvents = useDataStore((s) => s.upsertEvents);
   const organizations = useDataStore((s) => s.organizations);
   const organizers = useDataStore((s) => s.organizers);
   const manageableOrganizations = useMemo(() => {
@@ -120,10 +120,22 @@ export default function OrganizationDashboard() {
       return;
     }
 
-    addEvent({
-      ...result.data,
-      organization_id: selectedOrganization.id,
-    });
+    const persistedResult = await eventsApi.listManagedByOrganization(
+      selectedOrganization.id,
+    );
+
+    if (
+      !persistedResult.ok ||
+      !persistedResult.data.some((event) => event.id === result.data.id)
+    ) {
+      setServerError(
+        "L'evenement a ete envoye, mais il n'a pas pu etre confirme en base. Rechargez la page ou reessayez.",
+      );
+      setIsSubmitting(false);
+      return;
+    }
+
+    upsertEvents(persistedResult.data);
     setForm(emptyEventForm());
     toast.success("Evenement envoye en attente de publication");
     setIsSubmitting(false);

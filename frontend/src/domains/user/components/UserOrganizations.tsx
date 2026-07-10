@@ -163,7 +163,6 @@ export default function UserOrganizations() {
   const accounts = useDataStore((s) => s.accounts);
   const allOrganizations = useDataStore((s) => s.organizations);
   const events = useDataStore((s) => s.events);
-  const addEvent = useDataStore((s) => s.addEvent);
   const updateEvent = useDataStore((s) => s.updateEvent);
   const upsertEvents = useDataStore((s) => s.upsertEvents);
   const deleteEvent = useDataStore((s) => s.deleteEvent);
@@ -243,21 +242,27 @@ export default function UserOrganizations() {
     let ignore = false;
 
     const refreshOrganizationEvents = async () => {
-      const results = await Promise.all(
+      const results = await Promise.allSettled(
         userOrganizationIdList.map((organizationId) =>
-          eventsApi.listByOrganization(organizationId),
+          eventsApi.listManagedByOrganization(organizationId),
         ),
       );
 
       if (ignore) return;
 
-      upsertEvents(results.flatMap((result) => (result.ok ? result.data : [])));
+      upsertEvents(
+        results.flatMap((result) =>
+          result.status === "fulfilled" && result.value.ok
+            ? result.value.data
+            : [],
+        ),
+      );
     };
 
-    void refreshOrganizationEvents();
+    void refreshOrganizationEvents().catch(() => {});
 
     const refreshOnFocus = () => {
-      void refreshOrganizationEvents();
+      void refreshOrganizationEvents().catch(() => {});
     };
 
     window.addEventListener("focus", refreshOnFocus);
@@ -369,14 +374,29 @@ export default function UserOrganizations() {
 
     if (editingEventId === null) {
       const result = await eventsApi.create(eventPayload);
-      setIsSavingEvent(false);
 
       if (!result.ok) {
+        setIsSavingEvent(false);
         setModalError(result.error.message);
         return;
       }
 
-      addEvent(result.data);
+      const persistedResult = await eventsApi.listManagedByOrganization(
+        eventOrganizationId,
+      );
+      setIsSavingEvent(false);
+
+      if (
+        !persistedResult.ok ||
+        !persistedResult.data.some((event) => event.id === result.data.id)
+      ) {
+        setModalError(
+          "L'evenement a ete envoye, mais il n'a pas pu etre confirme en base. Rechargez la page ou reessayez.",
+        );
+        return;
+      }
+
+      upsertEvents(persistedResult.data);
       toast.success("Événement envoyé en attente de publication");
     } else {
       const result = await eventsApi.update(editingEventId, eventPayload);

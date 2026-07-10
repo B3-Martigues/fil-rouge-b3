@@ -173,7 +173,7 @@ En développement, Vite proxifie :
 - `/api` vers `http://127.0.0.1:8080` ;
 - `/uploads` vers `http://127.0.0.1:8080`.
 
-Laisser `VITE_API_BASE_URL` vide dans `.env.local` pour utiliser ce proxy, ou renseigner une origine API complète en déploiement.
+Laisser `VITE_API_BASE_URL` vide dans `.env.local` pour utiliser le proxy local. En production same-origin sur `https://mappening.fr`, laisser aussi cette variable vide pour appeler `/api`.
 
 ## Lancement du projet
 

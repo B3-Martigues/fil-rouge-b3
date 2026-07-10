@@ -40,12 +40,14 @@ func signedAccessToken(t *testing.T, role string) string {
 
 func testRouter() http.Handler {
 	return NewRouter(config.Config{
-		Env:         "test",
-		FrontendURL: "http://localhost:5173",
-		JWTSecret:   testAccessSecret,
-		JWTIssuer:   testAccessIssuer,
-		JWTTTL:      time.Hour,
-		RefreshTTL:  24 * time.Hour,
+		Env:               "test",
+		FrontendURL:       "http://localhost:5173",
+		JWTSecret:         testAccessSecret,
+		JWTIssuer:         testAccessIssuer,
+		JWTTTL:            time.Hour,
+		RefreshTTL:        24 * time.Hour,
+		MediaUploadDir:    "uploads",
+		PublicDocsEnabled: true,
 	}, nil, nil)
 }
 

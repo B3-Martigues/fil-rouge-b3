@@ -25,6 +25,7 @@ const (
 	tarpinBienSearchURL   = "https://tarpin-bien.com/recherche/?evenementCheck=1"
 	addressAPIURL         = "https://data.geopf.fr/geocodage/search"
 	eventDateTimeDBLayout = "2006-01-02 15:04:05"
+	defaultUserAgent      = "MappeningBot/1.0 (+https://mappening.fr)"
 )
 
 type TarpinBienService struct {
@@ -32,6 +33,7 @@ type TarpinBienService struct {
 	httpClient *http.Client
 	searchURL  string
 	maxPages   int
+	userAgent  string
 }
 
 type TarpinBienStats struct {
@@ -124,6 +126,15 @@ func formatEventDateTimeForDB(value time.Time) string {
 }
 
 func NewTarpinBienService(db *sql.DB) *TarpinBienService {
+	return NewTarpinBienServiceWithUserAgent(db, defaultUserAgent)
+}
+
+func NewTarpinBienServiceWithUserAgent(db *sql.DB, userAgent string) *TarpinBienService {
+	userAgent = strings.TrimSpace(userAgent)
+	if userAgent == "" {
+		userAgent = defaultUserAgent
+	}
+
 	return &TarpinBienService{
 		db: db,
 		httpClient: &http.Client{
@@ -131,6 +142,7 @@ func NewTarpinBienService(db *sql.DB) *TarpinBienService {
 		},
 		searchURL: tarpinBienSearchURL,
 		maxPages:  50,
+		userAgent: userAgent,
 	}
 }
 
@@ -601,7 +613,7 @@ func (s *TarpinBienService) fetch(ctx context.Context, rawURL string) (string, e
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("User-Agent", "MappeningBot/1.0 (+https://mappening.local)")
+	req.Header.Set("User-Agent", s.userAgent)
 	req.Header.Set("Accept", "text/html,application/xhtml+xml")
 
 	res, err := s.httpClient.Do(req)
@@ -658,7 +670,7 @@ func (s *TarpinBienService) validateRemoteImage(ctx context.Context, rawURL stri
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", "MappeningBot/1.0 (+https://mappening.local)")
+	req.Header.Set("User-Agent", s.userAgent)
 	req.Header.Set("Accept", "image/*")
 
 	res, err := s.httpClient.Do(req)
@@ -681,7 +693,7 @@ func (s *TarpinBienService) validateRemoteImageWithGet(ctx context.Context, rawU
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", "MappeningBot/1.0 (+https://mappening.local)")
+	req.Header.Set("User-Agent", s.userAgent)
 	req.Header.Set("Accept", "image/*")
 	req.Header.Set("Range", "bytes=0-0")
 
@@ -1258,7 +1270,7 @@ func (s *TarpinBienService) normalizeAddress(ctx context.Context, rawAddress str
 	if err != nil {
 		return addressCandidate{}, err
 	}
-	req.Header.Set("User-Agent", "MappeningBot/1.0 (+https://mappening.local)")
+	req.Header.Set("User-Agent", s.userAgent)
 	req.Header.Set("Accept", "application/json")
 
 	startedAt := time.Now()

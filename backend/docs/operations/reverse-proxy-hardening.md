@@ -14,14 +14,16 @@ Le backend suppose que :
 
 ## Variables backend
 
-Exemple minimal :
+Exemple minimal same-origin pour `https://mappening.fr` :
 
 ```env
 ENV=production
-FRONTEND_URL=https://app.example.fr
+FRONTEND_URL=https://mappening.fr
 COOKIE_SECURE=true
-CSRF_COOKIE_DOMAIN=example.fr
-TRUSTED_PROXY_CIDRS=127.0.0.1,10.42.0.0/16
+CSRF_COOKIE_DOMAIN=
+TRUSTED_PROXY_CIDRS=127.0.0.1
+PUBLIC_DOCS_ENABLED=false
+MEDIA_UPLOAD_DIR=/var/lib/mappening/uploads
 ```
 
 Regles :
@@ -32,6 +34,8 @@ Regles :
   parent controle quand le front et l'API sont sur des sous-domaines differents.
 - `TRUSTED_PROXY_CIDRS` doit contenir uniquement les IP ou CIDR des proxies reels.
 - `0.0.0.0/0` ne doit pas etre utilise.
+- `PUBLIC_DOCS_ENABLED=false` garde Swagger/OpenAPI hors exposition publique.
+- `MEDIA_UPLOAD_DIR` doit pointer vers un dossier persistant sauvegarde.
 
 ## Nginx
 
@@ -49,7 +53,7 @@ Points importants dans la configuration :
 
 Apres deploiement :
 
-1. `https://api.mappening.example.fr/api/health` repond en HTTPS.
+1. `https://mappening.fr/api/health` repond en HTTPS.
 2. Le backend renvoie `Strict-Transport-Security`.
 3. Les cookies `access_token` et `refresh_token` sont `Secure`.
 4. Le login echoue depuis une origine non autorisee.

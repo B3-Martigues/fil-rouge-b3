@@ -1,5 +1,7 @@
-# Exemple de configuration Nginx pour l'API Mappening.
-# Adapter les chemins, le domaine et l'upstream avant usage.
+# Exemple Nginx production same-origin pour https://mappening.fr.
+# Frontend statique dans /var/www/mappening.
+# API Go locale sur 127.0.0.1:8080.
+# Uploads persistants dans /var/lib/mappening/uploads.
 
 upstream mappening_api {
     server 127.0.0.1:8080;
@@ -9,31 +11,73 @@ upstream mappening_api {
 server {
     listen 80;
     listen [::]:80;
-    server_name api.mappening.example.fr;
+    server_name mappening.fr www.mappening.fr;
 
     location ^~ /.well-known/acme-challenge/ {
         root /var/www/letsencrypt;
     }
 
     location / {
-        return 301 https://$host$request_uri;
+        return 301 https://mappening.fr$request_uri;
     }
 }
 
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name api.mappening.example.fr;
+    server_name www.mappening.fr;
 
-    ssl_certificate /etc/letsencrypt/live/api.mappening.example.fr/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.mappening.example.fr/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/mappening.fr/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/mappening.fr/privkey.pem;
+
+    return 301 https://mappening.fr$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name mappening.fr;
+
+    root /var/www/mappening;
+    index index.html;
+
+    ssl_certificate /etc/letsencrypt/live/mappening.fr/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/mappening.fr/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_session_timeout 1d;
     ssl_session_cache shared:TLSCache:10m;
     ssl_session_tickets off;
 
-    client_max_body_size 25m;
+    client_max_body_size 2m;
     keepalive_timeout 65;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(self)" always;
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https://api.open-meteo.com; worker-src 'self'; manifest-src 'self'; form-action 'self'; upgrade-insecure-requests" always;
+
+    location = /sw.js {
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        try_files $uri =404;
+    }
+
+    location = /manifest.webmanifest {
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+
+    location ^~ /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files $uri =404;
+    }
+
+    location ^~ /uploads/ {
+        alias /var/lib/mappening/uploads/;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files $uri =404;
+    }
 
     location /api/ {
         proxy_pass http://mappening_api;
@@ -50,5 +94,9 @@ server {
         proxy_buffering off;
         proxy_read_timeout 60s;
         proxy_send_timeout 60s;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
     }
 }

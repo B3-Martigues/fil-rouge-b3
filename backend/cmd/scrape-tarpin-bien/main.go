@@ -37,7 +37,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
-	stats, err := scraping.NewTarpinBienService(db).Run(ctx)
+	stats, err := scraping.NewTarpinBienServiceWithUserAgent(db, cfg.TarpinBienUserAgent).Run(ctx)
 	if err != nil {
 		log.Error().Err(err).Msg("tarpin bien scraping failed")
 		os.Exit(1)

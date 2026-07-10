@@ -59,13 +59,16 @@ type Config struct {
 	DevLoginEmail            string
 	TrustedProxyCIDRs        []string
 	TarpinBienScraperEnabled bool
+	TarpinBienUserAgent      string
+	MediaUploadDir           string
+	PublicDocsEnabled        bool
 
 	EnableTestAuthFallback bool
 
 	AppDB        DBConfig
 	MigrationsDB DBConfig
 	Mail         MailConfig
-	Redis       RedisConfig
+	Redis        RedisConfig
 }
 
 // Charge la configuration runtime depuis l'environnement avec des valeurs par defaut adaptees au dev local.
@@ -79,6 +82,8 @@ func Load() Config {
 	appDBSSLModeDefault := "require"
 	migrationsDBSSLModeDefault := "require"
 	mailModeDefault := "disabled"
+	mediaUploadDirDefault := "/var/lib/mappening/uploads"
+	publicDocsEnabledDefault := false
 
 	if devLikeEnv {
 		addrDefault = "127.0.0.1:8080"
@@ -87,6 +92,8 @@ func Load() Config {
 		appDBSSLModeDefault = "disable"
 		migrationsDBSSLModeDefault = "disable"
 		mailModeDefault = "log"
+		mediaUploadDirDefault = "uploads"
+		publicDocsEnabledDefault = true
 	}
 
 	return Config{
@@ -103,6 +110,9 @@ func Load() Config {
 		DevLoginEmail:            strings.TrimSpace(strings.ToLower(getEnv("DEV_LOGIN_EMAIL", ""))),
 		TrustedProxyCIDRs:        getCSV("TRUSTED_PROXY_CIDRS"),
 		TarpinBienScraperEnabled: getBool("TARPIN_BIEN_SCRAPER_ENABLED", true),
+		TarpinBienUserAgent:      strings.TrimSpace(getEnv("TARPIN_BIEN_USER_AGENT", "MappeningBot/1.0 (+https://mappening.fr)")),
+		MediaUploadDir:           strings.TrimSpace(getEnv("MEDIA_UPLOAD_DIR", mediaUploadDirDefault)),
+		PublicDocsEnabled:        getBool("PUBLIC_DOCS_ENABLED", publicDocsEnabledDefault),
 
 		AppDB: DBConfig{
 			Host:        getEnv("APP_DB_HOST", "127.0.0.1"),
@@ -146,7 +156,6 @@ func Load() Config {
 				Password: getEnv("SMTP_PASSWORD", ""),
 			},
 		},
-		
 	}
 }
 
@@ -206,6 +215,9 @@ func (c Config) ValidateAPI() error {
 	if err := validateDBConfig("APP_DB", c.AppDB); err != nil {
 		return err
 	}
+	if err := validateMediaUploadDir(c.MediaUploadDir); err != nil {
+		return err
+	}
 	if err := validateMailConfig(c.Mail); err != nil {
 		return err
 	}
@@ -245,8 +257,8 @@ func (c Config) ValidateAPI() error {
 			return fmt.Errorf("COOKIE_SECURE must be true outside development")
 		}
 
-		if c.AppDB.SSLMode == "disable" {
-			return fmt.Errorf("APP_DB_SSLMODE must not be disable outside development")
+		if c.AppDB.SSLMode == "disable" && !isLoopbackHost(c.AppDB.Host) {
+			return fmt.Errorf("APP_DB_SSLMODE must not be disable outside development unless APP_DB_HOST is loopback")
 		}
 
 		if !strings.HasPrefix(c.FrontendURL, "https://") {
@@ -294,8 +306,8 @@ func (c Config) ValidateMigrations() error {
 			return fmt.Errorf("MIGRATIONS_DB_PASSWORD is required outside development")
 		}
 
-		if c.MigrationsDB.SSLMode == "disable" {
-			return fmt.Errorf("MIGRATIONS_DB_SSLMODE must not be disable outside development")
+		if c.MigrationsDB.SSLMode == "disable" && !isLoopbackHost(c.MigrationsDB.Host) {
+			return fmt.Errorf("MIGRATIONS_DB_SSLMODE must not be disable outside development unless MIGRATIONS_DB_HOST is loopback")
 		}
 	}
 
@@ -304,7 +316,22 @@ func (c Config) ValidateMigrations() error {
 
 // Valide la configuration minimale requise pour les jobs applicatifs hors HTTP.
 func (c Config) ValidateJobs() error {
-	return validateDBConfig("APP_DB", c.AppDB)
+	if normalizeEnv(c.Env) == "" {
+		return fmt.Errorf("ENV is required")
+	}
+	if err := validateDBConfig("APP_DB", c.AppDB); err != nil {
+		return err
+	}
+	if !isDevLikeEnv(c.Env) {
+		if c.AppDB.Password == "" || c.AppDB.Password == "change-me" {
+			return fmt.Errorf("APP_DB_PASSWORD is required outside development")
+		}
+		if c.AppDB.SSLMode == "disable" && !isLoopbackHost(c.AppDB.Host) {
+			return fmt.Errorf("APP_DB_SSLMODE must not be disable outside development unless APP_DB_HOST is loopback")
+		}
+	}
+
+	return nil
 }
 
 // Expose la normalisation d'environnement aux autres packages.
@@ -360,6 +387,14 @@ func validateDBConfig(prefix string, db DBConfig) error {
 	case "disable", "require", "verify-ca", "verify-full":
 	default:
 		return fmt.Errorf("%s_SSLMODE is invalid: %s", prefix, db.SSLMode)
+	}
+
+	return nil
+}
+
+func validateMediaUploadDir(path string) error {
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("MEDIA_UPLOAD_DIR is required")
 	}
 
 	return nil

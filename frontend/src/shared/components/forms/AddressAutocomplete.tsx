@@ -56,14 +56,14 @@ const fieldConfig: Record<
   city: {
     autoComplete: "address-level2",
     label: "Ville",
-    minQueryLength: 2,
+    minQueryLength: 3,
     placeholder: "Marseille",
   },
   postal_code: {
     autoComplete: "postal-code",
     inputMode: "numeric",
     label: "Code postal",
-    minQueryLength: 2,
+    minQueryLength: 3,
     placeholder: "13002",
   },
 };

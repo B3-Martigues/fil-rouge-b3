@@ -47,7 +47,7 @@ func TestOrganizationDecisionLabelsKeepApproveAndRejectDistinct(t *testing.T) {
 	}
 }
 
-func TestStaffEventListFiltersExcludeDeletedEvents(t *testing.T) {
+func TestStaffEventListFiltersReturnAllStaffEvents(t *testing.T) {
 	filters := staffEventListFilters(ListOptions{})
 
 	if !filters.IncludeInactive {
@@ -56,10 +56,10 @@ func TestStaffEventListFiltersExcludeDeletedEvents(t *testing.T) {
 	if filters.IncludeDeleted {
 		t.Fatalf("expected staff event list to exclude deleted events")
 	}
-	if filters.Sort != "date-asc" {
-		t.Fatalf("expected staff event list to sort by date-asc, got %q", filters.Sort)
+	if filters.Sort != "newest" {
+		t.Fatalf("expected staff event list to sort by newest, got %q", filters.Sort)
 	}
-	if filters.Limit != 100 {
-		t.Fatalf("expected staff event list to be limited by default, got %d", filters.Limit)
+	if filters.Limit != 0 || filters.Offset != 0 {
+		t.Fatalf("expected staff event list to be unpaginated, got limit=%d offset=%d", filters.Limit, filters.Offset)
 	}
 }

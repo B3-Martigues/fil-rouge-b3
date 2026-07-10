@@ -5,7 +5,7 @@ mise a jour d'infrastructure ou une rotation de secret.
 
 ## Prerequis
 
-- URL publique de l'API, par exemple `https://api.mappening.example.fr`
+- URL publique du site, par exemple `https://mappening.fr`
 - backend deploye
 - variables d'environnement injectees
 - migrations executees
@@ -28,12 +28,14 @@ mise a jour d'infrastructure ou une rotation de secret.
 Depuis `backend/` :
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/verify-deployment.ps1 -BaseUrl https://api.mappening.example.fr
+powershell -ExecutionPolicy Bypass -File scripts/verify-deployment.ps1 -BaseUrl https://mappening.fr
 ```
 
 Le script controle :
 
 - l'acces a `/api/health`
+- l'acces au frontend `/`
+- le manifeste PWA et `sw.js`
 - les headers publics de securite
 - la redirection HTTP vers HTTPS
 

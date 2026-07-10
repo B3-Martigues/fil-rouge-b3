@@ -453,6 +453,17 @@ func (r *Repository) List(ctx context.Context, filters ListFilters) ([]Event, er
 	return events, nil
 }
 
+func (r *Repository) ListManagedByOrganization(ctx context.Context, organizationID int64, accountID int64, role string, filters ListFilters) ([]Event, error) {
+	if err := r.ensureCanManageOrganization(ctx, accountID, role, organizationID); err != nil {
+		return nil, err
+	}
+
+	filters.OrganizationID = &organizationID
+	filters.IncludeInactive = true
+
+	return r.List(ctx, filters)
+}
+
 func (r *Repository) GetByID(ctx context.Context, id int64, includeInactive bool) (*Event, error) {
 
 	key := eventByIDCacheKey(id, includeInactive, false)

@@ -58,8 +58,8 @@ type authUserReader interface {
 	GetByEmail(ctx context.Context, email string) (*users.User, error)
 }
 
-func cachedUploadsHandler() nethttp.Handler {
-	fileServer := nethttp.StripPrefix("/uploads/", nethttp.FileServer(nethttp.Dir("uploads")))
+func cachedUploadsHandler(rootDir string) nethttp.Handler {
+	fileServer := nethttp.StripPrefix("/uploads/", nethttp.FileServer(nethttp.Dir(rootDir)))
 	return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		fileServer.ServeHTTP(w, r)
@@ -122,12 +122,14 @@ func newRouter(
 		FrontendURL: cfg.FrontendURL,
 	}))
 
-	r.Handle("/uploads/*", cachedUploadsHandler())
-	r.Get("/openapi.yaml", openAPIHandler)
-	r.Get("/swagger", func(w nethttp.ResponseWriter, r *nethttp.Request) {
-		nethttp.Redirect(w, r, "/swagger/", nethttp.StatusMovedPermanently)
-	})
-	r.Get("/swagger/", swaggerUIHandler)
+	r.Handle("/uploads/*", cachedUploadsHandler(cfg.MediaUploadDir))
+	if cfg.PublicDocsEnabled {
+		r.Get("/openapi.yaml", openAPIHandler)
+		r.Get("/swagger", func(w nethttp.ResponseWriter, r *nethttp.Request) {
+			nethttp.Redirect(w, r, "/swagger/", nethttp.StatusMovedPermanently)
+		})
+		r.Get("/swagger/", swaggerUIHandler)
+	}
 
 	authHandler := auth.Handler{
 		Secret:           cfg.JWTSecret,
@@ -178,7 +180,7 @@ func newRouter(
 			media.Handler{
 				Service: media.Service{
 					Repo:    media.NewRepository(db),
-					Storage: media.NewLocalStorage("uploads"),
+					Storage: media.NewLocalStorage(cfg.MediaUploadDir),
 				},
 			},
 			middleware.AuthJWTWithUserLookup(cfg.JWTSecret, cfg.JWTIssuer, cfg.Env, authService),

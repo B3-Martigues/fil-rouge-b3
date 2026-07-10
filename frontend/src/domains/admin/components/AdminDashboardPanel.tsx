@@ -700,7 +700,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     );
   };
 
-  const saveUser = async (_reason?: string) => {
+  const saveUser = async () => {
     if (!userDraft) return false;
 
     const displayName = (organizationDraft?.name ?? userDraft.display_name).trim();
@@ -925,7 +925,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     return false;
   };
 
-  const deleteUser = (accountId: number, _reason: string) => {
+  const deleteUser = (accountId: number) => {
     const deletedAccount = accountSummaries.find(
       (account) => account.account_id === accountId,
     );
@@ -955,7 +955,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     setEventDraft(null);
   };
 
-  const saveEvent = async (_reason?: string) => {
+  const saveEvent = async () => {
     if (!eventDraft) return false;
 
     const selectedOrganizationId = eventDraft.organization_id
@@ -1116,7 +1116,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     return true;
   };
 
-  const deleteEvent = async (eventId: number, _reason: string) => {
+  const deleteEvent = async (eventId: number) => {
     const deletedEvent = eventsData.find((event) => event.id === eventId);
     if (!deletedEvent) return false;
 
@@ -1164,7 +1164,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       targetType: editedAccount.organization_id ? "organization" : "account",
       title: `Justifier la modification de ${editedAccount.display_name}`,
       variant: "primary",
-      onConfirm: (reason) => saveUser(reason),
+      onConfirm: () => saveUser(),
     });
   };
 
@@ -1185,7 +1185,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       targetType: "event",
       title: `Justifier la modification de ${event.title}`,
       variant: "primary",
-      onConfirm: (reason) => saveEvent(reason),
+      onConfirm: () => saveEvent(),
     });
   };
 
@@ -1219,14 +1219,12 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       label: "Comptes",
       to: ROUTES.ADMIN.DASHBOARD,
       value: staffSummary.accounts.total,
-      detail: `${staffSummary.accounts.pending} en attente`,
       end: true,
     },
     {
       label: "Evenements",
       to: ROUTES.ADMIN.EVENTS,
       value: staffSummary.events.total,
-      detail: `${staffSummary.events.pending} en attente`,
     },
   ];
 
@@ -1394,8 +1392,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                                   ? "organization"
                                   : "account",
                                 title: `Justifier la suppression de ${user.display_name}`,
-                                onConfirm: (reason) =>
-                                  deleteUser(user.account_id, reason),
+                                onConfirm: () => deleteUser(user.account_id),
                               })
                             }
                           >
@@ -1567,8 +1564,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                                     targetType: "event",
                                     title: `Justifier la suppression de ${event.title}`,
                                     successMessage: `${event.title} supprime`,
-                                    onConfirm: (reason) =>
-                                      deleteEvent(event.id, reason),
+                                    onConfirm: () => deleteEvent(event.id),
                                   })
                                 }
                               >

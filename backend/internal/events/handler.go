@@ -117,6 +117,32 @@ func (h Handler) ListByOrganization(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, events)
 }
 
+func (h Handler) ListManagedByOrganization(w http.ResponseWriter, r *http.Request) {
+	organizationID, err := httpx.ParseIDParam(r, "organizationID")
+	if err != nil {
+		httpx.WriteJSONError(w, http.StatusBadRequest, "invalid organization id")
+		return
+	}
+	filters, err := parseListFilters(r)
+	if err != nil {
+		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	accountID, role, ok := authContext(r)
+	if !ok {
+		httpx.WriteJSONError(w, http.StatusUnauthorized, "missing authenticated user")
+		return
+	}
+
+	events, err := h.service().ListManagedByOrganization(r.Context(), organizationID, accountID, role, filters)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, events)
+}
+
 func (h Handler) Get(w http.ResponseWriter, r *http.Request) {
 	eventID, err := httpx.ParseIDParam(r, "eventID")
 	if err != nil {
@@ -874,6 +900,7 @@ func RegisterRoutes(r chi.Router, handler Handler, authMiddleware func(http.Hand
 		pr.Patch("/api/events/{eventID}", handler.Update)
 		pr.Delete("/api/events/{eventID}", handler.Delete)
 		pr.Patch("/api/events/{eventID}/active", handler.SetActive)
+		pr.Get("/api/me/organizations/{organizationID}/events", handler.ListManagedByOrganization)
 		pr.Put("/api/events/{eventID}/categories", handler.ReplaceCategories)
 		pr.Post("/api/events/{eventID}/categories/{categoryID}", handler.AddCategory)
 		pr.Delete("/api/events/{eventID}/categories/{categoryID}", handler.RemoveCategory)

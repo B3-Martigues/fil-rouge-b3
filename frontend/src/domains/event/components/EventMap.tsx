@@ -367,20 +367,20 @@ export default function EventMap({
   }, [isUserLocationReady, userPosition]);
 
   useEffect(() => {
-    if (!userPosition) {
-      setVisibleEventCount(mappableEvents.length);
-      return;
-    }
-
-    setVisibleEventCount(
-      Math.min(PROGRESSIVE_EVENT_BATCH_SIZE, mappableEvents.length),
-    );
-
-    if (mappableEvents.length <= PROGRESSIVE_EVENT_BATCH_SIZE) {
-      return;
-    }
-
+    const initialVisibleCount = userPosition
+      ? Math.min(PROGRESSIVE_EVENT_BATCH_SIZE, mappableEvents.length)
+      : mappableEvents.length;
+    const resetTimer = window.setTimeout(() => {
+      setVisibleEventCount(initialVisibleCount);
+    }, 0);
     let timeoutId: number | undefined;
+
+    if (!userPosition || mappableEvents.length <= PROGRESSIVE_EVENT_BATCH_SIZE) {
+      return () => {
+        window.clearTimeout(resetTimer);
+      };
+    }
+
     const revealNextBatch = () => {
       setVisibleEventCount((currentCount) => {
         const nextCount = Math.min(
@@ -405,6 +405,7 @@ export default function EventMap({
     );
 
     return () => {
+      window.clearTimeout(resetTimer);
       if (timeoutId !== undefined) {
         window.clearTimeout(timeoutId);
       }

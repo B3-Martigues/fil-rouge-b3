@@ -640,25 +640,25 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
   ]);
 
   useEffect(() => {
-    if (shouldDeferEventRendering) {
-      setVisibleNearbyEventCount(PROGRESSIVE_EVENT_BATCH_SIZE);
-      return;
-    }
-
-    if (!userPosition) {
-      setVisibleNearbyEventCount(prioritizedEvents.length);
-      return;
-    }
-
-    setVisibleNearbyEventCount(
-      Math.min(PROGRESSIVE_EVENT_BATCH_SIZE, prioritizedEvents.length),
-    );
-
-    if (prioritizedEvents.length <= PROGRESSIVE_EVENT_BATCH_SIZE) {
-      return;
-    }
-
+    const initialVisibleCount =
+      !userPosition && !shouldDeferEventRendering
+        ? prioritizedEvents.length
+        : Math.min(PROGRESSIVE_EVENT_BATCH_SIZE, prioritizedEvents.length);
+    const resetTimer = window.setTimeout(() => {
+      setVisibleNearbyEventCount(initialVisibleCount);
+    }, 0);
     let timeoutId: number | undefined;
+
+    if (
+      shouldDeferEventRendering ||
+      !userPosition ||
+      prioritizedEvents.length <= PROGRESSIVE_EVENT_BATCH_SIZE
+    ) {
+      return () => {
+        window.clearTimeout(resetTimer);
+      };
+    }
+
     const revealNextBatch = () => {
       setVisibleNearbyEventCount((currentCount) => {
         const nextCount = Math.min(
@@ -683,6 +683,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
     );
 
     return () => {
+      window.clearTimeout(resetTimer);
       if (timeoutId !== undefined) {
         window.clearTimeout(timeoutId);
       }
@@ -754,7 +755,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
         image.onerror = null;
       });
     };
-  }, [prioritizedEvents, shouldDeferEventRendering, userPosition]);
+  }, [getEventCoordinates, prioritizedEvents, shouldDeferEventRendering, userPosition]);
 
   const selectedMapEvent = useMemo(
     () =>

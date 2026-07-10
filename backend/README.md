@@ -126,8 +126,15 @@ Variables importantes :
 - `MAIL_MODE`, `MAIL_FROM`, `SMTP_*`
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB` si vous voulez surcharger les valeurs par défaut
 - `TARPIN_BIEN_SCRAPER_ENABLED`
+- `TARPIN_BIEN_USER_AGENT`
+- `MEDIA_UPLOAD_DIR`
+- `PUBLIC_DOCS_ENABLED`
 
 En développement, Redis utilise par défaut `127.0.0.1:6379`, sans mot de passe, DB `0`. Si Redis est déployé hors poste local, configurez `REDIS_PASSWORD`, limitez l'accès réseau et injectez la configuration via l'environnement cible.
+
+En production, `MEDIA_UPLOAD_DIR` doit pointer vers un dossier persistant hors
+release, par exemple `/var/lib/mappening/uploads`. Garder
+`PUBLIC_DOCS_ENABLED=false` sauf besoin explicite d'exposer Swagger/OpenAPI.
 
 ## Emails
 

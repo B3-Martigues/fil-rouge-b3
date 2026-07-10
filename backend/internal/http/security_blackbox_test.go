@@ -22,6 +22,7 @@ func TestSecurity_Blackbox_NoStaticAuthFallback(t *testing.T) {
 		FrontendURL:            "http://localhost:5173",
 		CookieSecure:           false,
 		Env:                    "test",
+		MediaUploadDir:         "uploads",
 		EnableTestAuthFallback: true,
 	}
 

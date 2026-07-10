@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { MapPinned } from "lucide-react";
 
@@ -28,14 +28,11 @@ export default function EventListingCard({
   meta,
   distanceInKilometers,
 }: EventListingCardProps) {
-  const [hasImageError, setHasImageError] = useState(false);
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   const imageUrl = getEventThumbnailUrl(event);
+  const hasImageError = failedImageUrl === imageUrl;
   const distanceLabel =
     distanceInKilometers == null ? null : formatDistance(distanceInKilometers);
-
-  useEffect(() => {
-    setHasImageError(false);
-  }, [imageUrl]);
 
   if (!hasDisplayableEventImage(event) || hasImageError) {
     return null;
@@ -50,7 +47,7 @@ export default function EventListingCard({
           alt=""
           loading="lazy"
           decoding="async"
-          onError={() => setHasImageError(true)}
+          onError={() => setFailedImageUrl(imageUrl)}
         />
       </div>
       <div className="event-card__content">

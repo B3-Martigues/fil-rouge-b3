@@ -10,6 +10,10 @@ func (s Service) List(ctx context.Context, filters ListFilters) ([]Event, error)
 	return s.repo().List(ctx, filters)
 }
 
+func (s Service) ListManagedByOrganization(ctx context.Context, organizationID int64, accountID int64, role string, filters ListFilters) ([]Event, error) {
+	return s.repo().ListManagedByOrganization(ctx, organizationID, accountID, role, filters)
+}
+
 func (s Service) GetByID(ctx context.Context, id int64, includeInactive bool) (*Event, error) {
 	return s.repo().GetByID(ctx, id, includeInactive)
 }

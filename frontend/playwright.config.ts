@@ -12,6 +12,7 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:5173",
     geolocation: { latitude: 43.2965, longitude: 5.3698 },
     permissions: ["geolocation"],
+    serviceWorkers: "block",
     trace: "on-first-retry",
   },
   webServer: {

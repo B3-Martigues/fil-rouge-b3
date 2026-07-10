@@ -16,6 +16,8 @@ func TestConfig() config.Config {
 		FrontendURL:            "http://localhost:5173",
 		CookieSecure:           false,
 		Env:                    "test",
+		MediaUploadDir:         "uploads",
+		PublicDocsEnabled:      true,
 		EnableTestAuthFallback: true,
 	}
 }

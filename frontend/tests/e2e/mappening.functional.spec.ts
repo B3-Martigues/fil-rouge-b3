@@ -205,8 +205,8 @@ async function mockApi(page: Page) {
   );
   await page.route("**/mock-event.png", (route) =>
     route.fulfill({
-      contentType: "image/svg+xml",
-      path: "public/favicon.svg",
+      contentType: "image/png",
+      path: "public/pwa-icon-192.png",
     }),
   );
   await page.route("https://api.open-meteo.com/**", (route) =>

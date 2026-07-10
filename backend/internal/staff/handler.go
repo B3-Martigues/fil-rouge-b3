@@ -3,7 +3,6 @@ package staff
 import (
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -144,26 +143,9 @@ func parseStaffListOptions(r *http.Request) ListOptions {
 	options := ListOptions{
 		Query:  strings.TrimSpace(query.Get("q")),
 		Status: strings.TrimSpace(strings.ToLower(query.Get("status"))),
-		Limit:  100,
 	}
 	if claims := middleware.GetUser(r); claims != nil {
 		options.Role = strings.TrimSpace(strings.ToLower(claims.Role))
-	}
-	if raw := strings.TrimSpace(query.Get("limit")); raw != "" {
-		if limit, err := strconv.Atoi(raw); err == nil {
-			options.Limit = limit
-		}
-	}
-	if options.Limit <= 0 {
-		options.Limit = 100
-	}
-	if options.Limit > 200 {
-		options.Limit = 200
-	}
-	if raw := strings.TrimSpace(query.Get("offset")); raw != "" {
-		if offset, err := strconv.Atoi(raw); err == nil && offset > 0 {
-			options.Offset = offset
-		}
 	}
 	return options
 }

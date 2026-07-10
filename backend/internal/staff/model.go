@@ -143,6 +143,4 @@ type ListOptions struct {
 	Query  string
 	Status string
 	Role   string
-	Limit  int
-	Offset int
 }

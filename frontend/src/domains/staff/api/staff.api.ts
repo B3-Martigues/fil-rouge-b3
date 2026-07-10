@@ -111,15 +111,13 @@ type StaffDataRequest<K extends StaffDataKey = StaffDataKey> = {
   load: () => Promise<ApiResult<StaffDataSet[K]>>;
 };
 
-const STAFF_LIST_LIMIT = 100;
-
 const staffListPath = (path: string, params: Record<string, string | number> = {}) => {
-  const searchParams = new URLSearchParams({
-    limit: String(STAFF_LIST_LIMIT),
-    ...Object.fromEntries(
-      Object.entries(params).map(([key, value]) => [key, String(value)]),
-    ),
-  });
+  const entries = Object.entries(params);
+  if (entries.length === 0) return path;
+
+  const searchParams = new URLSearchParams(
+    Object.fromEntries(entries.map(([key, value]) => [key, String(value)])),
+  );
 
   return `${path}?${searchParams.toString()}`;
 };
@@ -168,35 +166,35 @@ const staffDataRequests = (scope: StaffDataScope): StaffDataRequest[] => {
   const accountRequests: StaffDataRequest[] = [
     {
       key: "accounts",
-      load: () => apiRequest<Account[]>(staffListPath("/api/staff/accounts")),
+      load: () => apiRequest<Account[]>("/api/staff/accounts"),
     },
     {
       key: "users",
-      load: () => apiRequest<User[]>(staffListPath("/api/staff/users")),
+      load: () => apiRequest<User[]>("/api/staff/users"),
     },
     {
       key: "organizations",
-      load: () => apiRequest<Organization[]>(staffListPath("/api/staff/organizations")),
+      load: () => apiRequest<Organization[]>("/api/staff/organizations"),
     },
   ];
   const eventRequests: StaffDataRequest[] = [
     {
       key: "organizations",
-      load: () => apiRequest<Organization[]>(staffListPath("/api/staff/organizations")),
+      load: () => apiRequest<Organization[]>("/api/staff/organizations"),
     },
     {
       key: "events",
-      load: () => apiRequest<Event[]>(staffListPath("/api/staff/events")),
+      load: () => apiRequest<Event[]>("/api/staff/events"),
     },
     {
       key: "moderationReports",
       load: () =>
-        apiRequest<ModerationReport[]>(staffListPath("/api/staff/moderation-reports")),
+        apiRequest<ModerationReport[]>("/api/staff/moderation-reports"),
     },
     {
       key: "moderationDecisions",
       load: () =>
-        apiRequest<ModerationDecision[]>(staffListPath("/api/staff/moderation-decisions")),
+        apiRequest<ModerationDecision[]>("/api/staff/moderation-decisions"),
     },
   ];
 
@@ -211,7 +209,7 @@ const staffDataRequests = (scope: StaffDataScope): StaffDataRequest[] => {
         ...accountRequests,
         {
           key: "events",
-          load: () => apiRequest<Event[]>(staffListPath("/api/staff/events")),
+          load: () => apiRequest<Event[]>("/api/staff/events"),
         },
       ];
     case "moderator-events":
@@ -222,12 +220,12 @@ const staffDataRequests = (scope: StaffDataScope): StaffDataRequest[] => {
         ...accountRequests,
         {
           key: "organizers",
-          load: () => apiRequest<Organizer[]>(staffListPath("/api/staff/organizers")),
+          load: () => apiRequest<Organizer[]>("/api/staff/organizers"),
         },
         {
           key: "moderationDecisions",
           load: () =>
-            apiRequest<ModerationDecision[]>(staffListPath("/api/staff/moderation-decisions")),
+            apiRequest<ModerationDecision[]>("/api/staff/moderation-decisions"),
         },
       ];
     case "moderator-accounts":
@@ -238,17 +236,17 @@ const staffDataRequests = (scope: StaffDataScope): StaffDataRequest[] => {
         ...accountRequests,
         {
           key: "events",
-          load: () => apiRequest<Event[]>(staffListPath("/api/staff/events")),
+          load: () => apiRequest<Event[]>("/api/staff/events"),
         },
         {
           key: "moderationReports",
           load: () =>
-            apiRequest<ModerationReport[]>(staffListPath("/api/staff/moderation-reports")),
+            apiRequest<ModerationReport[]>("/api/staff/moderation-reports"),
         },
         {
           key: "moderationDecisions",
           load: () =>
-            apiRequest<ModerationDecision[]>(staffListPath("/api/staff/moderation-decisions")),
+            apiRequest<ModerationDecision[]>("/api/staff/moderation-decisions"),
         },
       ];
     case "moderator-dashboard":
@@ -258,7 +256,7 @@ const staffDataRequests = (scope: StaffDataScope): StaffDataRequest[] => {
         ...accountRequests,
         {
           key: "events",
-          load: () => apiRequest<Event[]>(staffListPath("/api/staff/events")),
+          load: () => apiRequest<Event[]>("/api/staff/events"),
         },
         {
           key: "moderationReports",
@@ -270,7 +268,7 @@ const staffDataRequests = (scope: StaffDataScope): StaffDataRequest[] => {
         {
           key: "moderationDecisions",
           load: () =>
-            apiRequest<ModerationDecision[]>(staffListPath("/api/staff/moderation-decisions")),
+            apiRequest<ModerationDecision[]>("/api/staff/moderation-decisions"),
         },
       ];
   }

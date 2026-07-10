@@ -33,6 +33,20 @@ Write-Host "Checking API health on $BaseUrl ..."
 $healthResponse = Invoke-WebRequest -Uri ($BaseUrl.TrimEnd("/") + "/api/health") -UseBasicParsing
 Assert-True ($healthResponse.StatusCode -eq 200) "Healthcheck did not return HTTP 200."
 
+Write-Host "Checking frontend shell ..."
+$frontendResponse = Invoke-WebRequest -Uri ($BaseUrl.TrimEnd("/") + "/") -UseBasicParsing
+Assert-True ($frontendResponse.StatusCode -eq 200) "Frontend did not return HTTP 200."
+Assert-True ($frontendResponse.Content -like "*manifest.webmanifest*") "Frontend does not reference the PWA manifest."
+
+Write-Host "Checking PWA manifest ..."
+$manifestResponse = Invoke-WebRequest -Uri ($BaseUrl.TrimEnd("/") + "/manifest.webmanifest") -UseBasicParsing
+Assert-True ($manifestResponse.StatusCode -eq 200) "PWA manifest did not return HTTP 200."
+
+Write-Host "Checking service worker cache policy ..."
+$serviceWorkerResponse = Invoke-WebRequest -Uri ($BaseUrl.TrimEnd("/") + "/sw.js") -UseBasicParsing
+Assert-True ($serviceWorkerResponse.StatusCode -eq 200) "Service worker did not return HTTP 200."
+Assert-True ($serviceWorkerResponse.Headers["Cache-Control"] -like "*no-cache*") "Service worker must be served with Cache-Control containing no-cache."
+
 Write-Host "Checking security headers ..."
 Assert-HeaderPresent $healthResponse.Headers "Content-Security-Policy"
 Assert-HeaderPresent $healthResponse.Headers "X-Content-Type-Options"

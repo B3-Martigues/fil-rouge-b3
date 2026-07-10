@@ -5,6 +5,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"mappening/internal/config"
 )
 
 func TestSwaggerRoutesArePublic(t *testing.T) {
@@ -49,6 +52,32 @@ func TestSwaggerRoutesArePublic(t *testing.T) {
 			}
 			if !strings.Contains(rec.Body.String(), tt.bodyPart) {
 				t.Fatalf("expected body to contain %q", tt.bodyPart)
+			}
+		})
+	}
+}
+
+func TestSwaggerRoutesAreDisabledUnlessConfigured(t *testing.T) {
+	router := NewRouter(config.Config{
+		Env:               "test",
+		FrontendURL:       "http://localhost:5173",
+		JWTSecret:         testAccessSecret,
+		JWTIssuer:         testAccessIssuer,
+		JWTTTL:            time.Hour,
+		RefreshTTL:        24 * time.Hour,
+		MediaUploadDir:    "uploads",
+		PublicDocsEnabled: false,
+	}, nil, nil)
+
+	for _, path := range []string{"/openapi.yaml", "/swagger/"} {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+
+			router.ServeHTTP(rec, req)
+
+			if rec.Result().StatusCode != http.StatusNotFound {
+				t.Fatalf("expected status 404, got %d", rec.Result().StatusCode)
 			}
 		})
 	}
