@@ -398,7 +398,6 @@ body.events-home-route {
 
     &__description {
       display: block;
-      max-height: min(24dvh, 220px);
       overflow-y: auto;
       overscroll-behavior: contain;
     }
@@ -1329,7 +1328,6 @@ body.events-home-route {
   }
 
   &__description {
-    max-height: min(28dvh, 260px);
     overflow-y: auto;
     overscroll-behavior: contain;
     padding-right: 6px;
