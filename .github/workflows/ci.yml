@@ -1,5 +1,9 @@
 name: CI
 
+permissions:
+  contents: read
+  packages: write
+
 on:
   push:
     branches:
@@ -84,3 +88,71 @@ jobs:
       - name: Run frontend e2e tests
         working-directory: frontend
         run: npm run test:e2e
+
+      - name: Set up Docker Buildx
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/safebase-api
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-
+
+      - name: Build and push API image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Notify Google Chat
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        env:
+          GOOGLE_CHAT_WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_WEBHOOK_URL }}
+          JOB_STATUS: ${{ job.status }}
+          COMMIT_SHA: ${{ github.sha }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          COMMIT_AUTHOR: ${{ github.event.head_commit.author.name }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          if [ -z "$GOOGLE_CHAT_WEBHOOK_URL" ]; then
+            echo "GOOGLE_CHAT_WEBHOOK_URL is not configured; notification skipped."
+            exit 0
+          fi
+
+          if [ "$JOB_STATUS" = "success" ]; then
+            icon="✅"
+            error_message="Aucune erreur."
+          else
+            icon="❌"
+            error_message="La pipeline a échoué. Consultez les logs GitHub Actions : $RUN_URL"
+          fi
+
+          payload=$(jq -n \
+            --arg text "$icon Pipeline CI SafeBase : $JOB_STATUS\nDépôt : $REPOSITORY\nCommit : ${COMMIT_SHA:0:7} - $COMMIT_MESSAGE\nAuteur : $COMMIT_AUTHOR\n$error_message\n$RUN_URL" \
+            '{text: $text}')
+          curl --fail-with-body --retry 2 \
+            -H 'Content-Type: application/json; charset=UTF-8' \
+            -d "$payload" \
+            "$GOOGLE_CHAT_WEBHOOK_URL"

@@ -1,0 +1,12 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+tmp
+.gocache
+coverage
+*.log
+*.test
+*.out
+Dockerfile*

@@ -327,6 +327,21 @@ docker compose down -v
 
 Ces services sont dans le profil Compose `dev` et restent destinés au poste local. Les ports PostgreSQL et Redis sont publiés sur `127.0.0.1` pour éviter une exposition réseau accidentelle.
 
+### CI, image API et notifications
+
+Le workflow `.github/workflows/ci.yml` vérifie le backend et le frontend à
+chaque pull request et à chaque push. Sur `main`, il construit également
+`backend/Dockerfile` et publie les tags `latest` et `sha-<commit>` dans
+`ghcr.io/<proprietaire>/safebase-api`.
+
+Pour activer les notifications, créez dans **Settings > Secrets and variables >
+Actions** un secret de dépôt nommé `GOOGLE_CHAT_WEBHOOK_URL`, contenant l'URL du
+webhook entrant de l'espace Google Chat. La notification contient le statut, le
+commit, son auteur et un lien vers les logs d'erreur de l'exécution.
+
+La collection [`postman/SafeBase.postman_collection.json`](postman/SafeBase.postman_collection.json)
+permet de vérifier les endpoints après le lancement local de l'image.
+
 ## Documentation
 
 - Frontend : [`frontend/README.md`](frontend/README.md)
