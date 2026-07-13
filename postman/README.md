@@ -13,8 +13,8 @@ npx newman run postman/SafeBase.postman_collection.json
 Exemple de récupération et de lancement de l'image publiée :
 
 ```sh
-docker pull ghcr.io/pawel-barc/safebase-api:latest
-docker run --rm -p 8080:8080 --env-file backend/.env.local ghcr.io/pawel-barc/safebase-api:latest
+docker pull ghcr.io/b3-martigues/safebase-api:latest
+docker run --rm -p 8080:8080 --env-file backend/.env.local ghcr.io/b3-martigues/safebase-api:latest
 ```
 
 L'API nécessite PostgreSQL et Redis. Les valeurs de connexion doivent pointer
