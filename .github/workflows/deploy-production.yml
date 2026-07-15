@@ -1,0 +1,48 @@
+name: Deploy production
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    branches:
+      - main
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy on VPS
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+
+    env:
+      DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+      DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+      DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT || '22' }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/var/www/mappening/source' }}
+      DEPLOY_APP_ROOT: ${{ secrets.DEPLOY_APP_ROOT || '/var/www/mappening' }}
+
+    steps:
+      - name: Validate deployment secrets
+        shell: bash
+        run: |
+          test -n "$DEPLOY_SSH_HOST"
+          test -n "$DEPLOY_SSH_USER"
+          test -n "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}"
+
+      - name: Configure SSH key
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$DEPLOY_SSH_PORT" "$DEPLOY_SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Run remote deployment
+        shell: bash
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -p "$DEPLOY_SSH_PORT" \
+            "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" \
+            "cd '$DEPLOY_PATH' && APP_ROOT='$DEPLOY_APP_ROOT' bash scripts/deploy-production.sh"
