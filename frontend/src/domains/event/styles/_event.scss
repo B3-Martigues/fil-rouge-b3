@@ -1675,7 +1675,10 @@ body.events-home-route {
     display: grid;
     gap: 12px;
     width: 100%;
-    height: auto;
+    // Keep the same geometry while the sheet slides closed. Switching from the
+    // expanded fixed height to `auto` makes the top edge jump before transform
+    // has time to animate.
+    height: 50svh;
     min-height: 0;
     max-height: min(82svh, 720px);
     padding: 18px 14px calc(18px + env(safe-area-inset-bottom));
@@ -1690,8 +1693,7 @@ body.events-home-route {
     box-shadow: 0 -18px 40px var(--color-sheet-shadow);
     transform: translateY(calc(100% - 45px));
     transition:
-      transform 260ms ease,
-      height 260ms ease;
+      transform 260ms ease;
     touch-action: pan-y;
 
     &--expanded,
