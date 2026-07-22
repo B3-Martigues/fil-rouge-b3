@@ -165,7 +165,7 @@ paths:
       summary: Change le mot de passe du compte courant.
       responses:
         "204":
-          description: Mot de passe modifie.
+          description: Mot de passe modifié.
   /api/auth/check-role/{role}:
     get:
       tags: [Auth]

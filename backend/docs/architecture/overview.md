@@ -25,7 +25,7 @@ Client HTTP -> routeur Go -> handlers -> repositories -> PostgreSQL
 1. Le client appelle une route sous `/api/*`.
 2. Les middlewares appliquent logs, CORS, headers de securite, CSRF et JWT.
 3. Le handler valide la requete.
-4. Le repository lit ou modifie PostgreSQL.
+4. Le repository lit ou modifié PostgreSQL.
 5. La reponse est renvoyee en JSON.
 
 ## Flux d'authentification

@@ -37,8 +37,6 @@ const LOCATION_PRECISION = 6;
 const INITIAL_NEARBY_EVENTS_COUNT = 5;
 const INITIAL_NEARBY_FIT_MAX_ZOOM = 12;
 const INITIAL_NEARBY_FIT_PADDING: [number, number] = [56, 56];
-const PROGRESSIVE_EVENT_BATCH_DELAY_MS = 120;
-const PROGRESSIVE_EVENT_BATCH_SIZE = 12;
 
 const getDesktopSidebarRightEdge = (mapContainer: HTMLElement) => {
   if (!window.matchMedia(DESKTOP_MEDIA_QUERY).matches) return 0;
@@ -267,26 +265,9 @@ export default function EventMap({
   const [shouldFitInitialLocation, setShouldFitInitialLocation] = useState(false);
   const [hasCompletedUserLocationFit, setHasCompletedUserLocationFit] =
     useState(false);
-  const [visibleEventCount, setVisibleEventCount] = useState(
-    PROGRESSIVE_EVENT_BATCH_SIZE,
-  );
   const [eventDeduplicationReferenceTime] = useState(() => Date.now());
   const hasAnnouncedReady = useRef(false);
   const hasFittedInitialLocation = useRef(false);
-  const hasUserPosition = userPosition !== null;
-  const progressiveEventCollectionKey = useMemo(
-    () =>
-      events
-        .map(
-          (event) =>
-            `${event.id}:${event.latitude ?? ""}:${event.longitude ?? ""}`,
-        )
-        .join("|"),
-    [events],
-  );
-  const userPositionKey = userPosition
-    ? `${userPosition.latitude}:${userPosition.longitude}`
-    : "";
   const mappableEvents = useMemo(
     () => {
       const eventsWithCoordinates = events.filter(hasEventCoordinates);
@@ -337,20 +318,6 @@ export default function EventMap({
       })),
     ];
   }, [mappableEvents, mapPoints, userPosition]);
-  const visibleMappableEvents = useMemo(() => {
-    if (!userPosition) return mappableEvents;
-
-    const visibleEvents = mappableEvents.slice(0, visibleEventCount);
-
-    if (
-      selectedEvent &&
-      !visibleEvents.some((event) => event.id === selectedEvent.id)
-    ) {
-      return [...visibleEvents, selectedEvent];
-    }
-
-    return visibleEvents;
-  }, [mappableEvents, selectedEvent, userPosition, visibleEventCount]);
   const handleFocusStart = useCallback(() => {
     setOpenPopupEventId(null);
   }, []);
@@ -379,60 +346,6 @@ export default function EventMap({
       window.clearTimeout(fitTimer);
     };
   }, [isUserLocationReady, userPosition]);
-
-  useEffect(() => {
-    const initialVisibleCount = hasUserPosition
-      ? Math.min(PROGRESSIVE_EVENT_BATCH_SIZE, mappableEvents.length)
-      : mappableEvents.length;
-    const resetTimer = window.setTimeout(() => {
-      setVisibleEventCount(initialVisibleCount);
-    }, 0);
-    let timeoutId: number | undefined;
-
-    if (
-      !hasUserPosition ||
-      mappableEvents.length <= PROGRESSIVE_EVENT_BATCH_SIZE
-    ) {
-      return () => {
-        window.clearTimeout(resetTimer);
-      };
-    }
-
-    const revealNextBatch = () => {
-      setVisibleEventCount((currentCount) => {
-        const nextCount = Math.min(
-          currentCount + PROGRESSIVE_EVENT_BATCH_SIZE,
-          mappableEvents.length,
-        );
-
-        if (nextCount < mappableEvents.length) {
-          timeoutId = window.setTimeout(
-            revealNextBatch,
-            PROGRESSIVE_EVENT_BATCH_DELAY_MS,
-          );
-        }
-
-        return nextCount;
-      });
-    };
-
-    timeoutId = window.setTimeout(
-      revealNextBatch,
-      PROGRESSIVE_EVENT_BATCH_DELAY_MS,
-    );
-
-    return () => {
-      window.clearTimeout(resetTimer);
-      if (timeoutId !== undefined) {
-        window.clearTimeout(timeoutId);
-      }
-    };
-  }, [
-    hasUserPosition,
-    mappableEvents.length,
-    progressiveEventCollectionKey,
-    userPositionKey,
-  ]);
 
   const hasCompletedInitialLocationFit =
     isUserLocationReady && (!userPosition || hasCompletedUserLocationFit);
@@ -493,7 +406,7 @@ export default function EventMap({
         onFocusStart={handleFocusStart}
         onFocusDone={handleFocusDone}
       />
-      {visibleMappableEvents.map((event) => (
+      {mappableEvents.map((event) => (
         <EventMarker
           key={event.id}
           event={event}

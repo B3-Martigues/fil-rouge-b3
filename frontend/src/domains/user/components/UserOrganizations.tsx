@@ -391,7 +391,7 @@ export default function UserOrganizations() {
         !persistedResult.data.some((event) => event.id === result.data.id)
       ) {
         setModalError(
-          "L'evenement a ete envoye, mais il n'a pas pu etre confirme en base. Rechargez la page ou reessayez.",
+          "L'evenement a été envoye, mais il n'a pas pu etre confirme en base. Rechargez la page ou reessayez.",
         );
         return;
       }

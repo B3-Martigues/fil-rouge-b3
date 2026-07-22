@@ -772,7 +772,7 @@ func (h Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	message := "Si un compte actif existe avec cet email, un lien de reinitialisation a ete envoye."
+	message := "Si un compte actif existe avec cet email, un lien de reinitialisation a été envoye."
 	response := contracts.ForgotPasswordResponseDTO{OK: true, Message: message}
 	if exists {
 		resetPath := "/reset-password/" + token
@@ -846,7 +846,7 @@ func (h Handler) sendPasswordResetEmail(ctx context.Context, email string, reset
 		Text: strings.Join([]string{
 			"Bonjour,",
 			"",
-			"Une demande de reinitialisation de mot de passe a ete faite pour votre compte Mappening.",
+			"Une demande de reinitialisation de mot de passe a été faite pour votre compte Mappening.",
 			"Vous pouvez choisir un nouveau mot de passe avec ce lien :",
 			resetURL,
 			"",

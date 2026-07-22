@@ -12,10 +12,10 @@ Ce guide decrit la rotation des secrets sensibles.
 
 Rotation immediate si :
 
-- un secret a ete commit
+- un secret a été commit
 - un fichier `.env` a fuite
-- un compte admin a ete compromis
-- un poste de developpement a ete compromis
+- un compte admin a été compromis
+- un poste de developpement a été compromis
 - des logs ou sauvegardes ont expose des identifiants
 
 ## `JWT_SECRET`

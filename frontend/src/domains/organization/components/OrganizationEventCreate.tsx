@@ -129,7 +129,7 @@ export default function OrganizationDashboard() {
       !persistedResult.data.some((event) => event.id === result.data.id)
     ) {
       setServerError(
-        "L'evenement a ete envoye, mais il n'a pas pu etre confirme en base. Rechargez la page ou reessayez.",
+        "L'evenement a été envoye, mais il n'a pas pu etre confirme en base. Rechargez la page ou reessayez.",
       );
       setIsSubmitting(false);
       return;

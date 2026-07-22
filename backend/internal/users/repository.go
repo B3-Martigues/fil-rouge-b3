@@ -383,7 +383,7 @@ func (r *Repository) UpdatePassword(ctx context.Context, userID int64, passwordH
 		return ErrUserNotFound
 	}
 
-	if err := createAccountNotification(ctx, r.db, userID, "password_changed", "Mot de passe modifie", "Votre mot de passe vient d'etre modifie.", "/account/profile/change-password"); err != nil {
+	if err := createAccountNotification(ctx, r.db, userID, "password_changed", "Mot de passe modifié", "Votre mot de passe vient d'etre modifié.", "/account/profile/change-password"); err != nil {
 		return err
 	}
 
@@ -482,7 +482,7 @@ func (r *Repository) ResetPasswordWithToken(ctx context.Context, token string, p
 		return fmt.Errorf("consume password reset token: %w", err)
 	}
 
-	if err := createAccountNotification(ctx, tx, accountID, "password_changed", "Mot de passe modifie", "Votre mot de passe vient d'etre modifie.", "/account/profile/change-password"); err != nil {
+	if err := createAccountNotification(ctx, tx, accountID, "password_changed", "Mot de passe modifié", "Votre mot de passe vient d'etre modifié.", "/account/profile/change-password"); err != nil {
 		return err
 	}
 

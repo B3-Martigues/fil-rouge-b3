@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS notification_types (
 INSERT INTO notification_types (id, name, slug) VALUES
     (1, 'Evenement favori aujourd''hui', 'favorite_event_today'),
     (2, 'Reinitialisation de mot de passe', 'password_reset_requested'),
-    (3, 'Mot de passe modifie', 'password_changed'),
+    (3, 'Mot de passe modifié', 'password_changed'),
     (4, 'Compte organisation valide', 'organization_approved'),
     (5, 'Evenement valide', 'event_approved'),
     (6, 'Email de bienvenue', 'welcome_email'),

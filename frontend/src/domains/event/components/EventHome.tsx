@@ -768,7 +768,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
   );
   const mapEvents = useMemo(
     () => {
-      const visibleMapEvents = displayedEvents.filter(
+      const visibleMapEvents = prioritizedEvents.filter(
         (event) =>
           getEventStatus(event) !== "past" ||
           event.id === mapEventSelection?.eventId,
@@ -785,9 +785,9 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
       return visibleMapEvents;
     },
     [
-      displayedEvents,
       getEventCoordinates,
       mapEventSelection?.eventId,
+      prioritizedEvents,
       selectedMapEvent,
     ],
   );

@@ -7,7 +7,7 @@
 ## Statut
 
 Mis a jour le 20 mai 2026. Les corrections critiques identifiees dans cet audit
-ont ete appliquees et les controles automatises ont ete renforces.
+ont été appliquees et les controles automatises ont été renforces.
 
 ## Resume
 
@@ -53,7 +53,7 @@ ont ete appliquees et les controles automatises ont ete renforces.
 
 1. Faire tourner les identifiants utilises avant correction si des secrets reels
    ont circule.
-2. Verifier l'historique Git si des secrets ont ete exposes.
+2. Verifier l'historique Git si des secrets ont été exposes.
 3. Generer un `JWT_SECRET` fort pour chaque environnement.
 4. Installer le hook `pre-commit` sur les postes concernes.
 5. Planifier la purge reguliere de `http_rate_limits`.

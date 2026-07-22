@@ -18,7 +18,7 @@ Le point le plus important avant backend est de clarifier les contrats de donnee
 - Verification des tailles de fichiers et recherches de duplications courantes.
 - Verification des imports/usages evidents pour reperer des fichiers non utilises.
 - `npm --prefix frontend run lint` : OK, aucune erreur ESLint.
-- `npm --prefix frontend run build` : non concluant. La commande echoue au chargement de Vite avec `spawn EPERM`, probablement lie au sandbox. La relance hors sandbox a ete refusee par la limite d'usage, donc le build production Vite reste a confirmer localement.
+- `npm --prefix frontend run build` : non concluant. La commande echoue au chargement de Vite avec `spawn EPERM`, probablement lie au sandbox. La relance hors sandbox a été refusee par la limite d'usage, donc le build production Vite reste a confirmer localement.
 
 ## Points positifs
 
@@ -33,7 +33,7 @@ Le point le plus important avant backend est de clarifier les contrats de donnee
 
 ### Critique
 
-Aucun probleme critique applicatif n'a ete confirme par le lint ou la lecture statique. Le build production reste toutefois a relancer hors sandbox avant livraison.
+Aucun probleme critique applicatif n'a été confirme par le lint ou la lecture statique. Le build production reste toutefois a relancer hors sandbox avant livraison.
 
 ### Important
 

@@ -118,10 +118,10 @@ const reportPriorityLabels: Record<ModerationReport["priority"], string> = {
 };
 
 const moderationActionLabels: Record<ModerationAction, string> = {
-  account_admin_updated: "Compte modifie par administration",
+  account_admin_updated: "Compte modifié par administration",
   account_deleted: "Compte supprime",
   account_restored: "Suspension de compte levee",
-  event_admin_updated: "Evenement modifie par administration",
+  event_admin_updated: "Evenement modifié par administration",
   event_approved: "Evenement valide",
   event_rejected: "Evenement refuse",
   event_hidden: "Evenement masque",
