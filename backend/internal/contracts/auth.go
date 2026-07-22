@@ -74,10 +74,8 @@ type ForgotPasswordRequestDTO struct {
 }
 
 type ForgotPasswordResponseDTO struct {
-	OK        bool   `json:"ok"`
-	Message   string `json:"message"`
-	ResetURL  string `json:"reset_url,omitempty"`
-	ResetLink string `json:"resetLink,omitempty"`
+	OK      bool   `json:"ok"`
+	Message string `json:"message"`
 }
 
 type ResetPasswordRequestDTO struct {

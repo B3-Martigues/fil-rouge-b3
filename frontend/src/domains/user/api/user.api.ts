@@ -39,8 +39,6 @@ type UpdateProfilePayload = {
 type ForgotPasswordResponse = {
   ok: true;
   message: string;
-  reset_url?: string;
-  resetLink?: string;
 };
 
 const normalizePreference = (

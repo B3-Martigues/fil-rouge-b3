@@ -109,7 +109,7 @@ func Load() Config {
 		DevLoginEnabled:          getBool("DEV_LOGIN_ENABLED", false),
 		DevLoginEmail:            strings.TrimSpace(strings.ToLower(getEnv("DEV_LOGIN_EMAIL", ""))),
 		TrustedProxyCIDRs:        getCSV("TRUSTED_PROXY_CIDRS"),
-		TarpinBienScraperEnabled: getBool("TARPIN_BIEN_SCRAPER_ENABLED", true),
+		TarpinBienScraperEnabled: getBool("TARPIN_BIEN_SCRAPER_ENABLED", false),
 		TarpinBienUserAgent:      strings.TrimSpace(getEnv("TARPIN_BIEN_USER_AGENT", "MappeningBot/1.0 (+https://mappening.fr)")),
 		MediaUploadDir:           strings.TrimSpace(getEnv("MEDIA_UPLOAD_DIR", mediaUploadDirDefault)),
 		PublicDocsEnabled:        getBool("PUBLIC_DOCS_ENABLED", publicDocsEnabledDefault),

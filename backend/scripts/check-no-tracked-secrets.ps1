@@ -1,10 +1,6 @@
 $repoRoot = git rev-parse --show-toplevel
 $trackedEnvFiles = git -C $repoRoot ls-files ".env*" "*.env*"
 
-if (-not $trackedEnvFiles) {
-  exit 0
-}
-
 foreach ($path in $trackedEnvFiles) {
   if ($path -like "*.env.example" -or $path -eq ".env.example") {
     continue
@@ -21,6 +17,8 @@ $secretPatterns = @(
   @{ Name = "GitHub classic token"; Regex = "ghp_[A-Za-z0-9_]{20,}" },
   @{ Name = "GitHub fine-grained token"; Regex = "github_pat_[A-Za-z0-9_]{20,}" },
   @{ Name = "OpenAI-style API key"; Regex = "sk-[A-Za-z0-9]{20,}" },
+  @{ Name = "Brevo API key"; Regex = "xkeysib-[A-Za-z0-9_-]{20,}" },
+  @{ Name = "Brevo SMTP key"; Regex = "xsmtpsib-[A-Za-z0-9_-]{20,}" },
   @{ Name = "private key"; Regex = "-----BEGIN (RSA|OPENSSH|EC|DSA|PRIVATE) KEY-----" },
   @{ Name = "Slack token"; Regex = "xox[baprs]-[A-Za-z0-9-]{20,}" }
 )

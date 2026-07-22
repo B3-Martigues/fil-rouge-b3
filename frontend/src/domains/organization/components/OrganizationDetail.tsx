@@ -257,7 +257,7 @@ export default function OrganizationDetailPage() {
       image: eventForm.image.trim(),
       price: Number(eventForm.price.trim()),
       ticketing_link: eventForm.ticketing_link.trim(),
-      source: eventForm.source.trim() || "Evenement cree par une organisation",
+      source: eventForm.source.trim() || "Evenement crée par une organisation",
       is_active: false,
       suspended_until: null,
       suspension_reason: null,
@@ -273,7 +273,7 @@ export default function OrganizationDetailPage() {
       }
 
       addEvent(result.data);
-      toast.success("Evenement cree en attente de validation");
+      toast.success("Evenement crée en attente de validation");
     } else {
       const result = await eventsApi.update(editingEventId, eventPayload);
 
@@ -373,7 +373,7 @@ export default function OrganizationDetailPage() {
       </FormModal>
 
       <FormModal
-        ariaLabel={editingEventId === null ? "Creer un evenement" : "Modifier un evenement"}
+        ariaLabel={editingEventId === null ? "Créer un evenement" : "Modifier un evenement"}
         open={eventForm !== null}
         size="lg"
         onClose={closeEventEditor}
@@ -383,7 +383,7 @@ export default function OrganizationDetailPage() {
             errors={eventErrors}
             form={eventForm}
             modalError={modalError}
-            title={editingEventId === null ? "Creer un evenement" : "Modifier un evenement"}
+            title={editingEventId === null ? "Créer un evenement" : "Modifier un evenement"}
             onCancel={closeEventEditor}
             onCategoryToggle={toggleEventCategory}
             onFieldChange={updateEventField}
@@ -483,7 +483,7 @@ export default function OrganizationDetailPage() {
             <p>Creation, modification et suppression des evenements de cette organisation.</p>
           </div>
           <Button type="button" onClick={startEventCreate}>
-            Creer un evenement
+            Créer un evenement
           </Button>
         </div>
 

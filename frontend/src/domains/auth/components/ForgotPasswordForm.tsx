@@ -18,7 +18,6 @@ import {
 export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [serverMessage, setServerMessage] = useState<string | null>(null);
-  const [devResetLink, setDevResetLink] = useState<string | null>(null);
 
   const {
     register,
@@ -32,7 +31,6 @@ export default function ForgotPassword() {
   const onSubmit = async (data: ForgotPasswordFormData) => {
     setLoading(true);
     setServerMessage(null);
-    setDevResetLink(null);
 
     try {
       const result = await userApi.requestPasswordReset(data.login_email);
@@ -43,7 +41,6 @@ export default function ForgotPassword() {
       }
 
       setServerMessage(result.data.message);
-      setDevResetLink(result.data.reset_url ?? result.data.resetLink ?? null);
       toast.success("Demande de reinitialisation traitee");
     } catch {
       setServerMessage("Erreur lors de la demande de reinitialisation");
@@ -73,13 +70,6 @@ export default function ForgotPassword() {
         </FormField>
 
         {serverMessage && <SuccessMessage message={serverMessage} />}
-
-        {devResetLink && (
-          <p className="dev-reset-link">
-            Lien de reinitialisation de developpement:{" "}
-            <FormModalLink to={new URL(devResetLink).pathname}>ouvrir</FormModalLink>
-          </p>
-        )}
 
         <Button type="submit" loading={loading}>
           Envoyer le lien

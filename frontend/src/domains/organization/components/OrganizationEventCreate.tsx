@@ -108,7 +108,7 @@ export default function OrganizationDashboard() {
       image: form.image.trim(),
       price: Number(form.price.trim()),
       ticketing_link: form.ticketing_link.trim(),
-      source: "Evenement cree par une organisation",
+      source: "Evenement crée par une organisation",
       is_active: false,
     };
 

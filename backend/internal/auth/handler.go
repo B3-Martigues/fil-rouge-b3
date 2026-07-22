@@ -776,20 +776,16 @@ func (h Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	response := contracts.ForgotPasswordResponseDTO{OK: true, Message: message}
 	if exists {
 		resetPath := "/reset-password/" + token
+		resetURL := resetPath
 		if h.FrontendURL != "" {
 			if base, err := url.Parse(h.FrontendURL); err == nil {
 				base.Path = resetPath
 				base.RawQuery = ""
 				base.Fragment = ""
-				response.ResetURL = base.String()
-				response.ResetLink = response.ResetURL
+				resetURL = base.String()
 			}
 		}
-		if response.ResetURL == "" {
-			response.ResetURL = resetPath
-			response.ResetLink = resetPath
-		}
-		h.sendPasswordResetEmail(r.Context(), email, response.ResetURL)
+		h.sendPasswordResetEmail(r.Context(), email, resetURL)
 	}
 	httpx.WriteJSON(w, http.StatusOK, response)
 }
@@ -868,7 +864,7 @@ func (h Handler) sendWelcomeEmail(ctx context.Context, email string, name string
 		greeting,
 		"",
 		"Bienvenue sur Mappening.",
-		"Votre compte est maintenant cree.",
+		"Votre compte est maintenant crée.",
 	}
 	if organization {
 		lines = append(lines, "", "Votre espace organisation sera visible apres validation par l'equipe de moderation.")

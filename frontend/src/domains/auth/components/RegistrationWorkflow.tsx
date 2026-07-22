@@ -165,7 +165,7 @@ export default function RegistrationWorkflow() {
           setUserEventPreferences(result.data.user_id, preferencesResult.data);
         }
       }
-      toast.success("Compte cree avec succes");
+      toast.success("Compte crée avec succès");
       navigate(ROUTES.PUBLIC.HOME, { replace: true });
     } finally {
       setLoading(false);
@@ -596,7 +596,7 @@ export default function RegistrationWorkflow() {
               Precedent
             </Button>
             <Button loading={loading} type="submit">
-              Creer le compte
+              Créer le compte
             </Button>
           </ActionRow>
         </form>

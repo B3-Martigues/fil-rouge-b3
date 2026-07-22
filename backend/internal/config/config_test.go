@@ -7,7 +7,7 @@ import (
 )
 
 func TestLoad_DefaultValues(t *testing.T) {
-	clearEnv(t, "ADDR", "JWT_SECRET", "JWT_ISSUER", "JWT_TTL", "REFRESH_TTL", "COOKIE_SECURE", "CSRF_COOKIE_DOMAIN", "ENV", "FRONTEND_URL", "MAIL_MODE", "MAIL_FROM", "MAIL_FROM_NAME", "SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD", "MEDIA_UPLOAD_DIR", "PUBLIC_DOCS_ENABLED", "TARPIN_BIEN_USER_AGENT")
+	clearEnv(t, "ADDR", "JWT_SECRET", "JWT_ISSUER", "JWT_TTL", "REFRESH_TTL", "COOKIE_SECURE", "CSRF_COOKIE_DOMAIN", "ENV", "FRONTEND_URL", "MAIL_MODE", "MAIL_FROM", "MAIL_FROM_NAME", "SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD", "MEDIA_UPLOAD_DIR", "PUBLIC_DOCS_ENABLED", "TARPIN_BIEN_SCRAPER_ENABLED", "TARPIN_BIEN_USER_AGENT")
 
 	cfg := Load()
 
@@ -43,6 +43,9 @@ func TestLoad_DefaultValues(t *testing.T) {
 	}
 	if cfg.PublicDocsEnabled {
 		t.Fatalf("expected public docs to be disabled by default")
+	}
+	if cfg.TarpinBienScraperEnabled {
+		t.Fatalf("expected scraper to be disabled by default")
 	}
 	if cfg.TarpinBienUserAgent != "MappeningBot/1.0 (+https://mappening.fr)" {
 		t.Fatalf("expected production user agent, got %q", cfg.TarpinBienUserAgent)

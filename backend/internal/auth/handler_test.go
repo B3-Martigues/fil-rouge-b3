@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"mappening/internal/users"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,6 +14,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"mappening/internal/http/middleware"
+	"mappening/internal/mailer"
+	"mappening/internal/users"
 )
 
 type fakeAuthUserRepo struct {
@@ -31,6 +32,21 @@ func (f fakeAuthUserRepo) GetByEmail(_ context.Context, email string) (*users.Us
 type fakeOrganizationRegistrationRepo struct {
 	fakeAuthUserRepo
 	called bool
+}
+
+type fakePasswordResetService struct {
+	fakeAuthUserRepo
+	exists bool
+	token  string
+}
+
+func (f *fakePasswordResetService) CreatePasswordResetToken(_ context.Context, _ string, token string, _ time.Time) (bool, error) {
+	f.token = token
+	return f.exists, nil
+}
+
+func (f *fakePasswordResetService) ResetPasswordWithToken(_ context.Context, _ string, _ string) error {
+	return nil
 }
 
 func (f *fakeOrganizationRegistrationRepo) CreateOrganization(_ context.Context, _ users.OrganizationRegistration) (*users.User, int64, error) {
@@ -63,6 +79,61 @@ func makeTestAuthUser(t *testing.T) *users.User {
 		LastName:     "Mappening",
 		Role:         "admin",
 		IsActive:     true,
+	}
+}
+
+func TestAuthHandler_ForgotPassword_DoesNotExposeResetToken(t *testing.T) {
+	service := &fakePasswordResetService{exists: true}
+	messages := make(chan mailer.Message, 1)
+	h := Handler{
+		Env:         "production",
+		FrontendURL: "https://mappening.fr",
+		Service:     service,
+		Mailer: mailer.SenderFunc(func(_ context.Context, message mailer.Message) error {
+			messages <- message
+			return nil
+		}),
+	}
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/auth/password/forgot",
+		strings.NewReader(`{"login_email":"admin@mappening.fr"}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "https://mappening.fr")
+	rec := httptest.NewRecorder()
+
+	h.ForgotPassword(rec, req)
+	res := rec.Result()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", res.StatusCode)
+	}
+
+	var payload map[string]any
+	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode forgot-password payload: %v", err)
+	}
+	if _, ok := payload["reset_url"]; ok {
+		t.Fatalf("reset_url must never be exposed in the response")
+	}
+	if _, ok := payload["resetLink"]; ok {
+		t.Fatalf("resetLink must never be exposed in the response")
+	}
+	if service.token == "" {
+		t.Fatal("expected a reset token to be generated")
+	}
+
+	select {
+	case message := <-messages:
+		wantURL := "https://mappening.fr/reset-password/" + service.token
+		if !strings.Contains(message.Text, wantURL) {
+			t.Fatalf("expected reset email to contain %q, got %q", wantURL, message.Text)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for reset email")
 	}
 }
 

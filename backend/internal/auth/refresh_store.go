@@ -28,7 +28,7 @@ type RefreshStore struct {
 	data map[string]refreshStoreEntry
 }
 
-// Cree un stockage memoire simple pour les refresh tokens.
+// Crée un stockage memoire simple pour les refresh tokens.
 func NewRefreshStore() *RefreshStore {
 	return &RefreshStore{data: make(map[string]refreshStoreEntry)}
 }
@@ -112,7 +112,7 @@ type DBRefreshStore struct {
 	db *sql.DB
 }
 
-// Cree un stockage persistant des refresh tokens en base de donnees.
+// Crée un stockage persistant des refresh tokens en base de donnees.
 func NewDBRefreshStore(db *sql.DB) (*DBRefreshStore, error) {
 	if db == nil {
 		return nil, errors.New("db refresh store requires a database")

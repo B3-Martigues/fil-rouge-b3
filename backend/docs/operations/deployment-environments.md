@@ -73,7 +73,7 @@ go run ./cmd/migrate
 
 Flux recommande :
 
-1. Creer la base et les roles.
+1. Créer la base et les roles.
 2. Injecter les variables `MIGRATIONS_DB_*`.
 3. Lancer les migrations.
 4. Verifier que le schema est present.
@@ -147,4 +147,4 @@ JOIN roles ON roles.slug = 'admin';
 10. Base production dediee
 11. Sauvegardes configurees
 12. Migrations executees avant le demarrage de l'API
-13. Premier compte admin cree manuellement
+13. Premier compte admin crée manuellement

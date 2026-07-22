@@ -757,7 +757,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
 
       setIsCreatingUser(false);
       setUserDraft(null);
-      toast.success("Compte cree");
+      toast.success("Compte crée");
       return true;
     }
 
@@ -1077,7 +1077,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         }
 
         addEvent(result.data);
-        toast.success("Evenement cree");
+        toast.success("Evenement crée");
         setEditingEventId(null);
         setIsCreatingEvent(false);
         setEventDraft(null);
@@ -1612,7 +1612,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
               mode="admin"
               role={accountCreateRole}
               title={`Ajouter un compte ${accountLoginCreateLabels[accountCreateRole]}`}
-              submitLabel={`Creer le compte ${accountLoginCreateLabels[accountCreateRole]}`}
+              submitLabel={`Créer le compte ${accountLoginCreateLabels[accountCreateRole]}`}
               onCancel={closeUserForm}
               onSuccess={() => {
                 closeUserForm();

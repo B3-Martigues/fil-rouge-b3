@@ -43,7 +43,7 @@ powershell -File scripts/generate-jwt-secret.ps1
 
 Procedure :
 
-1. Creer un nouveau mot de passe pour le role cible.
+1. Créer un nouveau mot de passe pour le role cible.
 2. Mettre a jour les secrets de la plateforme.
 3. Redemarrer les composants qui utilisent ce secret.
 4. Verifier la connexion applicative.

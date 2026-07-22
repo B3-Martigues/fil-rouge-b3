@@ -51,7 +51,7 @@ verrouillage des admins actifs.
 
 ## Donnees conservees
 
-La migration initiale cree :
+La migration initiale crée :
 
 - `users`
 - `auth_refresh_tokens`

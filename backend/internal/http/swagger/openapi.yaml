@@ -92,20 +92,20 @@ paths:
     post:
       tags: [Auth]
       security: []
-      summary: Cree un compte utilisateur.
+      summary: Crée un compte utilisateur.
       responses:
         "201":
-          description: Compte utilisateur cree.
+          description: Compte utilisateur crée.
         "400":
           $ref: "#/components/responses/BadRequest"
   /api/auth/register/organization:
     post:
       tags: [Auth]
       security: []
-      summary: Cree un compte organisation.
+      summary: Crée un compte organisation.
       responses:
         "201":
-          description: Compte organisation cree.
+          description: Compte organisation crée.
         "400":
           $ref: "#/components/responses/BadRequest"
   /api/auth/password/forgot:
@@ -234,10 +234,10 @@ paths:
           description: Liste d'evenements.
     post:
       tags: [Events]
-      summary: Cree un evenement.
+      summary: Crée un evenement.
       responses:
         "201":
-          description: Evenement cree.
+          description: Evenement crée.
   /api/events/upcoming:
     get:
       tags: [Events]
@@ -442,7 +442,7 @@ paths:
           description: Organisations.
     post:
       tags: [Organizations]
-      summary: Cree une organisation.
+      summary: Crée une organisation.
       responses:
         "201":
           description: Organisation creee.
@@ -616,7 +616,7 @@ paths:
                   format: binary
       responses:
         "201":
-          description: Media cree.
+          description: Media crée.
   /api/media/{mediaID}:
     delete:
       tags: [Media]
@@ -735,10 +735,10 @@ paths:
   /api/moderation/reports:
     post:
       tags: [Staff]
-      summary: Cree un signalement.
+      summary: Crée un signalement.
       responses:
         "201":
-          description: Signalement cree.
+          description: Signalement crée.
   /api/admin/users:
     get:
       tags: [Admin]
@@ -748,10 +748,10 @@ paths:
           description: Utilisateurs.
     post:
       tags: [Admin]
-      summary: Cree un utilisateur.
+      summary: Crée un utilisateur.
       responses:
         "201":
-          description: Utilisateur cree.
+          description: Utilisateur crée.
   /api/admin/users/{userID}:
     patch:
       tags: [Admin]

@@ -55,7 +55,7 @@ func (h AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, resp)
 }
 
-// Cree un nouvel utilisateur avec mot de passe hashé.
+// Crée un nouvel utilisateur avec mot de passe hashé.
 func (h AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if h.Service == nil {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "user service not configured")

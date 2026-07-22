@@ -109,7 +109,7 @@ export default function LoginForm() {
       </Button>
 
       <div className="auth-login-form__links">
-        <Link to={ROUTES.PUBLIC.REGISTER}>Creer un compte</Link>
+        <Link to={ROUTES.PUBLIC.REGISTER}>Créer un compte</Link>
         <FormModalLink to={ROUTES.PUBLIC.FORGOT_PASSWORD}>
           Mot de passe oublie ?
         </FormModalLink>

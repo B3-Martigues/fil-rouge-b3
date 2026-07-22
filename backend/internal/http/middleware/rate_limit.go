@@ -51,12 +51,12 @@ type RateLimiter struct {
 	trustedProxyRanges []netip.Prefix
 }
 
-// Cree un rate limiter memoire avec cle par defaut basee sur IP + route.
+// Crée un rate limiter memoire avec cle par defaut basee sur IP + route.
 func NewRateLimiter(limit int, window time.Duration, trustedProxyCIDRs ...string) *RateLimiter {
 	return NewRateLimiterWithKeyBuilder(limit, window, nil, trustedProxyCIDRs...)
 }
 
-// Cree un rate limiter memoire avec strategie de cle personnalisable.
+// Crée un rate limiter memoire avec strategie de cle personnalisable.
 func NewRateLimiterWithKeyBuilder(limit int, window time.Duration, buildKey rateLimitKeyBuilder, trustedProxyCIDRs ...string) *RateLimiter {
 	if buildKey == nil {
 		buildKey = defaultRateLimitKey
@@ -73,7 +73,7 @@ func NewRateLimiterWithKeyBuilder(limit int, window time.Duration, buildKey rate
 	}
 }
 
-// Cree un rate limiter persistant en base si possible, sinon retombe sur la memoire.
+// Crée un rate limiter persistant en base si possible, sinon retombe sur la memoire.
 func NewDBRateLimiter(db *sql.DB, limit int, window time.Duration, trustedProxyCIDRs ...string) *RateLimiter {
 	return NewDBRateLimiterWithKeyBuilder(db, limit, window, nil, trustedProxyCIDRs...)
 }
