@@ -273,6 +273,20 @@ export default function EventMap({
   const [eventDeduplicationReferenceTime] = useState(() => Date.now());
   const hasAnnouncedReady = useRef(false);
   const hasFittedInitialLocation = useRef(false);
+  const hasUserPosition = userPosition !== null;
+  const progressiveEventCollectionKey = useMemo(
+    () =>
+      events
+        .map(
+          (event) =>
+            `${event.id}:${event.latitude ?? ""}:${event.longitude ?? ""}`,
+        )
+        .join("|"),
+    [events],
+  );
+  const userPositionKey = userPosition
+    ? `${userPosition.latitude}:${userPosition.longitude}`
+    : "";
   const mappableEvents = useMemo(
     () => {
       const eventsWithCoordinates = events.filter(hasEventCoordinates);
@@ -367,7 +381,7 @@ export default function EventMap({
   }, [isUserLocationReady, userPosition]);
 
   useEffect(() => {
-    const initialVisibleCount = userPosition
+    const initialVisibleCount = hasUserPosition
       ? Math.min(PROGRESSIVE_EVENT_BATCH_SIZE, mappableEvents.length)
       : mappableEvents.length;
     const resetTimer = window.setTimeout(() => {
@@ -375,7 +389,10 @@ export default function EventMap({
     }, 0);
     let timeoutId: number | undefined;
 
-    if (!userPosition || mappableEvents.length <= PROGRESSIVE_EVENT_BATCH_SIZE) {
+    if (
+      !hasUserPosition ||
+      mappableEvents.length <= PROGRESSIVE_EVENT_BATCH_SIZE
+    ) {
       return () => {
         window.clearTimeout(resetTimer);
       };
@@ -410,7 +427,12 @@ export default function EventMap({
         window.clearTimeout(timeoutId);
       }
     };
-  }, [mappableEvents, userPosition]);
+  }, [
+    hasUserPosition,
+    mappableEvents.length,
+    progressiveEventCollectionKey,
+    userPositionKey,
+  ]);
 
   const hasCompletedInitialLocationFit =
     isUserLocationReady && (!userPosition || hasCompletedUserLocationFit);
